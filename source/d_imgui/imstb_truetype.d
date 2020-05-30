@@ -429,6 +429,9 @@ int main(int arg, char **argv)
 ////   of C library functions used by stb_truetype, e.g. if you don't
 ////   link with the C runtime library.
 
+import d_imgui.imgui_draw : STBTT_ifloor, STBTT_iceil, STBTT_sqrt, STBTT_pow, STBTT_fmod, STBTT_cos, STBTT_acos, STBTT_fabs, STBTT_malloc, STBTT_free, STBTT_assert, STBTT_strlen, STBTT_memcpy, STBTT_memset;
+
+/+
 // #ifdef STB_TRUETYPE_IMPLEMENTATION
    // #define your own (u)stbtt_int8/16/32 before including to override this
    // #ifndef stbtt_uint8
@@ -444,7 +447,6 @@ int main(int arg, char **argv)
    alias stbtt__check_size16 = char[(stbtt_int16).sizeof==2 ? 1 : -1];
 
    // e.g. #define your own STBTT_ifloor/STBTT_iceil() to avoid math.h
-   import math; // TODO XXX imgui overrides theese
    pragma(inline, true) int STBTT_ifloor(float f) {
       return cast(int)floor(f);
    }
@@ -481,6 +483,7 @@ int main(int arg, char **argv)
    alias STBTT_memcpy = memcpy;
    alias STBTT_memset = memset;
 // #endif
++/
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1334,7 +1337,9 @@ private int stbtt_GetNumberOfFonts_internal(ubyte *font_collection)
 
 private stbtt__buf stbtt__get_subrs(stbtt__buf cff, stbtt__buf fontdict)
 {
-   stbtt_uint32 subrsoff = 0, private_loc[2] = { 0, 0 };
+   stbtt_uint32 subrsoff = 0;
+   stbtt_uint32[2] private_loc = [ 0, 0 ];
+
    stbtt__buf pdict;
    stbtt__dict_get_ints(&fontdict, 18, 2, private_loc);
    if (!private_loc[1] || !private_loc[0]) return stbtt__new_buf(NULL, 0);
@@ -1508,7 +1513,7 @@ int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codepoint)
 
       {
          stbtt_uint16 offset, start;
-         stbtt_uint16 item = (stbtt_uint16) ((search - endCount) >> 1);
+         stbtt_uint16 item = cast(stbtt_uint16) ((search - endCount) >> 1);
 
          STBTT_assert(unicode_codepoint <= ttUSHORT(data + endCount + 2*item));
          start = ttUSHORT(data + index_map + 14 + segcount*2 + 2 + 2*item);
@@ -1517,7 +1522,7 @@ int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codepoint)
 
          offset = ttUSHORT(data + index_map + 14 + segcount*6 + 2 + 2*item);
          if (offset == 0)
-            return (stbtt_uint16) (unicode_codepoint + ttSHORT(data + index_map + 14 + segcount*4 + 2 + 2*item));
+            return cast(stbtt_uint16) (unicode_codepoint + ttSHORT(data + index_map + 14 + segcount*4 + 2 + 2*item));
 
          return ttUSHORT(data + offset + (unicode_codepoint-start)*2 + index_map + 14 + segcount*6 + 2 + 2*item);
       }
@@ -1695,7 +1700,7 @@ private int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, 
             x += (flags & 16) ? dx : -dx; // ???
          } else {
             if (!(flags & 16)) {
-               x = x + (stbtt_int16) (points[0]*256 + points[1]);
+               x = x + cast(stbtt_int16) (points[0]*256 + points[1]);
                points += 2;
             }
          }
@@ -1711,7 +1716,7 @@ private int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, 
             y += (flags & 32) ? dy : -dy; // ???
          } else {
             if (!(flags & 32)) {
-               y = y + (stbtt_int16) (points[0]*256 + points[1]);
+               y = y + cast(stbtt_int16) (points[0]*256 + points[1]);
                points += 2;
             }
          }
@@ -1781,8 +1786,9 @@ private int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, 
       while (more) {
          stbtt_uint16 flags, gidx;
          int comp_num_verts = 0, i;
-         stbtt_vertex *comp_verts = 0, *tmp = 0;
-         float mtx[6] = {1,0,0,1,0,0}, m, n;
+         stbtt_vertex *comp_verts = 0, tmp = 0;
+         float[6] mtx = [1,0,0,1,0,0];
+         float m, n;
          
          flags = ttSHORT(comp); comp+=2;
          gidx = ttSHORT(comp); comp+=2;
@@ -1826,11 +1832,11 @@ private int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, 
                stbtt_vertex* v = &comp_verts[i];
                stbtt_vertex_type x,y;
                x=v.x; y=v.y;
-               v.x = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
-               v.y = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
+               v.x = cast(stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
+               v.y = cast(stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
                x=v.cx; y=v.cy;
-               v.cx = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
-               v.cy = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
+               v.cx = cast(stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
+               v.cy = cast(stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
             }
             // Append vertices.
             tmp = cast(stbtt_vertex*)STBTT_malloc((num_vertices+comp_num_verts)*sizeof(stbtt_vertex), info.userdata);
@@ -1980,8 +1986,9 @@ private int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, s
 {
    int in_header = 1, maskbits = 0, subr_stack_height = 0, sp = 0, v, i, b0;
    int has_subrs = 0, clear_stack;
-   float s[48];
-   stbtt__buf subr_stack[10], subrs = info.subrs, b;
+   float[48] s;
+   stbtt__buf[10] subr_stack;
+   stbtt__buf subrs = info.subrs, b;
    float f;
 
 	pragma(inline, true) int STBTT__CSERR(string s) {
@@ -2807,15 +2814,15 @@ private void stbtt__fill_active_edges(ubyte *scanline, int len, stbtt__active_ed
             if (i < len && j >= 0) {
                if (i == j) {
                   // x0,x1 are the same pixel, so compute combined coverage
-                  scanline[i] = scanline[i] + (stbtt_uint8) ((x1 - x0) * max_weight >> STBTT_FIXSHIFT);
+                  scanline[i] = scanline[i] + cast(stbtt_uint8) ((x1 - x0) * max_weight >> STBTT_FIXSHIFT);
                } else {
                   if (i >= 0) // add antialiasing for x0
-                     scanline[i] = scanline[i] + (stbtt_uint8) (((STBTT_FIX - (x0 & STBTT_FIXMASK)) * max_weight) >> STBTT_FIXSHIFT);
+                     scanline[i] = scanline[i] + cast(stbtt_uint8) (((STBTT_FIX - (x0 & STBTT_FIXMASK)) * max_weight) >> STBTT_FIXSHIFT);
                   else
                      i = -1; // clip
 
                   if (j < len) // add antialiasing for x1
-                     scanline[j] = scanline[j] + (stbtt_uint8) (((x1 & STBTT_FIXMASK) * max_weight) >> STBTT_FIXSHIFT);
+                     scanline[j] = scanline[j] + cast(stbtt_uint8) (((x1 & STBTT_FIXMASK) * max_weight) >> STBTT_FIXSHIFT);
                   else
                      j = len; // clip
 
@@ -4015,8 +4022,8 @@ int stbtt_PackFontRangesGatherRects(stbtt_pack_context *spc, const stbtt_fontinf
                                             scale * spc.v_oversample,
                                             0,0,
                                             &x0,&y0,&x1,&y1);
-            rects[k].w = (stbrp_coord) (x1-x0 + spc.padding + spc.h_oversample-1);
-            rects[k].h = (stbrp_coord) (y1-y0 + spc.padding + spc.v_oversample-1);
+            rects[k].w = cast(stbrp_coord) (x1-x0 + spc.padding + spc.h_oversample-1);
+            rects[k].h = cast(stbrp_coord) (y1-y0 + spc.padding + spc.v_oversample-1);
          }
          ++k;
       }
@@ -4232,7 +4239,7 @@ void stbtt_GetPackedQuad(const stbtt_packedchar *chardata, int pw, int ph, int c
 pragma(inline, true) T STBTT_min(T)(T a,T b)  { return ((a) < (b) ? (a) : (b));}
 pragma(inline, true) T STBTT_max(T)(T a,T b)  { return ((a) < (b) ? (b) : (a));}
 
-private int stbtt__ray_intersect_bezier(float orig[2], float ray[2], float q0[2], float q1[2], float q2[2], float hits[2][2])
+private int stbtt__ray_intersect_bezier(float[2] orig, float[2] ray, float[2] q0, float[2] q1, float[2] q2, float[2][2] hits)
 {
    float q0perp = q0[1]*ray[0] - q0[0]*ray[1];
    float q1perp = q1[1]*ray[0] - q1[0]*ray[1];
@@ -4304,7 +4311,8 @@ private int equal(float *a, float *b)
 private int stbtt__compute_crossings_x(float x, float y, int nverts, stbtt_vertex *verts)
 {
    int i;
-   float orig[2], ray[2] = { 1, 0 };
+   float[2] orig;
+   float[2] ray = { 1, 0 };
    float y_frac;
    int winding = 0;
 
@@ -4337,8 +4345,8 @@ private int stbtt__compute_crossings_x(float x, float y, int nverts, stbtt_verte
          int ax = STBTT_min(x0,STBTT_min(x1,x2)), ay = STBTT_min(y0,STBTT_min(y1,y2));
          int by = STBTT_max(y0,STBTT_max(y1,y2));
          if (y > ay && y < by && x > ax) {
-            float q0[2],q1[2],q2[2];
-            float hits[2][2];
+            float[2] q0,q1,q2;
+            float[2][2] hits;
             q0[0] = cast(float)x0;
             q0[1] = cast(float)y0;
             q1[0] = cast(float)x1;
@@ -4526,7 +4534,8 @@ ubyte * stbtt_GetGlyphSDF(const stbtt_fontinfo *info, float scale, int glyph, in
                      float ax = x1-x0, ay = y1-y0;
                      float bx = x0 - 2*x1 + x2, by = y0 - 2*y1 + y2;
                      float mx = x0 - sx, my = y0 - sy;
-                     float res[3],px,py,t,it;
+                     float[3] res;
+                     float px,py,t,it;
                      float a_inv = precompute[i];
                      if (a_inv == 0.0) { // if a_inv is 0, it's 2nd degree so use quadratic formula
                         float a = 3*(ax*bx + ay*by);

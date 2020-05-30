@@ -280,6 +280,8 @@ module dimgui.imstb_textedit;
 nothrow:
 @nogc:
 
+import d_imgui.imgui_internal : STB_TEXTEDIT_STRING, STB_TEXTEDIT_CHARTYPE, STB_TEXTEDIT_GETWIDTH_NEWLINE, STB_TEXTEDIT_UNDOSTATECOUNT, STB_TEXTEDIT_UNDOCHARCOUNT, STB_TEXTEDIT_memmove;
+
 ////////////////////////////////////////////////////////////////////////
 //
 //     STB_TexteditState
@@ -289,9 +291,9 @@ nothrow:
 // and undo state.
 //
 
-enum STB_TEXTEDIT_UNDOSTATECOUNT  = 99;
-enum STB_TEXTEDIT_UNDOCHARCOUNT   = 999;
-alias STB_TEXTEDIT_CHARTYPE      = int;
+//enum STB_TEXTEDIT_UNDOSTATECOUNT  = 99;
+//enum STB_TEXTEDIT_UNDOCHARCOUNT   = 999;
+//alias STB_TEXTEDIT_CHARTYPE      = int;
 alias STB_TEXTEDIT_POSITIONTYPE   = int;
 
 struct StbUndoRecord
@@ -377,7 +379,7 @@ struct StbTexteditRow
 // included just the "header" portion
 // #ifdef STB_TEXTEDIT_IMPLEMENTATION
 
-alias STB_TEXTEDIT_memmove = memmove;
+//alias STB_TEXTEDIT_memmove = memmove;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1098,13 +1100,13 @@ private void stb_textedit_discard_undo(StbUndoState *state)
          int n = state.undo_rec[0].insert_length, i;
          // delete n characters from all other records
          state.undo_char_point -= n;
-         STB_TEXTEDIT_memmove(state.undo_char, state.undo_char + n, (size_t) (state.undo_char_point*sizeof(STB_TEXTEDIT_CHARTYPE)));
+         STB_TEXTEDIT_memmove(state.undo_char, state.undo_char + n, cast(size_t) (state.undo_char_point*(STB_TEXTEDIT_CHARTYPE).sizeof));
          for (i=0; i < state.undo_point; ++i)
             if (state.undo_rec[i].char_storage >= 0)
                state.undo_rec[i].char_storage -= n; // @OPTIMIZE: get rid of char_storage and infer it
       }
       --state.undo_point;
-      STB_TEXTEDIT_memmove(state.undo_rec, state.undo_rec+1, (size_t) (state.undo_point*sizeof(state.undo_rec[0])));
+      STB_TEXTEDIT_memmove(state.undo_rec, state.undo_rec+1, cast(size_t) (state.undo_point*(state.undo_rec[0]).sizeof));
    }
 }
 
@@ -1122,7 +1124,7 @@ private void stb_textedit_discard_redo(StbUndoState *state)
          int n = state.undo_rec[k].insert_length, i;
          // move the remaining redo character data to the end of the buffer
          state.redo_char_point += n;
-         STB_TEXTEDIT_memmove(state.undo_char + state.redo_char_point, state.undo_char + state.redo_char_point-n, (size_t) ((STB_TEXTEDIT_UNDOCHARCOUNT - state.redo_char_point)*sizeof(STB_TEXTEDIT_CHARTYPE)));
+         STB_TEXTEDIT_memmove(state.undo_char + state.redo_char_point, state.undo_char + state.redo_char_point-n, cast(size_t) ((STB_TEXTEDIT_UNDOCHARCOUNT - state.redo_char_point)*(STB_TEXTEDIT_CHARTYPE).sizeof));
          // adjust the position of all the other records to account for above memmove
          for (i=state.redo_point; i < k; ++i)
             if (state.undo_rec[i].char_storage >= 0)
@@ -1130,7 +1132,7 @@ private void stb_textedit_discard_redo(StbUndoState *state)
       }
       // now move all the redo records towards the end of the buffer; the first one is at 'redo_point'
       // {DEAR IMGUI]
-      size_t move_size = (size_t)((STB_TEXTEDIT_UNDOSTATECOUNT - state.redo_point - 1) * sizeof(state.undo_rec[0]));
+      size_t move_size = cast(size_t)((STB_TEXTEDIT_UNDOSTATECOUNT - state.redo_point - 1) * (state.undo_rec[0]).sizeof);
       const char* buf_begin = cast(char*)state.undo_rec; cast(void)buf_begin;
       const char* buf_end   = cast(char*)state.undo_rec + sizeof(state.undo_rec); cast(void)buf_end;
       IM_ASSERT((cast(char*)(state.undo_rec + state.redo_point)) >= buf_begin);

@@ -1,0 +1,28 @@
+{
+	"authors": [
+		"Omar Cornut",
+		"The Dear Imgui Team",
+		"KytoDragon"
+	],
+	"description": "Port of Dear Imgui: Bloat-free Immediate Mode Graphical User interface with minimal dependencies",
+	"homepage": "https://github.com/KytoDragon/imgui/",
+	"importPaths": [
+		"source/"
+	],
+	"license": "MIT",
+	"name": "d_imgui",
+	"sourcePaths": [
+		"source/"
+	],
+	"targetPath": "sourceLibrary",
+    "version": "1.76",
+    
+    "excludedSourceFiles": [
+        "source/d_imgui/imgui_demo.d",
+        "source/d_imgui/imgui_draw.d",
+        "source/d_imgui/imgui_h.d",
+        "source/d_imgui/imgui_internal.d",
+        "source/d_imgui/imgui_widgets.d",
+        "source/d_imgui/imgui.d"
+    ]
+}
