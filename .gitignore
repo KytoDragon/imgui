@@ -50,3 +50,6 @@ examples/example_sdl_opengl3/example_sdl_opengl3
 
 ## Dub build directory
 /.dub
+
+## VS Code settings
+/.vscode
