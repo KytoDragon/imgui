@@ -1,4 +1,4 @@
-module dimgui.imstb_rectpack;
+module d_imgui.imstb_rectpack;
 // [DEAR IMGUI]
 // This is a slightly modified version of stb_rect_pack.h 1.00.
 // Those changes would need to be pushed into nothings/stb:

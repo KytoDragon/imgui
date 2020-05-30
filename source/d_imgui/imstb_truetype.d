@@ -1,4 +1,4 @@
-module dimgui.imstb_truetype;
+module d_imgui.imstb_truetype;
 // [DEAR IMGUI]
 // This is a slightly modified version of stb_truetype.h 1.20.
 // Mostly fixing for compiler and static analyzer warnings.
@@ -504,6 +504,9 @@ import d_imgui.imgui_draw : STBTT_ifloor, STBTT_iceil, STBTT_sqrt, STBTT_pow, ST
 // #ifdef __cplusplus
 // extern "C" {
 // #endif
+
+nothrow:
+@nogc:
 
 // private structure
 struct stbtt__buf

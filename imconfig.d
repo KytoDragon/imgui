@@ -1,4 +1,4 @@
-module dimgui.imconfig;
+module d_imgui.imconfig;
 //-----------------------------------------------------------------------------
 // COMPILE-TIME OPTIONS FOR DEAR IMGUI
 // Runtime options (clipboard callbacks, enabling various features, etc.) can generally be set via the ImGuiIO structure.
@@ -16,22 +16,23 @@ module dimgui.imconfig;
 
 //---- Define assertion handler. Defaults to calling assert().
 // If your macro uses multiple statements, make sure is enclosed in a 'do { .. } while (0)' block so it can be used as a single statement.
-// version DIMGUI_USER_DEFINED_ASSERT
+// version D_IMGUI_USER_DEFINED_ASSERT
 //alias MyAssert = IM_ASSERT
 //pragma(inline, true) void IM_ASSERT(bool _EXPR) {(cast(void)(_EXPR));}     // Disable asserts
 
 //---- Define attributes of all API symbols declarations, e.g. for DLL under Windows
 // Using dear imgui via a shared library is not recommended, because of function call overhead and because we don't guarantee backward nor forward ABI compatibility.
-// DIMGUI: not supported
+// D_IMGUI: Not supported
 //#define IMGUI_API __declspec( dllexport )
 //#define IMGUI_API __declspec( dllimport )
 
 //---- Don't define obsolete functions/enums/behaviors. Consider enabling from time to time after updating to avoid using soon-to-be obsolete function/names.
+// D_IMGUI: Not all obsolet functions are implemented. Please use their replacment instead.
 //version = IMGUI_DISABLE_OBSOLETE_FUNCTIONS;
 
 //---- Disable all of Dear ImGui or don't implement standard windows.
 // It is very strongly recommended to NOT disable the demo windows during development. Please read comments in imgui_demo.cpp.
-// DIMGUI: not supported
+// D_IMGUI: Not supported
 //#define IMGUI_DISABLE                                     // Disable everything: all headers and source files will be empty.
 //#define IMGUI_DISABLE_DEMO_WINDOWS                        // Disable demo windows: ShowDemoWindow()/ShowStyleEditor() will be empty. Not recommended.
 //#define IMGUI_DISABLE_METRICS_WINDOW                      // Disable debug/metrics window: ShowMetricsWindow() will be empty.
@@ -47,7 +48,7 @@ module dimgui.imconfig;
 //version = IMGUI_DISABLE_DEFAULT_ALLOCATORS;                  // Don't implement default allocators calling malloc()/free() to avoid linking with them. You will need to call ImGui::SetAllocatorFunctions().
 
 //---- Include imgui_user.h at the end of imgui.h as a convenience
-// DIMGUI: not supported/necessary. Add your own module in package.d.
+// D_IMGUI: Not supported/necessary. Add your own module in package.d.
 //#define IMGUI_INCLUDE_IMGUI_USER_H
 
 //---- Pack colors to BGRA8 instead of RGBA8 (to avoid converting from one to another)
@@ -58,7 +59,7 @@ module dimgui.imconfig;
 
 //---- Avoid multiple STB libraries implementations, or redefine path/filenames to prioritize another version
 // By default the embedded implementations are declared static and not available outside of imgui cpp files.
-// DIMGUI: not supported/necessary. D-Imgui will always use its own truetype/reckpack implemantation.
+// D_IMGUI: Not supported/necessary. D-Imgui will always use its own truetype/reckpack implemantation.
 //#define IMGUI_STB_TRUETYPE_FILENAME   "my_folder/stb_truetype.h"
 //#define IMGUI_STB_RECT_PACK_FILENAME  "my_folder/stb_rect_pack.h"
 //#define IMGUI_DISABLE_STB_TRUETYPE_IMPLEMENTATION
@@ -71,7 +72,7 @@ module dimgui.imconfig;
 
 //---- Define constructor and implicit cast operators to convert back<>forth between your math types and ImVec2/ImVec4.
 // This will be inlined as part of ImVec2 and ImVec4 class declarations.
-// DIMGUI: not supported.
+// D_IMGUI: Not supported.
 /*
 #define IM_VEC2_CLASS_EXTRA                                                 \
         ImVec2(const MyVec2& f) { x = f.x; y = f.y; }                       \
@@ -86,18 +87,18 @@ module dimgui.imconfig;
 // Your renderer back-end will need to support it (most example renderer back-ends support both 16/32-bit indices).
 // Another way to allow large meshes while keeping 16-bit indices is to handle ImDrawCmd::VtxOffset in your renderer.
 // Read about ImGuiBackendFlags_RendererHasVtxOffset for details.
-// version DIMGUI_USER_DEFINED_DRAW_IDX
+// version D_IMGUI_USER_DEFINED_DRAW_IDX
 //alias ImDrawIdx = uint;
 
 //---- Override ImDrawCallback signature (will need to modify renderer back-ends accordingly)
-// version DIMGUI_USER_DEFINED_DRAW_CALLBACK
-//import dimgui.imgui_h.d : ImDrawList, ImDrawCmd;
+// version D_IMGUI_USER_DEFINED_DRAW_CALLBACK
+//import d_imgui.imgui_h.d : ImDrawList, ImDrawCmd;
 // alias MyImDrawCallback = void function(const ImDrawList* draw_list, const ImDrawCmd* cmd, void* my_renderer_user_data);
 // alias ImDrawCallback = MyImDrawCallback;
 
 //---- Debug Tools: Macro to break in Debugger
 // (use 'Metrics->Tools->Item Picker' to pick widgets with the mouse and break into them for easy debugging.)
-// version DIMGUI_USER_DEFINED_DEBUG_BREAK;
+// version D_IMGUI_USER_DEFINED_DEBUG_BREAK;
 //pragma(inline, true) void IM_DEBUG_BREAK() {IM_ASSERT(false);}
 //alias IM_DEBUG_BREAK = __debugbreak;
 
@@ -110,7 +111,7 @@ module dimgui.imconfig;
 //version = IMGUI_DEBUG_PARANOID;
 
 //---- Tip: You can add extra functions within the ImGui:: namespace, here or in your own headers files.
-// DIMGUI: not supported/necessary. Add your own module in package.d.
+// D_IMGUI: Not supported/necessary. Add your own module in package.d.
 /*
 namespace ImGui
 {
@@ -119,9 +120,14 @@ namespace ImGui
 */
 
 //-----------------------------------------------------------------------------
-// DIMGUI: Additional compile time options
+// D_IMGUI: Additional compile time options
 //-----------------------------------------------------------------------------
 
 //---- Don't use \r\n on windows
-// version DIMGUI_NORMAL_NEWLINE_ON_WINDOWS
+// version D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS
 
+//---- Don't import str*, mem* and va_* methods from the c standard library
+// version D_IMGUI_DISABLE_C_STD_LIB
+
+// ---- Define your own backend texture id
+alias ImTextureID = int;

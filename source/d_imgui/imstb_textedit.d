@@ -1,4 +1,4 @@
-module dimgui.imstb_textedit;
+module d_imgui.imstb_textedit;
 // [DEAR IMGUI]
 // This is a slightly modified version of stb_textedit.h 1.13. 
 // Those changes would need to be pushed into nothings/stb:
@@ -277,10 +277,10 @@ module dimgui.imstb_textedit;
 // #ifndef INCLUDE_STB_TEXTEDIT_H
 // #define INCLUDE_STB_TEXTEDIT_H
 
+import d_imgui.imgui_internal : STB_TEXTEDIT_STRING, STB_TEXTEDIT_CHARTYPE, STB_TEXTEDIT_GETWIDTH_NEWLINE, STB_TEXTEDIT_UNDOSTATECOUNT, STB_TEXTEDIT_UNDOCHARCOUNT, STB_TEXTEDIT_memmove;
+
 nothrow:
 @nogc:
-
-import d_imgui.imgui_internal : STB_TEXTEDIT_STRING, STB_TEXTEDIT_CHARTYPE, STB_TEXTEDIT_GETWIDTH_NEWLINE, STB_TEXTEDIT_UNDOSTATECOUNT, STB_TEXTEDIT_UNDOCHARCOUNT, STB_TEXTEDIT_memmove;
 
 ////////////////////////////////////////////////////////////////////////
 //

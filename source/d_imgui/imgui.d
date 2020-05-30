@@ -1000,7 +1000,9 @@ static void*    GImAllocatorUserData = NULL;
 // [SECTION] USER FACING STRUCTURES (ImGuiStyle, ImGuiIO)
 //-----------------------------------------------------------------------------
 
-ImGuiStyle::ImGuiStyle()
+// D_IMGUI: Moved to the struct definition of ImGuiStyle.
+/+
+ImGuiStyle.this()
 {
     Alpha                   = 1.0f;             // Global alpha applies to everything in ImGui
     WindowPadding           = ImVec2(8,8);      // Padding within a window
@@ -1008,7 +1010,7 @@ ImGuiStyle::ImGuiStyle()
     WindowBorderSize        = 1.0f;             // Thickness of border around windows. Generally set to 0.0f or 1.0f. Other values not well tested.
     WindowMinSize           = ImVec2(32,32);    // Minimum window size
     WindowTitleAlign        = ImVec2(0.0f,0.5f);// Alignment for title bar text
-    WindowMenuButtonPosition= ImGuiDir_Left;    // Position of the collapsing/docking button in the title bar (left/right). Defaults to ImGuiDir_Left.
+    WindowMenuButtonPosition= ImGuiDir.Left;    // Position of the collapsing/docking button in the title bar (left/right). Defaults to ImGuiDir.Left.
     ChildRounding           = 0.0f;             // Radius of child window corners rounding. Set to 0.0f to have rectangular child windows
     ChildBorderSize         = 1.0f;             // Thickness of border around child windows. Generally set to 0.0f or 1.0f. Other values not well tested.
     PopupRounding           = 0.0f;             // Radius of popup window corners rounding. Set to 0.0f to have rectangular child windows
@@ -1027,10 +1029,11 @@ ImGuiStyle::ImGuiStyle()
     GrabRounding            = 0.0f;             // Radius of grabs corners rounding. Set to 0.0f to have rectangular slider grabs.
     TabRounding             = 4.0f;             // Radius of upper corners of a tab. Set to 0.0f to have rectangular tabs.
     TabBorderSize           = 0.0f;             // Thickness of border around tabs.
-    ColorButtonPosition     = ImGuiDir_Right;   // Side of the color button in the ColorEdit4 widget (left/right). Defaults to ImGuiDir_Right.
+    ColorButtonPosition     = ImGuiDir.Right;   // Side of the color button in the ColorEdit4 widget (left/right). Defaults to ImGuiDir.Right.
     ButtonTextAlign         = ImVec2(0.5f,0.5f);// Alignment of button text when button is larger than text.
     SelectableTextAlign     = ImVec2(0.0f,0.0f);// Alignment of selectable text. Defaults to (0.0f, 0.0f) (top-left aligned). It's generally important to keep this left-aligned if you want to lay multiple items on a same line.
     DisplayWindowPadding    = ImVec2(19,19);    // Window position are clamped to be visible within the display area or monitors by at least this amount. Only applies to regular windows.
+    DisplayWindowPadding    = ImVec2(20,20);    // Window position are clamped to be visible within the display area by at least this amount. Only applies to regular windows.
     DisplaySafeAreaPadding  = ImVec2(3,3);      // If you cannot see the edge of your screen (e.g. on a TV) increase the safe area padding. Covers popups/tooltips as well regular windows.
     MouseCursorScale        = 1.0f;             // Scale software rendered mouse cursor (when io.MouseDrawCursor is enabled). May be removed later.
     AntiAliasedLines        = true;             // Enable anti-aliasing on lines/borders. Disable if you are really short on CPU/GPU.
@@ -1039,12 +1042,12 @@ ImGuiStyle::ImGuiStyle()
     CircleSegmentMaxError   = 1.60f;            // Maximum error (in pixels) allowed when using AddCircle()/AddCircleFilled() or drawing rounded corner rectangles with no explicit segment count specified. Decrease for higher quality but more geometry.
 
     // Default theme
-    ImGui::StyleColorsDark(this);
+    StyleColorsDark(&this);
 }
 
 // To scale your entire UI (e.g. if you want your app to use High DPI or generally be DPI aware) you may use this helper function. Scaling the fonts is done separately and is up to you.
 // Important: This operation is lossy because we round all sizes to integer. If you need to change your scale multiples, call this over a freshly initialized ImGuiStyle structure rather than scaling multiple times.
-void ImGuiStyle::ScaleAllSizes(float scale_factor)
+void ImGuiStyle.ScaleAllSizes(float scale_factor)
 {
     WindowPadding = ImFloor(WindowPadding * scale_factor);
     WindowRounding = ImFloor(WindowRounding * scale_factor);
@@ -1067,8 +1070,11 @@ void ImGuiStyle::ScaleAllSizes(float scale_factor)
     DisplaySafeAreaPadding = ImFloor(DisplaySafeAreaPadding * scale_factor);
     MouseCursorScale = ImFloor(MouseCursorScale * scale_factor);
 }
++/
 
-ImGuiIO::ImGuiIO()
+// D_IMGUI: Moved to the struct definition of ImGuiIO.
+/+
+ImGuiIO.this()
 {
     // Most fields are initialized with zero
     memset(this, 0, sizeof(*this));
@@ -1179,6 +1185,7 @@ void ImGuiIO::ClearInputCharacters()
 {
     InputQueueCharacters.resize(0);
 }
++/
 
 //-----------------------------------------------------------------------------
 // [SECTION] MISC HELPERS/UTILITIES (Geometry functions)
@@ -1911,133 +1918,138 @@ static ImGuiStorage::ImGuiStoragePair* LowerBound(ImVector<ImGuiStorage::ImGuiSt
     return first;
 }
 
+// D_IMGUI: Moved to the struct definition of ImGuiStorage.
+/+
 // For quicker full rebuild of a storage (instead of an incremental one), you may add all your contents and then sort once.
-void ImGuiStorage::BuildSortByKey()
+void ImGuiStorage.BuildSortByKey()
 {
     struct StaticFunc
     {
-        static int IMGUI_CDECL PairCompareByID(const void* lhs, const void* rhs)
+        static int IMGUI_CDECL PairCompareByID(const ImGuiStoragePair* lhs, const ImGuiStoragePair* rhs)
         {
             // We can't just do a subtraction because qsort uses signed integers and subtracting our ID doesn't play well with that.
-            if (((const ImGuiStoragePair*)lhs)->key > ((const ImGuiStoragePair*)rhs)->key) return +1;
-            if (((const ImGuiStoragePair*)lhs)->key < ((const ImGuiStoragePair*)rhs)->key) return -1;
+            if (lhs.key > rhs.key) return +1;
+            if (lhs.key < rhs.key) return -1;
             return 0;
         }
     };
     if (Data.Size > 1)
-        ImQsort(Data.Data, (size_t)Data.Size, sizeof(ImGuiStoragePair), StaticFunc::PairCompareByID);
+        ImQsort(Data.Data[0..Data.Size], &StaticFunc::PairCompareByID);
 }
 
-int ImGuiStorage::GetInt(ImGuiID key, int default_val) const
+int ImGuiStorage.GetInt(ImGuiID key, int default_val) const
 {
-    ImGuiStoragePair* it = LowerBound(const_cast<ImVector<ImGuiStoragePair>&>(Data), key);
-    if (it == Data.end() || it->key != key)
+    const ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
         return default_val;
-    return it->val_i;
+    return it.val_i;
 }
 
-bool ImGuiStorage::GetBool(ImGuiID key, bool default_val) const
+bool ImGuiStorage.GetBool(ImGuiID key, bool default_val) const
 {
     return GetInt(key, default_val ? 1 : 0) != 0;
 }
 
-float ImGuiStorage::GetFloat(ImGuiID key, float default_val) const
+float ImGuiStorage.GetFloat(ImGuiID key, float default_val) const
 {
-    ImGuiStoragePair* it = LowerBound(const_cast<ImVector<ImGuiStoragePair>&>(Data), key);
-    if (it == Data.end() || it->key != key)
+    const ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
         return default_val;
-    return it->val_f;
+    return it.val_f;
 }
 
-void* ImGuiStorage::GetVoidPtr(ImGuiID key) const
+void* ImGuiStorage.GetVoidPtr(ImGuiID key) const
 {
-    ImGuiStoragePair* it = LowerBound(const_cast<ImVector<ImGuiStoragePair>&>(Data), key);
-    if (it == Data.end() || it->key != key)
+    const ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
         return NULL;
-    return it->val_p;
+    return it.val_p;
 }
 
 // References are only valid until a new value is added to the storage. Calling a Set***() function or a Get***Ref() function invalidates the pointer.
-int* ImGuiStorage::GetIntRef(ImGuiID key, int default_val)
+int* ImGuiStorage.GetIntRef(ImGuiID key, int default_val)
 {
-    ImGuiStoragePair* it = LowerBound(Data, key);
-    if (it == Data.end() || it->key != key)
+    ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
         it = Data.insert(it, ImGuiStoragePair(key, default_val));
-    return &it->val_i;
+    return &it.val_i;
 }
 
 bool* ImGuiStorage::GetBoolRef(ImGuiID key, bool default_val)
 {
-    return (bool*)GetIntRef(key, default_val ? 1 : 0);
+    return cast(bool*)GetIntRef(key, default_val ? 1 : 0);
 }
 
-float* ImGuiStorage::GetFloatRef(ImGuiID key, float default_val)
+float* ImGuiStorage.GetFloatRef(ImGuiID key, float default_val)
 {
-    ImGuiStoragePair* it = LowerBound(Data, key);
-    if (it == Data.end() || it->key != key)
+    ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
         it = Data.insert(it, ImGuiStoragePair(key, default_val));
-    return &it->val_f;
+    return &it.val_f;
 }
 
-void** ImGuiStorage::GetVoidPtrRef(ImGuiID key, void* default_val)
+void** ImGuiStorage.GetVoidPtrRef(ImGuiID key, void* default_val)
 {
-    ImGuiStoragePair* it = LowerBound(Data, key);
-    if (it == Data.end() || it->key != key)
+    ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
         it = Data.insert(it, ImGuiStoragePair(key, default_val));
-    return &it->val_p;
+    return &it.val_p;
 }
 
 // FIXME-OPT: Need a way to reuse the result of lower_bound when doing GetInt()/SetInt() - not too bad because it only happens on explicit interaction (maximum one a frame)
-void ImGuiStorage::SetInt(ImGuiID key, int val)
+void ImGuiStorage.SetInt(ImGuiID key, int val)
 {
-    ImGuiStoragePair* it = LowerBound(Data, key);
-    if (it == Data.end() || it->key != key)
+    ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
     {
         Data.insert(it, ImGuiStoragePair(key, val));
         return;
     }
-    it->val_i = val;
+    it.val_i = val;
 }
 
-void ImGuiStorage::SetBool(ImGuiID key, bool val)
+void ImGuiStorage.SetBool(ImGuiID key, bool val)
 {
     SetInt(key, val ? 1 : 0);
 }
 
-void ImGuiStorage::SetFloat(ImGuiID key, float val)
+void ImGuiStorage.SetFloat(ImGuiID key, float val)
 {
-    ImGuiStoragePair* it = LowerBound(Data, key);
-    if (it == Data.end() || it->key != key)
+    ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
     {
         Data.insert(it, ImGuiStoragePair(key, val));
         return;
     }
-    it->val_f = val;
+    it.val_f = val;
 }
 
-void ImGuiStorage::SetVoidPtr(ImGuiID key, void* val)
+void ImGuiStorage.SetVoidPtr(ImGuiID key, void* val)
 {
-    ImGuiStoragePair* it = LowerBound(Data, key);
-    if (it == Data.end() || it->key != key)
+    ImGuiStoragePair* it = LowerBound(&Data, key);
+    if (it == Data.end() || it.key != key)
     {
         Data.insert(it, ImGuiStoragePair(key, val));
         return;
     }
-    it->val_p = val;
+    it.val_p = val;
 }
 
-void ImGuiStorage::SetAllInt(int v)
+void ImGuiStorage.SetAllInt(int v)
 {
     for (int i = 0; i < Data.Size; i++)
         Data[i].val_i = v;
 }
++/
 
 //-----------------------------------------------------------------------------
 // [SECTION] ImGuiTextFilter
 //-----------------------------------------------------------------------------
 
+// D_IMGUI: Moved to the struct definition of ImGuiTextFilter.
+/+
 // Helper: Parse and apply text filters. In format "aaaaa[,bbbb][,ccccc]"
-ImGuiTextFilter::ImGuiTextFilter(const char* default_filter)
+ImGuiTextFilter.ImGuiTextFilter(const char* default_filter)
 {
     if (default_filter)
     {
@@ -2051,48 +2063,54 @@ ImGuiTextFilter::ImGuiTextFilter(const char* default_filter)
     }
 }
 
-bool ImGuiTextFilter::Draw(const char* label, float width)
+bool ImGuiTextFilter.Draw(const char* label, float width)
 {
     if (width != 0.0f)
-        ImGui::SetNextItemWidth(width);
-    bool value_changed = ImGui::InputText(label, InputBuf, IM_ARRAYSIZE(InputBuf));
+        SetNextItemWidth(width);
+    bool value_changed = InputText(label, InputBuf, IM_ARRAYSIZE(InputBuf));
     if (value_changed)
         Build();
     return value_changed;
 }
++/
 
-void ImGuiTextFilter::ImGuiTextRange::split(char separator, ImVector<ImGuiTextRange>* out) const
+// D_IMGUI: Moved to the struct definition of ImGuiTextRange.
+/+
+void ImGuiTextFilter.ImGuiTextRange.split(char separator, ImVector!ImGuiTextRange* out) const
 {
-    out->resize(0);
-    const char* wb = b;
-    const char* we = wb;
-    while (we < e)
+    _out.resize(0);
+    size_t wb = 0;
+    size_t we = wb;
+    while (we < b.length)
     {
-        if (*we == separator)
+        if (b[we] == separator)
         {
-            out->push_back(ImGuiTextRange(wb, we));
+            _out.push_back(ImGuiTextRange(b[wb..we]));
             wb = we + 1;
         }
         we++;
     }
     if (wb != we)
-        out->push_back(ImGuiTextRange(wb, we));
+        _out.push_back(ImGuiTextRange(b[wb..we]));
 }
++/
 
-void ImGuiTextFilter::Build()
+// D_IMGUI: Moved to the struct definition of ImGuiTextFilter.
+/+
+void ImGuiTextFilter.Build()
 {
     Filters.resize(0);
-    ImGuiTextRange input_range(InputBuf, InputBuf+strlen(InputBuf));
+    ImGuiTextRange input_range = ImGuiTextRange(cstring(InputBuf));
     input_range.split(',', &Filters);
 
     CountGrep = 0;
     for (int i = 0; i != Filters.Size; i++)
     {
-        ImGuiTextRange& f = Filters[i];
-        while (f.b < f.e && ImCharIsBlankA(f.b[0]))
-            f.b++;
-        while (f.e > f.b && ImCharIsBlankA(f.e[-1]))
-            f.e--;
+        ImGuiTextRange* f = &Filters[i];
+        while (f.b.length > 0 && ImCharIsBlankA(f.b[0]))
+            f.b = f.b[1..$];
+        while (f.b.length > 0 && ImCharIsBlankA(f.b[$-1]))
+            f.b = f.b[0..$-1];
         if (f.empty())
             continue;
         if (Filters[i].b[0] != '-')
@@ -2100,29 +2118,29 @@ void ImGuiTextFilter::Build()
     }
 }
 
-bool ImGuiTextFilter::PassFilter(const char* text, const char* text_end) const
+bool ImGuiTextFilter.PassFilter(string text) const
 {
     if (Filters.empty())
         return true;
 
     if (text == NULL)
-        text = "";
+        text = EMPTY_STRING;
 
     for (int i = 0; i != Filters.Size; i++)
     {
-        const ImGuiTextRange& f = Filters[i];
+        const ImGuiTextRange* f = &Filters[i];
         if (f.empty())
             continue;
         if (f.b[0] == '-')
         {
             // Subtract
-            if (ImStristr(text, text_end, f.b + 1, f.e) != NULL)
+            if (ImStristr(text, f.b[1..$]) != NULL)
                 return false;
         }
         else
         {
             // Grep
-            if (ImStristr(text, text_end, f.b, f.e) != NULL)
+            if (ImStristr(text, f.b) != NULL)
                 return true;
         }
     }
@@ -2133,6 +2151,7 @@ bool ImGuiTextFilter::PassFilter(const char* text, const char* text_end) const
 
     return false;
 }
++/
 
 //-----------------------------------------------------------------------------
 // [SECTION] ImGuiTextBuffer
@@ -2140,19 +2159,21 @@ bool ImGuiTextFilter::PassFilter(const char* text, const char* text_end) const
 
 // On some platform vsnprintf() takes va_list by reference and modifies it.
 // va_copy is the 'correct' way to copy a va_list but Visual Studio prior to 2013 doesn't have it.
-#ifndef va_copy
-#if defined(__GNUC__) || defined(__clang__)
-#define va_copy(dest, src) __builtin_va_copy(dest, src)
-#else
-#define va_copy(dest, src) (dest = src)
-#endif
-#endif
+// #ifndef va_copy
+// #if defined(__GNUC__) || defined(__clang__)
+// #define va_copy(dest, src) __builtin_va_copy(dest, src)
+// #else
+// #define va_copy(dest, src) (dest = src)
+// #endif
+// #endif
 
-char ImGuiTextBuffer::EmptyString[1] = { 0 };
+// D_IMGUI: Moved to the struct definition of ImGuiTextBuffer.
+/+
+char[1] ImGuiTextBuffer.EmptyString = 0;
 
-void ImGuiTextBuffer::append(const char* str, const char* str_end)
+void ImGuiTextBuffer.append(string str)
 {
-    int len = str_end ? (int)(str_end - str) : (int)strlen(str);
+    int len = cast(int)str.length;
 
     // Add zero-terminator the first time
     const int write_off = (Buf.Size != 0) ? Buf.Size : 1;
@@ -2162,13 +2183,13 @@ void ImGuiTextBuffer::append(const char* str, const char* str_end)
         int new_capacity = Buf.Capacity * 2;
         Buf.reserve(needed_sz > new_capacity ? needed_sz : new_capacity);
     }
-
+    
     Buf.resize(needed_sz);
-    memcpy(&Buf[write_off - 1], str, (size_t)len);
+    memcpy(&Buf[write_off - 1], str.ptr, cast(size_t)len);
     Buf[write_off - 1 + len] = 0;
 }
 
-void ImGuiTextBuffer::appendf(const char* fmt, ...)
+void ImGuiTextBuffer.appendf(string fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -2177,12 +2198,12 @@ void ImGuiTextBuffer::appendf(const char* fmt, ...)
 }
 
 // Helper: Text buffer for logging/accumulating text
-void ImGuiTextBuffer::appendfv(const char* fmt, va_list args)
+void ImGuiTextBuffer.appendfv(string fmt, va_list args)
 {
-    va_list args_copy;
+    v_args args_copy;
     va_copy(args_copy, args);
 
-    int len = ImFormatStringV(NULL, 0, fmt, args);         // FIXME-OPT: could do a first pass write attempt, likely successful on first pass.
+    int len = ImFormatStringV(NULL, fmt, args);         // FIXME-OPT: could do a first pass write attempt, likely successful on first pass.
     if (len <= 0)
     {
         va_end(args_copy);
@@ -2199,9 +2220,10 @@ void ImGuiTextBuffer::appendfv(const char* fmt, va_list args)
     }
 
     Buf.resize(needed_sz);
-    ImFormatStringV(&Buf[write_off - 1], (size_t)len + 1, fmt, args_copy);
+    ImFormatStringV(Buf.Data[write_off - 1..write_off + len], fmt, args_copy);
     va_end(args_copy);
 }
++/
 
 //-----------------------------------------------------------------------------
 // [SECTION] ImGuiListClipper
@@ -2267,45 +2289,47 @@ static void SetCursorPosYAndSetupDummyPrevLine(float pos_y, float line_height)
         columns->LineMinY = window->DC.CursorPos.y;                         // Setting this so that cell Y position are set properly
 }
 
+// D_IMGUI: Moved to the struct definition of ImGuiListClipper.
+/+
 // Use case A: Begin() called from constructor with items_height<0, then called again from Sync() in StepNo 1
 // Use case B: Begin() called from constructor with items_height>0
 // FIXME-LEGACY: Ideally we should remove the Begin/End functions but they are part of the legacy API we still support. This is why some of the code in Step() calling Begin() and reassign some fields, spaghetti style.
-void ImGuiListClipper::Begin(int count, float items_height)
+void ImGuiListClipper.Begin(int count, float items_height)
 {
-    ImGuiContext& g = *GImGui;
+    ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
-    StartPosY = window->DC.CursorPos.y;
+    StartPosY = window.DC.CursorPos.y;
     ItemsHeight = items_height;
     ItemsCount = count;
     StepNo = 0;
     DisplayEnd = DisplayStart = -1;
     if (ItemsHeight > 0.0f)
     {
-        ImGui::CalcListClipping(ItemsCount, ItemsHeight, &DisplayStart, &DisplayEnd); // calculate how many to clip/display
+        CalcListClipping(ItemsCount, ItemsHeight, &DisplayStart, &DisplayEnd); // calculate how many to clip/display
         if (DisplayStart > 0)
             SetCursorPosYAndSetupDummyPrevLine(StartPosY + DisplayStart * ItemsHeight, ItemsHeight); // advance cursor
         StepNo = 2;
     }
 }
 
-void ImGuiListClipper::End()
+void ImGuiListClipper.End()
 {
     if (ItemsCount < 0)
         return;
-    // In theory here we should assert that ImGui::GetCursorPosY() == StartPosY + DisplayEnd * ItemsHeight, but it feels saner to just seek at the end and not assert/crash the user.
+    // In theory here we should assert that ImGui.GetCursorPosY() == StartPosY + DisplayEnd * ItemsHeight, but it feels saner to just seek at the end and not assert/crash the user.
     if (ItemsCount < INT_MAX)
         SetCursorPosYAndSetupDummyPrevLine(StartPosY + ItemsCount * ItemsHeight, ItemsHeight); // advance cursor
     ItemsCount = -1;
     StepNo = 3;
 }
 
-bool ImGuiListClipper::Step()
+bool ImGuiListClipper.Step()
 {
-    ImGuiContext& g = *GImGui;
+    ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
-    if (ItemsCount == 0 || window->SkipItems)
+    if (ItemsCount == 0 || window.SkipItems)
     {
         ItemsCount = -1;
         return false;
@@ -2314,14 +2338,14 @@ bool ImGuiListClipper::Step()
     {
         DisplayStart = 0;
         DisplayEnd = 1;
-        StartPosY = window->DC.CursorPos.y;
+        StartPosY = window.DC.CursorPos.y;
         StepNo = 1;
         return true;
     }
-    if (StepNo == 1) // Step 1: the clipper infer height from first element, calculate the actual range of elements to display, and position the cursor before the first element.
+    if (StepNo == 1) // Step 1: the clipper infer height from first element, calculate the actual range of elements to display, and position the cursor before the first element.if (StepNo == 1) // Step 1: the clipper infer height from first element, calculate the actual range of elements to display, and position the cursor before the first element.
     {
         if (ItemsCount == 1) { ItemsCount = -1; return false; }
-        float items_height = window->DC.CursorPos.y - StartPosY;
+        float items_height = window.DC.CursorPos.y - StartPosY;
         IM_ASSERT(items_height > 0.0f);   // If this triggers, it means Item 0 hasn't moved the cursor vertically
         Begin(ItemsCount - 1, items_height);
         DisplayStart++;
@@ -2339,6 +2363,7 @@ bool ImGuiListClipper::Step()
         End();
     return false;
 }
++/
 
 //-----------------------------------------------------------------------------
 // [SECTION] STYLING

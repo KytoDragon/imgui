@@ -3322,22 +3322,25 @@ void ImGuiInputTextState::OnKeyPressed(int key)
     CursorAnimReset();
 }
 
-ImGuiInputTextCallbackData::ImGuiInputTextCallbackData()
+// D_IMGUI: Moved to the struct definition of ImGuiInputTextCallbackData.
+/+
+ImGuiInputTextCallbackData.ImGuiInputTextCallbackData()
 {
-    memset(this, 0, sizeof(*this));
+    memset(&this, 0, (this).sizeof);
 }
 
 // Public API to manipulate UTF-8 text
 // We expose UTF-8 to the user (unlike the STB_TEXTEDIT_* functions which are manipulating wchar)
 // FIXME: The existence of this rarely exercised code path is a bit of a nuisance.
-void ImGuiInputTextCallbackData::DeleteChars(int pos, int bytes_count)
+void ImGuiInputTextCallbackData.DeleteChars(int pos, int bytes_count)
 {
     IM_ASSERT(pos + bytes_count <= BufTextLen);
-    char* dst = Buf + pos;
-    const char* src = Buf + pos + bytes_count;
-    while (char c = *src++)
-        *dst++ = c;
-    *dst = '\0';
+    size_t dst = pos;
+    size_t src = pos + bytes_count;
+    char c;
+    while (c = Buf[src++])
+        Buf[dst++] = c;
+    Buf[dst] = '\0';
 
     if (CursorPos + bytes_count >= pos)
         CursorPos -= bytes_count;
@@ -3348,29 +3351,29 @@ void ImGuiInputTextCallbackData::DeleteChars(int pos, int bytes_count)
     BufTextLen -= bytes_count;
 }
 
-void ImGuiInputTextCallbackData::InsertChars(int pos, const char* new_text, const char* new_text_end)
+void ImGuiInputTextCallbackData.InsertChars(int pos, const char* new_text, const char* new_text_end)
 {
-    const bool is_resizable = (Flags & ImGuiInputTextFlags_CallbackResize) != 0;
-    const int new_text_len = new_text_end ? (int)(new_text_end - new_text) : (int)strlen(new_text);
+    const bool is_resizable = (Flags & ImGuiInputTextFlags.CallbackResize) != 0;
+    const int new_text_len = cast(int)new_text.length;
     if (new_text_len + BufTextLen >= BufSize)
     {
         if (!is_resizable)
             return;
 
         // Contrary to STB_TEXTEDIT_INSERTCHARS() this is working in the UTF8 buffer, hence the midly similar code (until we remove the U16 buffer alltogether!)
-        ImGuiContext& g = *GImGui;
+        ImGuiContext* g = GImGui;
         ImGuiInputTextState* edit_state = &g.InputTextState;
-        IM_ASSERT(edit_state->ID != 0 && g.ActiveId == edit_state->ID);
-        IM_ASSERT(Buf == edit_state->TextA.Data);
+        IM_ASSERT(edit_state.ID != 0 && g.ActiveId == edit_state.ID);
+        IM_ASSERT(Buf == edit_state.TextA.Data);
         int new_buf_size = BufTextLen + ImClamp(new_text_len * 4, 32, ImMax(256, new_text_len)) + 1;
-        edit_state->TextA.reserve(new_buf_size + 1);
-        Buf = edit_state->TextA.Data;
-        BufSize = edit_state->BufCapacityA = new_buf_size;
+        edit_state.TextA.reserve(new_buf_size + 1);
+        Buf = edit_state.TextA.Data;
+        BufSize = edit_state.BufCapacityA = new_buf_size;
     }
 
     if (BufTextLen != pos)
-        memmove(Buf + pos + new_text_len, Buf + pos, (size_t)(BufTextLen - pos));
-    memcpy(Buf + pos, new_text, (size_t)new_text_len * sizeof(char));
+        memmove(Buf + pos + new_text_len, Buf + pos, cast(size_t)(BufTextLen - pos));
+    memcpy(Buf + pos, new_text.ptr, cast(size_t)new_text_len * (char).sizeof);
     Buf[BufTextLen + new_text_len] = '\0';
 
     if (CursorPos >= pos)
@@ -3379,6 +3382,7 @@ void ImGuiInputTextCallbackData::InsertChars(int pos, const char* new_text, cons
     BufDirty = true;
     BufTextLen += new_text_len;
 }
++/
 
 // Return false to discard a character.
 static bool InputTextFilterCharacter(unsigned int* p_char, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
