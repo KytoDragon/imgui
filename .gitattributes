@@ -28,3 +28,6 @@ Makefile text eol=lf
 *.png binary
 *.ttf binary
 *.lib binary
+
+*.d text eol=lf
+*.json text eol=lf
