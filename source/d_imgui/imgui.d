@@ -2834,21 +2834,25 @@ void ImGui::RenderNavHighlight(const ImRect& bb, ImGuiID id, ImGuiNavHighlightFl
 // [SECTION] MAIN CODE (most of the code! lots of stuff, needs tidying up!)
 //-----------------------------------------------------------------------------
 
+// D_IMGUI: Moved to the struct definition of ImGuiWindow.
+/+
 // ImGuiWindow is mostly a dumb struct. It merely has a constructor and a few helper methods
-ImGuiWindow::ImGuiWindow(ImGuiContext* context, const char* name)
-    : DrawListInst(&context->DrawListSharedData)
+ImGuiWindow.this(ImGuiContext* context, string name)
 {
-    Name = ImStrdup(name);
+    DrawListInst = ImDrawList(&context.DrawListSharedData);
+
+    NameBuf = ImStrdup(name);
+    Name = cast(string)NameBuf;
     ID = ImHashStr(name);
     IDStack.push_back(ID);
-    Flags = ImGuiWindowFlags_None;
+    Flags = ImGuiWindowFlags.None;
     Pos = ImVec2(0.0f, 0.0f);
     Size = SizeFull = ImVec2(0.0f, 0.0f);
     ContentSize = ContentSizeExplicit = ImVec2(0.0f, 0.0f);
     WindowPadding = ImVec2(0.0f, 0.0f);
     WindowRounding = 0.0f;
     WindowBorderSize = 0.0f;
-    NameBufLen = (int)strlen(name) + 1;
+    //NameBufLen = cast(int)name.length + 1;
     MoveId = GetID("#MOVE");
     ChildId = 0;
     Scroll = ImVec2(0.0f, 0.0f);
@@ -2873,21 +2877,20 @@ ImGuiWindow::ImGuiWindow(ImGuiContext* context, const char* name)
     AutoFitFramesX = AutoFitFramesY = -1;
     AutoFitChildAxises = 0x00;
     AutoFitOnlyGrows = false;
-    AutoPosLastDirection = ImGuiDir_None;
+    AutoPosLastDirection = ImGuiDir.None;
     HiddenFramesCanSkipItems = HiddenFramesCannotSkipItems = 0;
-    SetWindowPosAllowFlags = SetWindowSizeAllowFlags = SetWindowCollapsedAllowFlags = ImGuiCond_Always | ImGuiCond_Once | ImGuiCond_FirstUseEver | ImGuiCond_Appearing;
+    SetWindowPosAllowFlags = SetWindowSizeAllowFlags = SetWindowCollapsedAllowFlags = ImGuiCond.Always | ImGuiCond.Once | ImGuiCond.FirstUseEver | ImGuiCond.Appearing;
     SetWindowPosVal = SetWindowPosPivot = ImVec2(FLT_MAX, FLT_MAX);
 
     InnerRect = ImRect(0.0f, 0.0f, 0.0f, 0.0f); // Clear so the InnerRect.GetSize() code in Begin() doesn't lead to overflow even if the result isn't used.
 
     LastFrameActive = -1;
-    LastTimeActive = -1.0f;
     ItemWidthDefault = 0.0f;
     FontWindowScale = 1.0f;
     SettingsOffset = -1;
 
     DrawList = &DrawListInst;
-    DrawList->_OwnerName = Name;
+    DrawList._OwnerName = Name;
     ParentWindow = NULL;
     RootWindow = NULL;
     RootWindowForTitleBarHighlight = NULL;
@@ -2901,65 +2904,66 @@ ImGuiWindow::ImGuiWindow(ImGuiContext* context, const char* name)
     MemoryDrawListIdxCapacity = MemoryDrawListVtxCapacity = 0;
 }
 
-ImGuiWindow::~ImGuiWindow()
+void ImGuiWindow.destroy()
 {
     IM_ASSERT(DrawList == &DrawListInst);
-    IM_DELETE(Name);
+    IM_DELETE(NameBuf);
     for (int i = 0; i != ColumnsStorage.Size; i++)
-        ColumnsStorage[i].~ImGuiColumns();
+        ColumnsStorage[i].destroy();
 }
 
-ImGuiID ImGuiWindow::GetID(const char* str, const char* str_end)
+ImGuiID ImGuiWindow.GetID(string str)
 {
     ImGuiID seed = IDStack.back();
-    ImGuiID id = ImHashStr(str, str_end ? (str_end - str) : 0, seed);
-    ImGui::KeepAliveID(id);
+    ImGuiID id = ImHashStr(str, seed);
+    KeepAliveID(id);
     return id;
 }
 
-ImGuiID ImGuiWindow::GetID(const void* ptr)
+ImGuiID ImGuiWindow.GetID(const void* ptr)
 {
     ImGuiID seed = IDStack.back();
-    ImGuiID id = ImHashData(&ptr, sizeof(void*), seed);
-    ImGui::KeepAliveID(id);
+    ImGuiID id = ImHashData(&ptr, (void*).sizeof, seed);
+    KeepAliveID(id);
     return id;
 }
 
-ImGuiID ImGuiWindow::GetID(int n)
+ImGuiID ImGuiWindow.GetID(int n)
 {
     ImGuiID seed = IDStack.back();
-    ImGuiID id = ImHashData(&n, sizeof(n), seed);
-    ImGui::KeepAliveID(id);
+    ImGuiID id = ImHashData(&n, (n).sizeof, seed);
+    KeepAliveID(id);
     return id;
 }
 
-ImGuiID ImGuiWindow::GetIDNoKeepAlive(const char* str, const char* str_end)
+ImGuiID ImGuiWindow.GetIDNoKeepAlive(string str)
 {
     ImGuiID seed = IDStack.back();
-    return ImHashStr(str, str_end ? (str_end - str) : 0, seed);
+    return ImHashStr(str, seed);
 }
 
-ImGuiID ImGuiWindow::GetIDNoKeepAlive(const void* ptr)
+ImGuiID ImGuiWindow.GetIDNoKeepAlive(const void* ptr)
 {
     ImGuiID seed = IDStack.back();
-    return ImHashData(&ptr, sizeof(void*), seed);
+    return ImHashData(&ptr, (void*).sizeof, seed);
 }
 
-ImGuiID ImGuiWindow::GetIDNoKeepAlive(int n)
+ImGuiID ImGuiWindow.GetIDNoKeepAlive(int n)
 {
     ImGuiID seed = IDStack.back();
-    return ImHashData(&n, sizeof(n), seed);
+    return ImHashData(&n, (n).sizeof, seed);
 }
 
 // This is only used in rare/specific situations to manufacture an ID out of nowhere.
-ImGuiID ImGuiWindow::GetIDFromRectangle(const ImRect& r_abs)
+ImGuiID ImGuiWindow.GetIDFromRectangle(const ImRect/*&*/ r_abs)
 {
     ImGuiID seed = IDStack.back();
-    const int r_rel[4] = { (int)(r_abs.Min.x - Pos.x), (int)(r_abs.Min.y - Pos.y), (int)(r_abs.Max.x - Pos.x), (int)(r_abs.Max.y - Pos.y) };
-    ImGuiID id = ImHashData(&r_rel, sizeof(r_rel), seed);
-    ImGui::KeepAliveID(id);
+    const int[4] r_rel = [ cast(int)(r_abs.Min.x - Pos.x), cast(int)(r_abs.Min.y - Pos.y), cast(int)(r_abs.Max.x - Pos.x), cast(int)(r_abs.Max.y - Pos.y) ];
+    ImGuiID id = ImHashData(&r_rel, r_rel.sizeof, seed);
+    KeepAliveID(id);
     return id;
 }
++/
 
 static void SetCurrentWindow(ImGuiWindow* window)
 {
@@ -4122,7 +4126,9 @@ static void AddRootWindowToDrawData(ImGuiWindow* window)
     AddWindowToDrawData(&g.DrawDataBuilder.Layers[layer], window);
 }
 
-void ImDrawDataBuilder::FlattenIntoSingleLayer()
+// D_IMGUI: Moved to the struct definition of ImDrawDataBuilder.
+/+
+void ImDrawDataBuilder.FlattenIntoSingleLayer()
 {
     int n = Layers[0].Size;
     int size = n;
@@ -4131,14 +4137,15 @@ void ImDrawDataBuilder::FlattenIntoSingleLayer()
     Layers[0].resize(size);
     for (int layer_n = 1; layer_n < IM_ARRAYSIZE(Layers); layer_n++)
     {
-        ImVector<ImDrawList*>& layer = Layers[layer_n];
+        ImVector!(ImDrawList*)* layer = &Layers[layer_n];
         if (layer.empty())
             continue;
-        memcpy(&Layers[0][n], &layer[0], layer.Size * sizeof(ImDrawList*));
+        memcpy(&Layers[0][n], &(*layer)[0], layer.Size * (ImDrawList*).sizeof);
         n += layer.Size;
         layer.resize(0);
     }
 }
++/
 
 static void SetupDrawData(ImVector<ImDrawList*>* draw_lists, ImDrawData* draw_data)
 {

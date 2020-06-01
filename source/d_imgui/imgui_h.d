@@ -1930,7 +1930,7 @@ struct ImGuiPayload
     ImGuiID         SourceId;           // Source item id
     ImGuiID         SourceParentId;     // Source parent id (if available)
     int             DataFrameCount;     // Data timestamp
-    char            DataType[32] = 0;     // Data type tag (short user-supplied string, 32 characters max)
+    char[32]            DataType = 0;     // Data type tag (short user-supplied string, 32 characters max)
     bool            Preview;            // Set when AcceptDragDropPayload() was called and mouse has been hovering the target item (nb: handle overlapping drag targets)
     bool            Delivery;           // Set when AcceptDragDropPayload() was called and mouse button is released over the target item.
     size_t          DataTypeLength;
@@ -2128,7 +2128,7 @@ struct ImGuiTextBuffer
     @nogc:
 
     ImVector!char      Buf;
-    __gshared char[1] EmptyString[1] = 0;
+    __gshared char[1] EmptyString = 0;
 
     // ImGuiTextBuffer()   { }
     void destroy() { Buf.destroy(); }
@@ -4391,7 +4391,7 @@ struct ImFontAtlas
         *out_uv_max = ImVec2(cast(float)(rect.X + rect.Width) * TexUvScale.x, cast(float)(rect.Y + rect.Height) * TexUvScale.y);
     }
     
-    bool              GetMouseCursorTexData(ImGuiMouseCursor cursor, ImVec2* out_offset, ImVec2* out_size, ImVec2 out_uv_border[2], ImVec2 out_uv_fill[2])
+    bool              GetMouseCursorTexData(ImGuiMouseCursor cursor_type, ImVec2* out_offset, ImVec2* out_size, ImVec2[2] out_uv_border, ImVec2[2] out_uv_fill)
     {
         if (cursor_type <= ImGuiMouseCursor.None || cursor_type >= ImGuiMouseCursor.COUNT)
             return false;

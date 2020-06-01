@@ -345,25 +345,27 @@ void ImGui::StyleColorsLight(ImGuiStyle* dst)
 // ImDrawList
 //-----------------------------------------------------------------------------
 
-ImDrawListSharedData::ImDrawListSharedData()
+// D_IMGUI: Moved to the struct definition of ImDrawListSharedData.
+/+
+ImDrawListSharedData.this()
 {
     Font = NULL;
     FontSize = 0.0f;
     CurveTessellationTol = 0.0f;
     CircleSegmentMaxError = 0.0f;
     ClipRectFullscreen = ImVec4(-8192.0f, -8192.0f, +8192.0f, +8192.0f);
-    InitialFlags = ImDrawListFlags_None;
+    InitialFlags = ImDrawListFlags.None;
 
     // Lookup tables
     for (int i = 0; i < IM_ARRAYSIZE(ArcFastVtx); i++)
     {
-        const float a = ((float)i * 2 * IM_PI) / (float)IM_ARRAYSIZE(ArcFastVtx);
+        const float a = (cast(float)i * 2 * IM_PI) / cast(float)IM_ARRAYSIZE(ArcFastVtx);
         ArcFastVtx[i] = ImVec2(ImCos(a), ImSin(a));
     }
-    memset(CircleSegmentCounts, 0, sizeof(CircleSegmentCounts)); // This will be set by SetCircleSegmentMaxError()
+    memset(CircleSegmentCounts, 0, (CircleSegmentCounts).sizeof); // This will be set by SetCircleSegmentMaxError()
 }
 
-void ImDrawListSharedData::SetCircleSegmentMaxError(float max_error)
+void ImDrawListSharedData.SetCircleSegmentMaxError(float max_error)
 {
     if (CircleSegmentMaxError == max_error)
         return;
@@ -372,9 +374,10 @@ void ImDrawListSharedData::SetCircleSegmentMaxError(float max_error)
     {
         const float radius = i + 1.0f;
         const int segment_count = IM_DRAWLIST_CIRCLE_AUTO_SEGMENT_CALC(radius, CircleSegmentMaxError);
-        CircleSegmentCounts[i] = (ImU8)ImMin(segment_count, 255);
+        CircleSegmentCounts[i] = cast(ImU8)ImMin(segment_count, 255);
     }
 }
++/
 
 // D_IMGUI: Moved to the struct definition of ImDrawListSplitter.
 /+

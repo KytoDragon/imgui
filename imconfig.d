@@ -129,5 +129,9 @@ namespace ImGui
 //---- Don't import str*, mem* and va_* methods from the c standard library
 // version D_IMGUI_DISABLE_C_STD_LIB
 
-// ---- Define your own backend texture id
+//---- Define your own backend texture id
 alias ImTextureID = int;
+
+//---- Don't assert on recoverable errors
+// version D_IMGUI_USER_DEFINED_RECOVERABLE_ERROR
+// void IM_ASSERT_USER_ERROR(bool _EXP, string _MSG);

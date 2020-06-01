@@ -3315,12 +3315,15 @@ static void stb_textedit_replace(STB_TEXTEDIT_STRING* str, STB_TexteditState* st
 
 } // namespace ImStb
 
-void ImGuiInputTextState::OnKeyPressed(int key)
+// D_IMGUI: Moved to the struct definition of ImGuiInputTextState.
+/+
+void ImGuiInputTextState.OnKeyPressed(int key)
 {
-    stb_textedit_key(this, &Stb, key);
+    ImStb.stb_textedit_key(this, &Stb, key);
     CursorFollow = true;
     CursorAnimReset();
 }
++/
 
 // D_IMGUI: Moved to the struct definition of ImGuiInputTextCallbackData.
 /+
@@ -6056,22 +6059,24 @@ void ImGui::Value(const char* prefix, float v, const char* float_format)
 // - MenuItem()
 //-------------------------------------------------------------------------
 
+// D_IMGUI: Moved to the struct definition of ImGuiInputTextState.
+/+
 // Helpers for internal use
-ImGuiMenuColumns::ImGuiMenuColumns()
+ImGuiMenuColumns.this()
 {
     Spacing = Width = NextWidth = 0.0f;
     memset(Pos, 0, sizeof(Pos));
     memset(NextWidths, 0, sizeof(NextWidths));
 }
 
-void ImGuiMenuColumns::Update(int count, float spacing, bool clear)
+void ImGuiMenuColumns.Update(int count, float spacing, bool clear)
 {
     IM_ASSERT(count == IM_ARRAYSIZE(Pos));
     IM_UNUSED(count);
     Width = NextWidth = 0.0f;
     Spacing = spacing;
     if (clear)
-        memset(NextWidths, 0, sizeof(NextWidths));
+        memset(NextWidths, 0, (NextWidths).sizeof);
     for (int i = 0; i < IM_ARRAYSIZE(Pos); i++)
     {
         if (i > 0 && NextWidths[i] > 0.0f)
@@ -6082,7 +6087,7 @@ void ImGuiMenuColumns::Update(int count, float spacing, bool clear)
     }
 }
 
-float ImGuiMenuColumns::DeclColumns(float w0, float w1, float w2) // not using va_arg because they promote float to double
+float ImGuiMenuColumns.DeclColumns(float w0, float w1, float w2) // not using va_arg because they promote float to double
 {
     NextWidth = 0.0f;
     NextWidths[0] = ImMax(NextWidths[0], w0);
@@ -6093,10 +6098,11 @@ float ImGuiMenuColumns::DeclColumns(float w0, float w1, float w2) // not using v
     return ImMax(Width, NextWidth);
 }
 
-float ImGuiMenuColumns::CalcExtraSpace(float avail_w) const
+float ImGuiMenuColumns.CalcExtraSpace(float avail_w) const
 {
     return ImMax(0.0f, avail_w - Width);
 }
++/
 
 // FIXME: Provided a rectangle perhaps e.g. a BeginMenuBarEx() could be used anywhere..
 // Currently the main responsibility of this function being to setup clip-rect + horizontal layout + menu navigation layer.
@@ -6464,18 +6470,20 @@ bool ImGui::MenuItem(const char* label, const char* shortcut, bool* p_selected, 
 // - TabBarTabListPopupButton() [Internal]
 //-------------------------------------------------------------------------
 
-namespace ImGui
-{
-    static void             TabBarLayout(ImGuiTabBar* tab_bar);
-    static ImU32            TabBarCalcTabID(ImGuiTabBar* tab_bar, const char* label);
-    static float            TabBarCalcMaxTabWidth();
-    static float            TabBarScrollClamp(ImGuiTabBar* tab_bar, float scrolling);
-    static void             TabBarScrollToTab(ImGuiTabBar* tab_bar, ImGuiTabItem* tab);
-    static ImGuiTabItem*    TabBarScrollingButtons(ImGuiTabBar* tab_bar);
-    static ImGuiTabItem*    TabBarTabListPopupButton(ImGuiTabBar* tab_bar);
-}
+// namespace ImGui
+// {
+//     static void             TabBarLayout(ImGuiTabBar* tab_bar);
+//     static ImU32            TabBarCalcTabID(ImGuiTabBar* tab_bar, const char* label);
+//     static float            TabBarCalcMaxTabWidth();
+//     static float            TabBarScrollClamp(ImGuiTabBar* tab_bar, float scrolling);
+//     static void             TabBarScrollToTab(ImGuiTabBar* tab_bar, ImGuiTabItem* tab);
+//     static ImGuiTabItem*    TabBarScrollingButtons(ImGuiTabBar* tab_bar);
+//     static ImGuiTabItem*    TabBarTabListPopupButton(ImGuiTabBar* tab_bar);
+// }
 
-ImGuiTabBar::ImGuiTabBar()
+// D_IMGUI: Moved to the struct definition of ImGuiTabBar.
+/+
+ImGuiTabBar.this()
 {
     ID = 0;
     SelectedTabId = NextSelectedTabId = VisibleTabId = 0;
@@ -6483,12 +6491,13 @@ ImGuiTabBar::ImGuiTabBar()
     LastTabContentHeight = 0.0f;
     OffsetMax = OffsetMaxIdeal = OffsetNextTab = 0.0f;
     ScrollingAnim = ScrollingTarget = ScrollingTargetDistToVisibility = ScrollingSpeed = 0.0f;
-    Flags = ImGuiTabBarFlags_None;
+    Flags = ImGuiTabBarFlags.None;
     ReorderRequestTabId = 0;
     ReorderRequestDir = 0;
     WantLayout = VisibleTabWasSubmitted = false;
     LastTabItemIdx = -1;
 }
++/
 
 static int IMGUI_CDECL TabItemComparerByVisibleOffset(const void* lhs, const void* rhs)
 {
