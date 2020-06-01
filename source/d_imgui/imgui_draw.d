@@ -1,3 +1,4 @@
+module d_imgui.imgui_draw;
 // dear imgui, v1.76
 // (drawing and font code)
 
