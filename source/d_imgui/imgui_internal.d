@@ -32,6 +32,7 @@ Index of this file:
 // #ifndef IMGUI_VERSION
 // #error Must include imgui.h before imgui_internal.h
 // #endif
+import d_imgui.imconfig;
 import d_imgui.imgui_h;
 
 // #include <stdio.h>      // FILE*, sscanf
@@ -67,12 +68,12 @@ nothrow:
 // #endif
 
 // Legacy defines
-version (IMGUI_DISABLE_FORMAT_STRING_FUNCTIONS) {                // Renamed in 1.74
-    static assert(false, "Use IMGUI_DISABLE_DEFAULT_FORMAT_FUNCTIONS");
-}
-version (IMGUI_DISABLE_MATH_FUNCTIONS) {                         // Renamed in 1.74
-    static assert(false, "Use IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS");
-}
+// #ifdef IMGUI_DISABLE_FORMAT_STRING_FUNCTIONS                // Renamed in 1.74
+// #error Use IMGUI_DISABLE_DEFAULT_FORMAT_FUNCTIONS
+// #endif
+// #ifdef IMGUI_DISABLE_MATH_FUNCTIONS                         // Renamed in 1.74
+// #error Use IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS
+// #endif
 
 //-----------------------------------------------------------------------------
 // Forward declarations
@@ -143,7 +144,7 @@ import ImStb = d_imgui.imstb_textedit;
 //-----------------------------------------------------------------------------
 
 // #ifndef GImGui
-__gshared ImGuiContext* GImGui;  // Current implicit context pointer
+// __gshared ImGuiContext* GImGui;  // Current implicit context pointer
 // #endif
 
 //-----------------------------------------------------------------------------
@@ -173,18 +174,14 @@ version (IMGUI_DEBUG_PARANOID) {
 
 // Error handling
 // Down the line in some frameworks/languages we would like to have a way to redirect those to the programmer and recover from more faults.
-version (D_IMGUI_USER_DEFINED_RECOVERABLE_ERROR) {} else {
+static if (!D_IMGUI_USER_DEFINED_RECOVERABLE_ERROR) {
     alias IM_ASSERT_USER_ERROR = IM_ASSERT;   // Recoverable User Error
 }
 
 // Misc Macros
 enum IM_PI                           = 3.14159265358979323846f;
-version (Windows) {
-    version (D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS) {
-        enum IM_NEWLINE                      = "\n";
-    } else {
-        enum IM_NEWLINE                      = "\r\n";   // Play it nice with Windows users (Update: since 2018-05, Notepad finally appears to support Unix-style carriage returns!)
-    }
+static if (D_IMGUI_Windows && D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS) {
+    enum IM_NEWLINE                      = "\r\n";   // Play it nice with Windows users (Update: since 2018-05, Notepad finally appears to support Unix-style carriage returns!)
 } else {
     enum IM_NEWLINE                      = "\n";
 }
@@ -229,10 +226,10 @@ pragma(inline, true) float IM_ROUND(float _VAL) {
 //-----------------------------------------------------------------------------
 
 // Helpers: Misc
-// alias ImQsort         = qsort; // TODO DLANG use different sorting algorithm or define a wrapper
+// alias ImQsort         = qsort;
 // ImU32         ImHashData(const void* data, size_t data_size, ImU32 seed = 0);
 // ImU32         ImHashStr(const char* data, size_t data_size = 0, ImU32 seed = 0);
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     pragma(inline, true) ImU32     ImHash(const void* data, int size, ImU32 seed = 0) { return size ? ImHashData(data, cast(size_t)size, seed) : ImHashStr(cstring(cast(const char*)data), seed); } // [moved to ImHashStr/ImHashData in 1.68]
 }
 
@@ -296,7 +293,7 @@ pragma(inline, true) bool      ImCharIsBlankW(uint c)  { return c == ' ' || c ==
 
 // Helpers: File System
 version (IMGUI_DISABLE_FILE_FUNCTIONS) {
-    version = IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS;
+    // version = IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS;
     alias ImFileHandle = void*;
     pragma(inline, true) ImFileHandle  ImFileOpen(string, string)                    { return NULL; }
     pragma(inline, true) bool          ImFileClose(ImFileHandle)                               { return false; }
@@ -306,9 +303,10 @@ version (IMGUI_DISABLE_FILE_FUNCTIONS) {
     // D_IMGUI: Encapsulate console handling.
     pragma(inline, true) ImFileHandle  ImGetStdout()                                           { return NULL; }
     pragma(inline, true) bool          ImFlushConsole(ImFileHandle)                            { return false; }
-}
+} else
 
-version (IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS) {
+    import core.stdc.stdio : FILE;
     alias ImFileHandle = FILE*;
     // IMGUI_API ImFileHandle      ImFileOpen(string filename, string mode);
     // IMGUI_API bool              ImFileClose(ImFileHandle file);
@@ -322,7 +320,8 @@ version (IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS) {} else {
 
 // Helpers: Maths
 // - Wrapper for standard libs functions. (Note that imgui_demo.cpp does _not_ use them to keep the code easy to copy)
-version (IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
+    import core.stdc.math;
     alias ImFabs = fabsf;
     alias ImSqrt = sqrtf;
     alias ImFmod = fmodf;
@@ -2141,7 +2140,7 @@ struct ImGuiTabBar
     IMGUI_API void          RenderRectFilledRangeH(ImDrawList* draw_list, const ImRect& rect, ImU32 col, float x_start_norm, float x_end_norm, float rounding);
     +/
 
-    version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+    static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
         // [1.71: 2019/06/07: Updating prototypes of some of the internal functions. Leaving those for reference for a short while]
         pragma(inline, true) void RenderArrow(ImVec2 pos, ImGuiDir dir, float scale=1.0f) { ImGuiWindow* window = GetCurrentWindow(); RenderArrow(window.DrawList, pos, GetColorU32(ImGuiCol_Text), dir, scale); }
         pragma(inline, true) void RenderBullet(ImVec2 pos)                                { ImGuiWindow* window = GetCurrentWindow(); RenderBullet(window.DrawList, pos, GetColorU32(ImGuiCol_Text)); }
@@ -2228,7 +2227,7 @@ struct ImGuiTabBar
 
 // Debug Tools
 // Use 'Metrics->Tools->Item Picker' to break into the call-stack of a specific item.
-version (D_IMGUI_USER_DEFINED_DEBUG_BREAK) {} else {
+static if (!D_IMGUI_USER_DEFINED_DEBUG_BREAK) {
     pragma(inline, true) void IM_DEBUG_BREAK() {    // It is expected that you define IM_DEBUG_BREAK() into something that will break nicely in a debugger!
         version (LDC) {
             import ldc.llvmasm : __asm;

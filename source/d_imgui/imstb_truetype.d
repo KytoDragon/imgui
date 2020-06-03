@@ -429,9 +429,9 @@ int main(int arg, char **argv)
 ////   of C library functions used by stb_truetype, e.g. if you don't
 ////   link with the C runtime library.
 
-import d_imgui.imgui_draw : STBTT_ifloor, STBTT_iceil, STBTT_sqrt, STBTT_pow, STBTT_fmod, STBTT_cos, STBTT_acos, STBTT_fabs, STBTT_malloc, STBTT_free, STBTT_assert, STBTT_strlen, STBTT_memcpy, STBTT_memset;
+import d_imgui.imgui_draw : STBTT_ifloor, STBTT_iceil, STBTT_sqrt, STBTT_pow, STBTT_fmod, STBTT_cos, STBTT_acos, STBTT_fabs, STBTT_malloc, STBTT_free, STBTT_assert;
+import d_imgui.imstb_rectpack : stbrp_rect;
 
-/+
 // #ifdef STB_TRUETYPE_IMPLEMENTATION
    // #define your own (u)stbtt_int8/16/32 before including to override this
    // #ifndef stbtt_uint8
@@ -443,6 +443,7 @@ import d_imgui.imgui_draw : STBTT_ifloor, STBTT_iceil, STBTT_sqrt, STBTT_pow, ST
    alias stbtt_int32 = int;
    // #endif
 
+/+
    alias stbtt__check_size32 = char[(stbtt_int32).sizeof==4 ? 1 : -1];
    alias stbtt__check_size16 = char[(stbtt_int16).sizeof==2 ? 1 : -1];
 
@@ -477,13 +478,13 @@ import d_imgui.imgui_draw : STBTT_ifloor, STBTT_iceil, STBTT_sqrt, STBTT_pow, ST
    pragma(inline, true) void STBTT_assert(bool x) {
       assert(x);
    }
-
++/
+   import core.stdc.string : strlen, memcpy, memset;
    alias STBTT_strlen = strlen;
 
    alias STBTT_memcpy = memcpy;
    alias STBTT_memset = memset;
 // #endif
-+/
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1261,8 +1262,8 @@ private stbtt__buf stbtt__cff_index_get(stbtt__buf b, int i)
 pragma(inline, true) ubyte ttBYTE(void* p) {
 	return (* cast(ubyte*) p);
 }
-pragma(inline, true) s8 ttCHAR(void* p) {
-	return (* cast(s8*) p);
+pragma(inline, true) stbtt_int8 ttCHAR(void* p) {
+	return (* cast(stbtt_int8*) p);
 }
 alias ttFixed = ttLONG;
 

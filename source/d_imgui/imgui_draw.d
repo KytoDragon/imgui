@@ -145,6 +145,8 @@ alias STBTT_fmod     = ImFmod;
 alias STBTT_sqrt       = ImSqrt;
 alias STBTT_pow      = ImPow;
 alias STBTT_fabs       = ImFabs;
+alias STBTT_cos       = ImCos;
+alias STBTT_acos       = ImAcos;
 pragma(inline, true) int STBTT_ifloor(float x)     { cast(int)ImFloorStd(x); }
 pragma(inline, true) int STBTT_iceil(float x)      { cast(int)ImCeil(x); }
 // #define STBTT_STATIC
@@ -1599,7 +1601,7 @@ __gshared immutable(string) FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS =
 ;
 static assert(FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS.length == FONT_ATLAS_DEFAULT_TEX_DATA_W_HALF * FONT_ATLAS_DEFAULT_TEX_DATA_H);
 
-static const ImVec2[3][ImGuiMouseCursor_COUNT] FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA =
+__gshared const ImVec2[3][ImGuiMouseCursor.COUNT] FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA =
 [
     // Pos ........ Size ......... Offset ......
     [ ImVec2( 0,3), ImVec2(12,19), ImVec2( 0, 0) ], // ImGuiMouseCursor_Arrow

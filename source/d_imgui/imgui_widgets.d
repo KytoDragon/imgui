@@ -477,7 +477,7 @@ bool ButtonBehavior(const ImRect/*&*/ bb, ImGuiID id, bool* out_hovered, bool* o
     if (flatten_hovered_children)
         g.HoveredWindow = window;
 
-    version(IMGUI_ENABLE_TEST_ENGINE) {
+    version (IMGUI_ENABLE_TEST_ENGINE) {
         if (id != 0 && window.DC.LastItemId != id)
             ImGuiTestEngineHook_ItemAdd(g, &bb, id);
     }
@@ -1687,7 +1687,7 @@ string PatchFormatStringFloatToInt(string fmt)
     size_t fmt_end = ImParseFormatFindEnd(fmt, fmt_start);  // Find end of format specifier, which itself is an exercise of confidence/recklessness (because snprintf is dependent on libc or user).
     if (fmt_end > fmt_start && fmt[fmt_end-1] == 'f')
     {
-        version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+        static if (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
             IM_ASSERT(0, "DragInt(): Invalid format string!"); // Old versions used a default parameter of "%.0f", please replace with e.g. "%d"
         }
         else
@@ -3052,7 +3052,7 @@ bool InputFloat4(string label, float[/*4*/] v, string format, ImGuiInputTextFlag
 }
 
 // Prefer using "const char* format" directly, which is more flexible and consistent with other API.
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 bool InputFloat(string label, float* v, float step, float step_fast, int decimal_precision, ImGuiInputTextFlags flags)
 {
     char[16] format = "%f";
@@ -3229,7 +3229,7 @@ void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, STB_TEXTEDIT_STRING* obj, int 
 bool is_separator(uint c)                                        { return ImCharIsBlankW(c) || c==',' || c==';' || c=='(' || c==')' || c=='{' || c=='}' || c=='[' || c==']' || c=='|'; }
 int  is_word_boundary_from_right(STB_TEXTEDIT_STRING* obj, int idx)      { return idx > 0 ? (is_separator( obj.TextW[idx-1] ) && !is_separator( obj.TextW[idx] ) ) : 1; }
 int  STB_TEXTEDIT_MOVEWORDLEFT_IMPL(STB_TEXTEDIT_STRING* obj, int idx)   { idx--; while (idx >= 0 && !is_word_boundary_from_right(obj, idx)) idx--; return idx < 0 ? 0 : idx; }
-version (OSX) {    // FIXME: Move setting to IO structure
+static if (D_IMGUI_Apple) {    // FIXME: Move setting to IO structure
     int  is_word_boundary_from_left(STB_TEXTEDIT_STRING* obj, int idx)       { return idx > 0 ? (!is_separator( obj.TextW[idx-1] ) && is_separator( obj.TextW[idx] ) ) : 1; }
     int  STB_TEXTEDIT_MOVEWORDRIGHT(STB_TEXTEDIT_STRING* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_left(obj, idx)) idx++; return idx > len ? len : idx; }
 } else {

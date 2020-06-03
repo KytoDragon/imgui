@@ -59,10 +59,12 @@ immutable float FLT_MAX = 3.402823466e+38;
 // #include <stddef.h>                 // ptrdiff_t, NULL
 enum NULL = null;
 // #include <string.h>                 // memset, memmove, memcpy, strlen, strchr, strcpy, strcmp
-version (D_IMGUI_DISABLE_C_STD_LIB) {} else {
+static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
     import core.stdc.stdarg : va_list, va_start, va_end;
-    import core.stdc.string : memset, memmove, memcpy, strlen, strchr, strcpy, strcmp;
 }
+import core.stdc.string : memset, memmove, memcpy, strlen, strchr, strcpy, strcmp;
+
+import d_imgui.imgui_internal;
 
 nothrow:
 @nogc:
@@ -84,7 +86,7 @@ pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndData
 // #endif
 
 // Helper Macros
-version(D_IMGUI_USER_DEFINED_ASSERT) {} else {
+static if (!D_IMGUI_USER_DEFINED_ASSERT) {
     pragma(inline, true) void IM_ASSERT(T)(T _EXPR) {assert(_EXPR);}                               // You can override the default assert handler by editing imconfig.h
     pragma(inline, true) void IM_ASSERT(T)(T _EXPR, string _MSG) {assert(_EXPR, _MSG);}
 }
@@ -1223,9 +1225,9 @@ enum ImGuiCol : int
     COUNT,
 }
 
-// D_IMGUI: In D, "version" does not work inside enums
+// D_IMGUI: In D, "static if" does not work inside enums
 // Obsolete names (will be removed)
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     deprecated enum ImGuiCol_ModalWindowDarkening = ImGuiCol.ModalWindowDimBg;                      // [renamed in 1.63]
     //, ImGuiCol_CloseButton, ImGuiCol_CloseButtonActive, ImGuiCol_CloseButtonHovered// [unused since 1.60+] the close button now uses regular button colors.
 }
@@ -1268,7 +1270,7 @@ enum ImGuiStyleVar : int
 }
 
 // Obsolete names (will be removed)
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     deprecated enum ImGuiStyleVar_Count_ = ImGuiStyleVar.COUNT;                    // [renamed in 1.60]
 }
 
@@ -1313,7 +1315,7 @@ enum ImGuiColorEditFlags : int
     _InputMask      = InputRGB|InputHSV
 }
 // Obsolete names (will be removed)
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     deprecated enum ImGuiColorEditFlags_RGB = ImGuiColorEditFlags.DisplayRGB;
     deprecated enum ImGuiColorEditFlags_HSV = ImGuiColorEditFlags.DisplayHSV;
     deprecated enum ImGuiColorEditFlags_HEX = ImGuiColorEditFlags.DisplayHex;  // [renamed in 1.69]
@@ -1348,7 +1350,7 @@ enum ImGuiMouseCursor : int
 }
 
 // Obsolete names (will be removed)
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     deprecated enum ImGuiMouseCursor_Count_ = ImGuiMouseCursor.COUNT;      // [renamed in 1.60]
 }
 
@@ -1502,9 +1504,10 @@ struct ImGuiStyle
     bool        AntiAliasedFill;            // Enable anti-aliasing on filled shapes (rounded rectangles, circles, etc.)
     float       CurveTessellationTol;       // Tessellation tolerance when using PathBezierCurveTo() without a specific number of segments. Decrease for highly tessellated curves (higher quality, more polygons), increase to reduce quality.
     float       CircleSegmentMaxError;      // Maximum error (in pixels) allowed when using AddCircle()/AddCircleFilled() or drawing rounded corner rectangles with no explicit segment count specified. Decrease for higher quality but more geometry.
-    ImVec4[ImGuiCol_COUNT]      Colors;
+    ImVec4[ImGuiCol.COUNT]      Colors;
 
-    this()
+    @disable this();
+    this(bool dummy)
     {
         Alpha                   = 1.0f;             // Global alpha applies to everything in ImGui
         WindowPadding           = ImVec2(8,8);      // Padding within a window
@@ -1783,7 +1786,7 @@ struct ImGuiIO
 
         // Miscellaneous options
         MouseDrawCursor = false;
-        version (OSX) {
+        static if (D_IMGUI_Apple) {
             ConfigMacOSXBehaviors = true;  // Set Mac OS X style defaults based on __APPLE__ compile time flag
         } else {
             ConfigMacOSXBehaviors = false;
@@ -1947,7 +1950,7 @@ struct ImGuiPayload
 // Please keep your copy of dear imgui up to date! Occasionally set '#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS' in imconfig.h to stay ahead.
 //-----------------------------------------------------------------------------
 
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 // namespace ImGui
 // {
     // OBSOLETED in 1.72 (from July 2019)
@@ -1970,7 +1973,7 @@ version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
     // OBSOLETED in 1.60 (between Dec 2017 and Apr 2018)
     deprecated pragma(inline, true) bool  IsAnyWindowFocused()                  { return IsWindowFocused(ImGuiFocusedFlags.AnyWindow); }
     deprecated pragma(inline, true) bool  IsAnyWindowHovered()                  { return IsWindowHovered(ImGuiHoveredFlags.AnyWindow); }
-    deprecated pragma(inline, true) ImVec2 CalcItemRectClosestPoint(const ImVec2/*&*/ pos, bool on_edge = false, float outward = 0.f) { IM_UNUSED(on_edge); IM_UNUSED(outward); IM_ASSERT(0); return pos; }
+    deprecated pragma(inline, true) ImVec2 CalcItemRectClosestPoint(const ImVec2/*&*/ pos, bool on_edge = false, float outward = 0.0f) { IM_UNUSED(on_edge); IM_UNUSED(outward); IM_ASSERT(0); return pos; }
 // }
 deprecated alias ImGuiTextEditCallback =      ImGuiInputTextCallback;    // OBSOLETED in 1.63 (from Aug 2018): made the names consistent
 deprecated alias ImGuiTextEditCallbackData =  ImGuiInputTextCallbackData;
@@ -1982,7 +1985,7 @@ deprecated alias ImGuiTextEditCallbackData =  ImGuiInputTextCallbackData;
 
 // Helper: Unicode defines
 enum IM_UNICODE_CODEPOINT_INVALID = 0xFFFD;     // Invalid Unicode code point (standard value).
-version(IMGUI_USE_WCHAR32) {
+version (IMGUI_USE_WCHAR32) {
     enum IM_UNICODE_CODEPOINT_MAX     = 0x10FFFF;   // Maximum Unicode code point supported by this build.
 } else {
     enum IM_UNICODE_CODEPOINT_MAX     = 0xFFFF;     // Maximum Unicode code point supported by this build.
@@ -2480,8 +2483,8 @@ version (IMGUI_USE_BGRA_PACKED_COLOR) {
     enum IM_COL32_A_SHIFT    = 24;
     enum IM_COL32_A_MASK     = 0xFF000000;
 }
-pragma(inline, true) u32 IM_COL32(u8 R, u8 G, u8 B, u8 A) {
-    return ((cast(u32)(A)<<IM_COL32_A_SHIFT) | (cast(u32)(B)<<IM_COL32_B_SHIFT) | (cast(u32)(G)<<IM_COL32_G_SHIFT) | (cast(u32)(R)<<IM_COL32_R_SHIFT));
+pragma(inline, true) ImU32 IM_COL32(ImU8 R, ImU8 G, ImU8 B, ImU8 A) {
+    return ((cast(ImU32)(A)<<IM_COL32_A_SHIFT) | (cast(ImU32)(B)<<IM_COL32_B_SHIFT) | (cast(ImU32)(G)<<IM_COL32_G_SHIFT) | (cast(ImU32)(R)<<IM_COL32_R_SHIFT));
 }
 enum IM_COL32_WHITE       = IM_COL32(255,255,255,255);  // Opaque white = 0xFFFFFFFF
 enum IM_COL32_BLACK       = IM_COL32(0,0,0,255);        // Opaque black
@@ -2489,7 +2492,7 @@ enum IM_COL32_BLACK_TRANS = IM_COL32(0,0,0,0);          // Transparent black = 0
 
 // Helper: ImColor() implicitly converts colors to either ImU32 (packed 4x1 byte) or ImVec4 (4x1 float)
 // Prefer using IM_COL32() macros if you want a guaranteed compile-time ImU32 for usage with ImDrawList API.
-// **Avoid storing ImColor! Store either u32 of ImVec4. This is not a full-featured color class. MAY OBSOLETE.
+// **Avoid storing ImColor! Store either ImU32 of ImVec4. This is not a full-featured color class. MAY OBSOLETE.
 // **None of the ImGui API are using ImColor directly but you can use it as a convenience to pass colors in either ImU32 or ImVec4 formats. Explicitly cast to ImU32 or ImVec4 if needed.
 struct ImColor
 {
@@ -2523,7 +2526,7 @@ struct ImColor
 //  B) render a complex 3D scene inside a UI element without an intermediate texture/render target, etc.
 // The expected behavior from your rendering function is 'if (cmd.UserCallback != NULL) { cmd.UserCallback(parent_list, cmd); } else { RenderTriangles() }'
 // If you want to override the signature of ImDrawCallback, you can simply use e.g. '#define ImDrawCallback MyDrawCallback' (in imconfig.h) + update rendering back-end accordingly.
-version (D_IMGUI_USER_DEFINED_DRAW_CALLBACK) {} else {
+static if (!D_IMGUI_USER_DEFINED_DRAW_CALLBACK) {
     alias ImDrawCallback = void function(const ImDrawList* parent_list, const ImDrawCmd* cmd);
 }
 
@@ -2555,7 +2558,7 @@ struct ImDrawCmd
 // Vertex index, default to 16-bit
 // To allow large meshes with 16-bit indices: set 'io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset' and handle ImDrawCmd::VtxOffset in the renderer back-end (recommended).
 // To use 32-bit indices: override with '#define ImDrawIdx unsigned int' in imconfig.h.
-version (D_IMGUI_USER_DEFINED_DRAW_IDX) {} else {
+static if (!D_IMGUI_USER_DEFINED_DRAW_IDX) {
     alias ImDrawIdx = ushort;
 }
 
@@ -4436,7 +4439,7 @@ struct ImFontAtlas
     ImVector!ImFontConfig      ConfigData;         // Internal data
     int[1]                         CustomRectIds;   // Identifiers of custom texture rectangle used by ImFontAtlas/ImDrawList
 
-    version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+    static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
         alias CustomRect    = ImFontAtlasCustomRect;         // OBSOLETED in 1.72+
         alias GlyphRangesBuilder = ImFontGlyphRangesBuilder; // OBSOLETED in 1.67+
     }
@@ -4473,7 +4476,8 @@ struct ImFont
     ImU8[(IM_UNICODE_CODEPOINT_MAX+1)/4096/8]                        Used4kPagesMap; // 2 bytes if ImWchar=ImWchar16, 34 bytes if ImWchar==ImWchar32. Store 1-bit for each block of 4K codepoints that has one active glyph. This is mainly used to facilitate iterations accross all used codepoints.
 
     // Methods
-    this()
+    @disable this();
+    this(bool dummy)
     {
         FontSize = 0.0f;
         FallbackAdvanceX = 0.0f;
