@@ -40,8 +40,15 @@ import d_imgui.imgui_h;
 // #define IMGUI_DEFINE_MATH_OPERATORS
 // #endif
 import d_imgui.imconfig;
+import d_imgui.imgui;
 import d_imgui.imgui_internal;
-import core.stdc.stdarg : va_list;
+import d_imgui.imgui_draw;
+import d_imgui.imstb_textedit;
+
+import core.stdc.string : strlen, memcpy, memcmp, memmove, memset, strcmp;
+static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
+    import core.stdc.stdarg : va_list;
+}
 
 nothrow:
 @nogc:
@@ -53,6 +60,7 @@ nothrow:
 // #include <stdint.h>     // intptr_t
 // #endif
 alias intptr_t = size_t;
+alias uintptr_t = size_t;
 
 // Visual Studio warnings
 // #ifdef _MSC_VER
@@ -167,7 +175,7 @@ void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
                 int lines_skipped = 0;
                 while (line < text.length && lines_skipped < lines_skippable)
                 {
-                    ptrdiff_t line_end = indexOf(text, line, '\n');
+                    ptrdiff_t line_end = ImIndexOf(text, line, '\n');
                     if (line_end == -1)
                         line_end = text.length;
                     if ((flags & ImGuiTextFlags.NoWidthForLargeClippedText) == 0)
@@ -188,7 +196,7 @@ void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
                 
                 if (IsClippedEx(line_rect, 0, false))
                     break;
-                ptrdiff_t line_end = indexOf(text, line, '\n');
+                ptrdiff_t line_end = ImIndexOf(text, line, '\n');
                 if (line_end == -1)
                     line_end = text.length;
 
@@ -204,7 +212,7 @@ void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
             int lines_skipped = 0;
             while (line < text.length)
             {
-                ptrdiff_t line_end = indexOf(text, line, '\n');
+                ptrdiff_t line_end = ImIndexOf(text, line, '\n');
                 if (line_end == -1)
                     line_end = text.length;
                 if ((flags & ImGuiTextFlags.NoWidthForLargeClippedText) == 0)
@@ -244,7 +252,7 @@ void TextUnformatted(string text)
 void Text(string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     TextV(fmt, args);
     va_end(args);
 }
@@ -263,14 +271,14 @@ void TextV(string fmt, va_list args)
 void TextColored(const ImVec4/*&*/ col, string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     TextColoredV(col, fmt, args);
     va_end(args);
 }
 
 void TextColoredV(const ImVec4/*&*/ col, string fmt, va_list args)
 {
-    PushStyleColor(ImGuiCol_Text, col);
+    PushStyleColor(ImGuiCol.Text, col);
     TextV(fmt, args);
     PopStyleColor();
 }
@@ -278,7 +286,7 @@ void TextColoredV(const ImVec4/*&*/ col, string fmt, va_list args)
 void TextDisabled(string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     TextDisabledV(fmt, args);
     va_end(args);
 }
@@ -293,7 +301,7 @@ void TextDisabledV(string fmt, va_list args)
 void TextWrapped(string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     TextWrappedV(fmt, args);
     va_end(args);
 }
@@ -312,7 +320,7 @@ void TextWrappedV(string fmt, va_list args)
 void LabelText(string label, string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     LabelTextV(label, fmt, args);
     va_end(args);
 }
@@ -345,7 +353,7 @@ void LabelTextV(string label, string fmt, va_list args)
 void BulletText(string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     BulletTextV(fmt, args);
     va_end(args);
 }
@@ -1561,7 +1569,7 @@ void EndCombo()
 // Getter for the old Combo() API: const char*[]
 bool Items_ArrayGetter(void* data, int idx, string* out_text)
 {
-    string[] items = fromVoid!string(data); // TODO D_IMGUI: Deal with D's void[] handling
+    string[] items = *cast(string[]*)data; // TODO D_IMGUI: Deal with D's void[] handling
     if (out_text)
         *out_text = items[idx];
     return true;
@@ -1578,18 +1586,18 @@ bool Items_SingleStringGetter(void* data, int idx, string* out_text)
     {
         if (idx == items_count)
             break;
-        index += strlen(items_separated_by_zeros[index..$]) + 1;
+        index += strlen(items_separated_by_zeros[index..$].ptr) + 1;
         items_count++;
     }
     if (index >= items_separated_by_zeros.length)
         return false;
     if (out_text)
-        *out_text = cstring(items_separated_by_zeros[index..$]);
+        *out_text = ImCstring(items_separated_by_zeros[index..$]);
     return true;
 }
 
 // Old API, prefer using BeginCombo() nowadays if you can.
-bool Combo(string label, int* current_item, bool function(void[], int, string*) nothrow @nogc items_getter, void* data, int items_count, int popup_max_height_in_items = -1)
+bool Combo(string label, int* current_item, bool function(void*, int, string*) nothrow @nogc items_getter, void* data, int items_count, int popup_max_height_in_items = -1)
 {
     ImGuiContext* g = GImGui;
 
@@ -1643,7 +1651,7 @@ bool Combo(string label, int* current_item, string items_separated_by_zeros, int
     size_t index = 0;       // FIXME-OPT: Avoid computing this, or at least only when combo is open
     while (index < items_separated_by_zeros.length)
     {
-        index += strlen(items_separated_by_zeros[index..$]) + 1;
+        index += strlen(items_separated_by_zeros[index..$].ptr) + 1;
         items_count++;
     }
     string[] result = (&items_separated_by_zeros)[0..items_count];
@@ -1712,21 +1720,21 @@ const (ImGuiDataTypeInfo)* DataTypeGetInfo(ImGuiDataType data_type)
 int DataTypeFormatString(char[] buf, ImGuiDataType data_type, const void* p_data, string format)
 {
     // Signedness doesn't matter when pushing integer arguments
-    if (data_type == ImGuiDataType_S32 || data_type == ImGuiDataType_U32)
+    if (data_type == ImGuiDataType.S32 || data_type == ImGuiDataType.U32)
         return ImFormatString(buf, format, *cast(const ImU32*)p_data);
-    if (data_type == ImGuiDataType_S64 || data_type == ImGuiDataType_U64)
+    if (data_type == ImGuiDataType.S64 || data_type == ImGuiDataType.U64)
         return ImFormatString(buf, format, *cast(const ImU64*)p_data);
-    if (data_type == ImGuiDataType_Float)
+    if (data_type == ImGuiDataType.Float)
         return ImFormatString(buf, format, *cast(const float*)p_data);
-    if (data_type == ImGuiDataType_Double)
+    if (data_type == ImGuiDataType.Double)
         return ImFormatString(buf, format, *cast(const double*)p_data);
-    if (data_type == ImGuiDataType_S8)
+    if (data_type == ImGuiDataType.S8)
         return ImFormatString(buf, format, *cast(const ImS8*)p_data);
-    if (data_type == ImGuiDataType_U8)
+    if (data_type == ImGuiDataType.U8)
         return ImFormatString(buf, format, *cast(const ImU8*)p_data);
-    if (data_type == ImGuiDataType_S16)
+    if (data_type == ImGuiDataType.S16)
         return ImFormatString(buf, format, *cast(const ImS16*)p_data);
-    if (data_type == ImGuiDataType_U16)
+    if (data_type == ImGuiDataType.U16)
         return ImFormatString(buf, format, *cast(const ImU16*)p_data);
     IM_ASSERT(0);
     return 0;
@@ -1813,7 +1821,7 @@ bool DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType
     int[2] data_backup;
     const ImGuiDataTypeInfo* type_info = DataTypeGetInfo(data_type);
     IM_ASSERT(type_info.Size <= (data_backup).sizeof);
-    memcpy(data_backup, p_data, type_info.Size);
+    memcpy(data_backup.ptr, p_data, type_info.Size);
 
     if (format == NULL)
         format = type_info.ScanFmt;
@@ -1873,19 +1881,19 @@ bool DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType
         // Small types need a 32-bit buffer to receive the result from scanf()
         int v32;
         sscanf(buf, format, &v32);
-        if (data_type == ImGuiDataType_S8)
+        if (data_type == ImGuiDataType.S8)
             *cast(ImS8*)p_data = cast(ImS8)ImClamp(v32, cast(int)IM_S8_MIN, cast(int)IM_S8_MAX);
-        else if (data_type == ImGuiDataType_U8)
+        else if (data_type == ImGuiDataType.U8)
             *cast(ImU8*)p_data = cast(ImU8)ImClamp(v32, cast(int)IM_U8_MIN, cast(int)IM_U8_MAX);
-        else if (data_type == ImGuiDataType_S16)
+        else if (data_type == ImGuiDataType.S16)
             *cast(ImS16*)p_data = cast(ImS16)ImClamp(v32, cast(int)IM_S16_MIN, cast(int)IM_S16_MAX);
-        else if (data_type == ImGuiDataType_U16)
+        else if (data_type == ImGuiDataType.U16)
             *cast(ImU16*)p_data = cast(ImU16)ImClamp(v32, cast(int)IM_U16_MIN, cast(int)IM_U16_MAX);
         else
             IM_ASSERT(0);
     }
 
-    return memcmp(data_backup, p_data, type_info.Size) != 0;
+    return memcmp(data_backup.ptr, p_data, type_info.Size) != 0;
 }
 
 float GetMinimumStepAtDecimalPrecision(int decimal_precision)
@@ -1911,16 +1919,16 @@ string ImAtoi(TYPE)(string src, TYPE* output)
 
 TYPE RoundScalarWithFormatT(TYPE, SIGNEDTYPE)(string format, ImGuiDataType data_type, TYPE v)
 {
-    string fmt_start = ImParseFormatFindStart(format);
-    if (fmt_start.length < 1 || fmt_start[0] != '%' || (fmt_start.length > 1 && fmt_start[1] == '%')) // Don't apply if the value is not visible in the format string
+    size_t fmt_start = ImParseFormatFindStart(format);
+    if (fmt_start + 1 >= format.length || format[fmt_start] != '%' || (fmt_start + 2 <= format.length && format[fmt_start + 1] == '%')) // Don't apply if the value is not visible in the format string
         return v;
     char[64] v_str;
-    int length = ImFormatString(v_str, fmt_start, v);
+    int length = ImFormatString(v_str, format[fmt_start..$], v);
     string p = cast(string)v_str[0..length];
     while (p.length > 0 && p[0] == ' ')
         p = p[1..$];
     if (data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
-        v = cast(TYPE)parseDouble(p);
+        v = cast(TYPE)ImAtof(p);
     else
         ImAtoi(p, cast(SIGNEDTYPE*)&v);
     return v;
@@ -2624,7 +2632,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
 }
 
 // Add multiple sliders on 1 line for compact edition of multiple components
-bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int components, const void* v_min, const void* v_max, string format = NULL, float power = 1.0f)
+bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int components, const void* p_min, const void* p_max, string format = NULL, float power = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2915,7 +2923,7 @@ bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataTy
     bool value_changed = TempInputText(bb, id, label, data_buf, flags);
     if (value_changed)
     {
-        value_changed = DataTypeApplyOpFromText(cstring(data_buf), cast(string)g.InputTextState.InitialTextA.asArray(), data_type, p_data, NULL);
+        value_changed = DataTypeApplyOpFromText(ImCstring(data_buf), cast(string)g.InputTextState.InitialTextA.asArray(), data_type, p_data, NULL);
         if (value_changed)
             MarkItemEdited(id);
     }
@@ -2953,7 +2961,7 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
         PushID(label);
         SetNextItemWidth(ImMax(1.0f, CalcItemWidth() - (button_size + style.ItemInnerSpacing.x) * 2));
         if (InputText(EMPTY_STRING, buf, flags)) // PushId(label) + "" gives us the expected ID from outside point of view
-            value_changed = DataTypeApplyOpFromText(cstring(buf.ptr), cast(string)g.InputTextState.InitialTextA.asArray()[0..$-1], data_type, p_data, format);
+            value_changed = DataTypeApplyOpFromText(ImCstring(buf.ptr), cast(string)g.InputTextState.InitialTextA.asArray()[0..$-1], data_type, p_data, format);
 
         // Step buttons
         const ImVec2 backup_frame_padding = style.FramePadding;
@@ -2988,7 +2996,7 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
     else
     {
         if (InputText(label, buf, flags))
-            value_changed = DataTypeApplyOpFromText(cstring(buf.ptr), cast(string)g.InputTextState.InitialTextA.asArray()[0..$-1], data_type, p_data, format);
+            value_changed = DataTypeApplyOpFromText(ImCstring(buf.ptr), cast(string)g.InputTextState.InitialTextA.asArray()[0..$-1], data_type, p_data, format);
     }
     if (value_changed)
         MarkItemEdited(window.DC.LastItemId);
@@ -3069,7 +3077,7 @@ bool InputFloat2(string label, float[/*2*/] v, int decimal_precision, ImGuiInput
     size_t length = 2;
     if (decimal_precision >= 0)
         length = ImFormatString(format, "%%.%df", decimal_precision);
-    return InputScalarN(label, ImGuiDataType_Float, v, 2, NULL, NULL, cast(string)format[0..length], flags);
+    return InputScalarN(label, ImGuiDataType.Float, v.ptr, 2, NULL, NULL, cast(string)format[0..length], flags);
 }
 
 bool InputFloat3(string label, float[/*3*/] v, int decimal_precision, ImGuiInputTextFlags flags)
@@ -3078,7 +3086,7 @@ bool InputFloat3(string label, float[/*3*/] v, int decimal_precision, ImGuiInput
     size_t length = 2;
     if (decimal_precision >= 0)
         length = ImFormatString(format, "%%.%df", decimal_precision);
-    return InputScalarN(label, ImGuiDataType_Float, v, 3, NULL, NULL, cast(string)format[0..length], flags);
+    return InputScalarN(label, ImGuiDataType.Float, v.ptr, 3, NULL, NULL, cast(string)format[0..length], flags);
 }
 
 bool InputFloat4(string label, float[/*4*/] v, int decimal_precision, ImGuiInputTextFlags flags)
@@ -3087,7 +3095,7 @@ bool InputFloat4(string label, float[/*4*/] v, int decimal_precision, ImGuiInput
     size_t length = 2;
     if (decimal_precision >= 0)
         length = ImFormatString(format, "%%.%df", decimal_precision);
-    return InputScalarN(label, ImGuiDataType_Float, v, 4, NULL, NULL, cast(string)format[0..length], flags);
+    return InputScalarN(label, ImGuiDataType.Float, v.ptr, 4, NULL, NULL, cast(string)format[0..length], flags);
 }
 } // IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
@@ -3149,18 +3157,20 @@ int InputTextCalcTextLenAndLineCount(const char[] text_begin, size_t* out_text_e
 {
     int line_count = 0;
     const (char)*s = text_begin.ptr;
-    char c;
-    while (c = *s++) // We are only matching for \n so we can ignore UTF-8 decoding
+    char c = *s++;
+    while (c) { // We are only matching for \n so we can ignore UTF-8 decoding
         if (c == '\n')
             line_count++;
+        c = *s++;
+    }
     s--;
     if (s[0] != '\n' && s[0] != '\r')
         line_count++;
-    *out_text_end = s - text_begin;
+    *out_text_end = s - text_begin.ptr;
     return line_count;
 }
 
-static ImVec2 InputTextCalcTextSizeW(const ImWchar* text_begin, const ImWchar* text_end, const (ImWchar)** remaining, ImVec2* out_offset, bool stop_on_new_line)
+ImVec2 InputTextCalcTextSizeW(const ImWchar* text_begin, const ImWchar* text_end, const (ImWchar)** remaining = NULL, ImVec2* out_offset = NULL, bool stop_on_new_line = false)
 {
     ImGuiContext* g = GImGui;
     ImFont* font = g.Font;
@@ -3249,9 +3259,11 @@ void STB_TEXTEDIT_DELETECHARS(STB_TEXTEDIT_STRING* obj, int pos, int n)
 
     // Offset remaining text (FIXME-OPT: Use memmove)
     const (ImWchar)* src = obj.TextW.Data + pos + n;
-    ImWchar c;
-    while (c = *src++)
+    ImWchar c = *src++;
+    while (c) {
         *dst++ = c;
+        c = *src++;
+    }
     *dst = '\0';
 }
 
@@ -3329,7 +3341,7 @@ void stb_textedit_replace(STB_TEXTEDIT_STRING* str, STB_TexteditState* state, co
 /+
 void ImGuiInputTextState.OnKeyPressed(int key)
 {
-    ImStb.stb_textedit_key(this, &Stb, key);
+    stb_textedit_key(this, &Stb, key);
     CursorFollow = true;
     CursorAnimReset();
 }
@@ -3570,7 +3582,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
         // Take a copy of the initial buffer value (both in original UTF-8 format and converted to wchar)
         // From the moment we focused we are ignoring the content of 'buf' (unless we are in read-only mode)
-        const int buf_len = cast(int)strlen(buf);
+        const int buf_len = cast(int)strlen(buf.ptr);
         state.InitialTextA.resize(buf_len + 1);    // UTF-8. we use +1 to make sure that .Data is always pointing to at least an empty string.
         memcpy(state.InitialTextA.asArray().ptr, buf.ptr, buf_len + 1);
 
@@ -3644,7 +3656,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
     {
         string buf_end = NULL;
         state.TextW.resize(cast(int)buf.length + 1);
-        state.CurLenW = ImTextStrFromUtf8(state.TextW.Data, state.TextW.Size, cstring(buf), &buf_end);
+        state.CurLenW = ImTextStrFromUtf8(state.TextW.Data, state.TextW.Size, ImCstring(buf), &buf_end);
         state.CurLenA = cast(int)(buf_end.ptr - buf.ptr);
         state.CursorClamp();
         render_selection &= state.HasSelection();
@@ -3846,7 +3858,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             {
                 // Filter pasted buffer
                 const int clipboard_len = cast(int)clipboard.length;
-                ImWchar[] clipboard_filtered = New!ImWchar(clipboard_len + 1);
+                ImWchar[] clipboard_filtered = IM_ALLOC!ImWchar(clipboard_len + 1);
                 int clipboard_filtered_len = 0;
                 for (size_t s = 0; s < clipboard.length; )
                 {
@@ -3879,7 +3891,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         if (cancel_edit)
         {
             // Restore initial value. Only return true if restoring to the initial value changes the current buffer contents.
-            if (!is_readonly && strcmp(buf, state.InitialTextA.asArray()) != 0)
+            if (!is_readonly && strcmp(buf.ptr, state.InitialTextA.asArray().ptr) != 0)
             {
                 // Push records into the undo stack so we can CTRL+Z the revert operation itself
                 apply_new_text = cast(string)state.InitialTextA.asArray();
@@ -3980,7 +3992,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             }
 
             // Will copy result string if modified
-            if (!is_readonly && strcmp(state.TextA.Data, buf) != 0)
+            if (!is_readonly && strcmp(state.TextA.Data, buf.ptr) != 0)
             {
                 apply_new_text = cast(string)state.TextA.asArray();
                 apply_new_text_length = state.CurLenA;
@@ -4011,7 +4023,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             //IMGUI_DEBUG_LOG("InputText(\"%s\"): apply_new_text length %d\n", label, apply_new_text_length);
 
             // If the underlying buffer resize was denied or not carried to the next frame, apply_new_text_length+1 may be >= buf.length.
-            ImStrncpy(buf.ptr, apply_new_text.ptr, ImMin(apply_new_text_length + 1, cast(int)buf.length));
+            ImStrncpy(buf, apply_new_text);
             value_changed = true;
         }
 
@@ -4063,7 +4075,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         // - Measure text height (for scrollbar)
         // We are attempting to do most of that in **one main pass** to minimize the computation cost (non-negligible for large amount of text) + 2nd pass for selection rendering (we could merge them by an extra refactoring effort)
         // FIXME: This should occur on buf_display but we'd need to maintain cursor/select_start/select_end for UTF-8.
-        const ImWchar* text_begin = state.TextW.aData;
+        const ImWchar* text_begin = state.TextW.Data;
         ImVec2 cursor_offset, select_start_offset;
 
         {
@@ -4089,7 +4101,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             searches_remaining += is_multiline ? 1 : 0;
             int line_count = 0;
             //for (const ImWchar* s = text_begin; (s = (const ImWchar*)wcschr((const wchar_t*)s, (wchar_t)'\n')) != NULL; s++)  // FIXME-OPT: Could use this when wchar_t are 16-bit
-            for (const ImWchar* s = text_begin; *s != 0; s++)
+            for (const (ImWchar)* s = text_begin; *s != 0; s++)
                 if (*s == '\n')
                 {
                     line_count++;
@@ -4211,11 +4223,11 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
     {
         // Render text only (no selection, no cursor)
         if (is_multiline)
-            text_size = ImVec2(inner_size.x, InputTextCalcTextLenAndLineCount(buf_display.ptr, &buf_display_end) * g.FontSize); // We don't need width
+            text_size = ImVec2(inner_size.x, InputTextCalcTextLenAndLineCount(buf_display, &buf_display_end) * g.FontSize); // We don't need width
         else if (!is_displaying_hint && g.ActiveId == id)
             buf_display_end = state.CurLenA;
         else if (!is_displaying_hint)
-            buf_display_end = strlen(buf_display);
+            buf_display_end = strlen(buf_display.ptr);
 
         if (is_multiline || buf_display_end < buf_display_max_length)
         {
@@ -4326,7 +4338,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
     {
         // Hue is lost when converting from greyscale rgb (saturation=0). Restore it.
         ColorConvertRGBtoHSV(f[0], f[1], f[2], f[0], f[1], f[2]);
-        if (memcmp(g.ColorEditLastColor, col, (float).sizeof * 3) == 0)
+        if (memcmp(g.ColorEditLastColor.ptr, col.ptr, (float).sizeof * 3) == 0)
         {
             if (f[1] == 0)
                 f[0] = g.ColorEditLastHue;
@@ -4397,14 +4409,14 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
         if (InputText("##Text", buf, ImGuiInputTextFlags.CharsHexadecimal | ImGuiInputTextFlags.CharsUppercase))
         {
             value_changed = true;
-            char* p = buf.ptr;
-            while (*p == '#' || ImCharIsBlankA(*p))
+            size_t p = 0;
+            while (buf[p] == '#' || ImCharIsBlankA(buf[p]))
                 p++;
             i[0] = i[1] = i[2] = i[3] = 0;
             if (alpha)
-                sscanf(p, "%02X%02X%02X%02X", cast(uint*)&i[0], cast(uint*)&i[1], cast(uint*)&i[2], cast(uint*)&i[3]); // Treat at unsigned (%X is unsigned)
+                sscanf(cast(string)buf[p..$], "%02X%02X%02X%02X", cast(uint*)&i[0], cast(uint*)&i[1], cast(uint*)&i[2], cast(uint*)&i[3]); // Treat at unsigned (%X is unsigned)
             else
-                sscanf(p, "%02X%02X%02X", cast(uint*)&i[0], cast(uint*)&i[1], cast(uint*)&i[2]);
+                sscanf(cast(string)buf[p..$], "%02X%02X%02X", cast(uint*)&i[0], cast(uint*)&i[1], cast(uint*)&i[2]);
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
             OpenPopupOnItemClick("context");
@@ -4441,7 +4453,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
             ImGuiColorEditFlags picker_flags_to_forward = ImGuiColorEditFlags._DataTypeMask | ImGuiColorEditFlags._PickerMask | ImGuiColorEditFlags._InputMask | ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.NoAlpha | ImGuiColorEditFlags.AlphaBar;
             ImGuiColorEditFlags picker_flags = (flags_untouched & picker_flags_to_forward) | ImGuiColorEditFlags._DisplayMask | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.AlphaPreviewHalf;
             SetNextItemWidth(square_sz * 12.0f); // Use 256 + bar sizes?
-            value_changed |= ColorPicker4("##picker", col, picker_flags, g.ColorPickerRef.array());
+            value_changed |= ColorPicker4("##picker", col, picker_flags, g.ColorPickerRef.array().ptr);
             EndPopup();
         }
     }
@@ -4464,7 +4476,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
             g.ColorEditLastHue = f[0];
             g.ColorEditLastSat = f[1];
             ColorConvertHSVtoRGB(f[0], f[1], f[2], f[0], f[1], f[2]);
-            memcpy(g.ColorEditLastColor, f, (float).sizeof * 3);
+            memcpy(g.ColorEditLastColor.ptr, f.ptr, (float).sizeof * 3);
         }
         if ((flags & ImGuiColorEditFlags.DisplayRGB) && (flags & ImGuiColorEditFlags.InputHSV))
             ColorConvertRGBtoHSV(f[0], f[1], f[2], f[0], f[1], f[2]);
@@ -4484,13 +4496,14 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
     if ((window.DC.LastItemStatusFlags & ImGuiItemStatusFlags.HoveredRect) && !(flags & ImGuiColorEditFlags.NoDragDrop) && BeginDragDropTarget())
     {
         bool accepted_drag_drop = false;
-        const ImGuiPayload* payload;
-        if (payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F))
+        const (ImGuiPayload)* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F);
+        if (payload)
         {
             memcpy(col.ptr, payload.Data, (float).sizeof * 3); // Preserve alpha if any //-V512
             value_changed = accepted_drag_drop = true;
         }
-        if (payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F))
+        payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F);
+        if (payload)
         {
             memcpy(col.ptr, payload.Data, (float).sizeof * components);
             value_changed = accepted_drag_drop = true;
@@ -4529,10 +4542,10 @@ bool ColorPicker3(string label, float[/*3*/] col, ImGuiColorEditFlags flags = Im
 static void RenderArrowsForVerticalBar(ImDrawList* draw_list, ImVec2 pos, ImVec2 half_sz, float bar_w, float alpha)
 {
     ImU32 alpha8 = IM_F32_TO_INT8_SAT(alpha);
-    RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x + 1,         pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir_Right, IM_COL32(0,0,0,alpha8));
-    RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x,             pos.y), half_sz,                              ImGuiDir_Right, IM_COL32(255,255,255,alpha8));
-    RenderArrowPointingAt(draw_list, ImVec2(pos.x + bar_w - half_sz.x - 1, pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir_Left,  IM_COL32(0,0,0,alpha8));
-    RenderArrowPointingAt(draw_list, ImVec2(pos.x + bar_w - half_sz.x,     pos.y), half_sz,                              ImGuiDir_Left,  IM_COL32(255,255,255,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x + 1,         pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir.Right, IM_COL32(0,0,0,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x,             pos.y), half_sz,                              ImGuiDir.Right, IM_COL32(255,255,255,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(pos.x + bar_w - half_sz.x - 1, pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir.Left,  IM_COL32(0,0,0,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(pos.x + bar_w - half_sz.x,     pos.y), half_sz,                              ImGuiDir.Left,  IM_COL32(255,255,255,alpha8));
 }
 
 // Note: ColorPicker4() only accesses 3 floats if ImGuiColorEditFlags_NoAlpha flag is set.
@@ -5600,7 +5613,7 @@ bool CollapsingHeader(string label, bool* p_open, ImGuiTreeNodeFlags flags = ImG
 // But you need to make sure the ID is unique, e.g. enclose calls in PushID/PopID or use ##unique_id.
 // With this scheme, ImGuiSelectableFlags_SpanAllColumns and ImGuiSelectableFlags_AllowItemOverlap are also frequently used flags.
 // FIXME: Selectable() with (size.x == 0.0f) and (SelectableTextAlign.x > 0.0f) followed by SameLine() is currently not supported.
-bool Selectable(string label, bool selected, ImGuiSelectableFlags flags = ImGuiSelectableFlags.None, const ImVec2/*&*/ size_arg = ImVec2(0,0))
+bool Selectable(string label, bool selected = false, ImGuiSelectableFlags flags = ImGuiSelectableFlags.None, const ImVec2/*&*/ size_arg = ImVec2(0,0))
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)

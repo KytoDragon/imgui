@@ -57,18 +57,22 @@ import d_imgui.imconfig;
 immutable float FLT_MIN = float.min_normal;
 immutable float FLT_MAX = float.max;
 immutable float DBL_MAX = double.max;
+immutable int INT_MIN = int.min;
 immutable int INT_MAX = int.max;
 // #include <stdarg.h>                 // va_list, va_start, va_end
 // #include <stddef.h>                 // ptrdiff_t, NULL
 enum NULL = null;
 // #include <string.h>                 // memset, memmove, memcpy, strlen, strchr, strcpy, strcmp
 static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
-    import core.stdc.stdarg : va_list, va_start, va_end;
+    import core.stdc.stdarg : va_list;
 }
-import core.stdc.string : memset, memmove, memcpy, strlen, strchr, strcpy, strcmp;
+import core.stdc.string : memset, memmove, memcpy, memcmp, strlen, strchr, strcpy, strcmp;
+import core.stdc.stdlib : alloca;
 
 import d_imgui.imgui_internal;
 import d_imgui.imgui;
+import d_imgui.imgui_draw;
+import d_imgui.imgui_widgets;
 
 nothrow:
 @nogc:
@@ -77,10 +81,13 @@ nothrow:
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals. Work in progress versions typically starts at XYY99 then bounce up to XYY00, XYY01 etc. when release tagging happens)
 enum IMGUI_VERSION              = "1.76";
 enum IMGUI_VERSION_NUM          = 17600;
-pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndDataLayout(IMGUI_VERSION, sizeof(ImGuiIO), sizeof(ImGuiStyle), sizeof(ImVec2), sizeof(ImVec4), sizeof(ImDrawVert), sizeof(ImDrawIdx));}
+pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndDataLayout(IMGUI_VERSION, sizeof!(ImGuiIO), sizeof!(ImGuiStyle), sizeof!(ImVec2), sizeof!(ImVec4), sizeof!(ImDrawVert), sizeof!(ImDrawIdx));}
 
 pragma(inline, true) int sizeof(T)() {return cast(int)T.sizeof;}
 pragma(inline, true) int sizeof(T)(T t) {return cast(int)T.sizeof;}
+
+// D_IMGUI: D doesn't properly initialise empty strings
+enum EMPTY_STRING = "\0"[0..0];
 
 // Define attributes of all API symbols declarations (e.g. for DLL under Windows)
 // IMGUI_API is used for core imgui functions, IMGUI_IMPL_API is used for the default bindings files (imgui_impl_xxx.h)
@@ -96,7 +103,7 @@ pragma(inline, true) int sizeof(T)(T t) {return cast(int)T.sizeof;}
 static if (!D_IMGUI_USER_DEFINED_ASSERT) {
 }
     pragma(inline, true) void IM_ASSERT(T)(T _EXPR) {assert(_EXPR);}                               // You can override the default assert handler by editing imconfig.h
-    pragma(inline, true) void IM_ASSERT(T)(T _EXPR, string _MSG) {assert(_EXPR, _MSG);} // TODO D_IMGUI: LDC fails if this is inside the static if
+    pragma(inline, true) void IM_ASSERT(T)(T _EXPR, string _MSG) {assert(_EXPR, _MSG);} // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
 // #if !defined(IMGUI_USE_STB_SPRINTF) && (defined(__clang__) || defined(__GNUC__))
 // #define IM_FMTARGS(FMT)             __attribute__((format(printf, FMT, FMT+1))) // To apply printf-style warnings to our functions.
 // #define IM_FMTLIST(FMT)             __attribute__((format(printf, FMT, 0)))
@@ -1383,7 +1390,9 @@ enum ImGuiCond : int
 // struct ImNewDummy {}
 // inline void* operator new(size_t, ImNewDummy, void* ptr) { return ptr; }
 // inline void  operator delete(void*, ImNewDummy, void*)   {} // This is only required so we can use the symmetrical new()
-alias IM_ALLOC = MemAlloc;
+pragma(inline) T[] IM_ALLOC(T)(size_t amount) {
+    return (cast(T*)MemAlloc(amount * T.sizeof))[0..amount];
+}
 alias IM_FREE = MemFree;
 pragma(inline) void IM_PLACEMENT_NEW(T)(T* ptr, T value) {
     *ptr = value;
@@ -1395,7 +1404,7 @@ pragma(inline) T* IM_NEW(T, A...)(A args) {
 }
 pragma(inline) void IM_DELETE(T)(T* p)   { if (p) { p.destroy(); MemFree(p); } }
 // D_IMGUI separate definition for string
-pragma(inline) void IM_DELETE(string s)   { if (s !is NULL) { MemFree(s.ptr); } }
+pragma(inline) void IM_DELETE(string s)   { if (s !is NULL) { MemFree(cast(char*)s.ptr); } }
 
 //-----------------------------------------------------------------------------
 // Helper: ImVector<>
@@ -1447,7 +1456,7 @@ struct ImVector(T)
     pragma(inline, true) void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
     pragma(inline, true) void         resize(int new_size, const T/*&*/ v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
     pragma(inline, true) void         shrink(int new_size)                { IM_ASSERT(new_size <= Size); Size = new_size; } // Resize a vector to a smaller size, guaranteed not to cause a reallocation
-    pragma(inline, true) void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = cast(T*)IM_ALLOC(cast(size_t)new_capacity * (T).sizeof); if (Data) { memcpy(new_data, Data, cast(size_t)Size * sizeof!(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+    pragma(inline, true) void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = IM_ALLOC!T(cast(size_t)new_capacity).ptr; if (Data) { memcpy(new_data, Data, cast(size_t)Size * sizeof!(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
 
     // NB: It is illegal to call push_back/push_front/insert with a reference pointing inside the ImVector data itself! e.g. v.push_back(v[10]) is forbidden.
     pragma(inline, true) void         push_back(const T/*&*/ v)               { if (Size == Capacity) reserve(_grow_capacity(Size + 1)); memcpy(&Data[Size], &v, sizeof(v)); Size++; }
@@ -1701,7 +1710,7 @@ struct ImGuiIO
         InputQueueCharacters.push_back(cp);
     }
 
-    void  AddInputCharactersUTF8(string str)    // Queue new characters input from an UTF-8 string
+    void  AddInputCharactersUTF8(string utf8_chars)    // Queue new characters input from an UTF-8 string
     {
         size_t index = 0;
         while (index < utf8_chars.length) {
@@ -1806,10 +1815,10 @@ struct ImGuiIO
         // Platform Functions
         BackendPlatformName = BackendRendererName = NULL;
         BackendPlatformUserData = BackendRendererUserData = BackendLanguageUserData = NULL;
-        GetClipboardTextFn = GetClipboardTextFn_DefaultImpl;   // Platform dependent default implementations
-        SetClipboardTextFn = SetClipboardTextFn_DefaultImpl;
+        GetClipboardTextFn = &GetClipboardTextFn_DefaultImpl;   // Platform dependent default implementations
+        SetClipboardTextFn = &SetClipboardTextFn_DefaultImpl;
         ClipboardUserData = NULL;
-        ImeSetInputScreenPosFn = ImeSetInputScreenPosFn_DefaultImpl;
+        ImeSetInputScreenPosFn = &ImeSetInputScreenPosFn_DefaultImpl;
         ImeWindowHandle = NULL;
 
         // Input (NB: we already have memset zero the entire structure!)
@@ -1868,9 +1877,11 @@ struct ImGuiInputTextCallbackData
         IM_ASSERT(pos + bytes_count <= BufTextLen);
         size_t dst = pos;
         size_t src = pos + bytes_count;
-        char c;
-        while (c = Buf[src++])
+        char c = Buf[src++];
+        while (c) {
             Buf[dst++] = c;
+            c = Buf[src++];
+        }
         Buf[dst] = '\0';
 
         if (CursorPos + bytes_count >= pos)
@@ -1946,7 +1957,7 @@ struct ImGuiPayload
     size_t          DataTypeLength;
 
     // this()  { Clear(); }
-    void Clear()    { SourceId = SourceParentId = 0; Data = NULL; DataSize = 0; memset(DataType, 0, (DataType).sizeof); DataFrameCount = -1; Preview = Delivery = false; }
+    void Clear()    { SourceId = SourceParentId = 0; Data = NULL; DataSize = 0; memset(DataType.ptr, 0, (DataType).sizeof); DataFrameCount = -1; Preview = Delivery = false; }
     bool IsDataType(string type) const { return DataFrameCount != -1 && type == cast(string)DataType[0..DataTypeLength]; }
     bool IsPreview() const                  { return Preview; }
     bool IsDelivery() const                 { return Delivery; }
@@ -2017,7 +2028,7 @@ struct ImGuiTextFilter
     {
         if (default_filter)
         {
-            ImStrncpy(InputBuf, default_filter, IM_ARRAYSIZE(InputBuf));
+            ImStrncpy(InputBuf, default_filter);
             Build();
         }
         else
@@ -2031,7 +2042,7 @@ struct ImGuiTextFilter
     {
         if (width != 0.0f)
             SetNextItemWidth(width);
-        bool value_changed = InputText(label, InputBuf, IM_ARRAYSIZE(InputBuf));
+        bool value_changed = InputText(label, InputBuf);
         if (value_changed)
             Build();
         return value_changed;
@@ -2050,16 +2061,16 @@ struct ImGuiTextFilter
             const ImGuiTextRange* f = &Filters[i];
             if (f.empty())
                 continue;
-            if (f.b[0] == '-')
+            if (f.s[0] == '-')
             {
                 // Subtract
-                if (ImStristr(text, f.b[1..$]) != NULL)
+                if (ImStristr(text, f.s[1..$]) != NULL)
                     return false;
             }
             else
             {
                 // Grep
-                if (ImStristr(text, f.b) != NULL)
+                if (ImStristr(text, f.s) != NULL)
                     return true;
             }
         }
@@ -2075,20 +2086,20 @@ struct ImGuiTextFilter
     void      Build()
     {
         Filters.resize(0);
-        ImGuiTextRange input_range = ImGuiTextRange(cstring(InputBuf));
+        ImGuiTextRange input_range = ImGuiTextRange(ImCstring(InputBuf));
         input_range.split(',', &Filters);
 
         CountGrep = 0;
         for (int i = 0; i != Filters.Size; i++)
         {
             ImGuiTextRange* f = &Filters[i];
-            while (f.b.length > 0 && ImCharIsBlankA(f.b[0]))
-                f.b = f.b[1..$];
-            while (f.b.length > 0 && ImCharIsBlankA(f.b[$-1]))
-                f.b = f.b[0..$-1];
+            while (f.s.length > 0 && ImCharIsBlankA(f.s[0]))
+                f.s = f.s[1..$];
+            while (f.s.length > 0 && ImCharIsBlankA(f.s[$-1]))
+                f.s = f.s[0..$-1];
             if (f.empty())
                 continue;
-            if (Filters[i].b[0] != '-')
+            if (Filters[i].s[0] != '-')
                 CountGrep += 1;
         }
     }
@@ -2106,23 +2117,23 @@ struct ImGuiTextFilter
 
         // ImGuiTextRange()                                { s = NULL; }
         this(string _s)  { s = _s; }
-        bool            empty() const                   { return b.length == 0; }
+        bool            empty() const                   { return s.length == 0; }
         void  split(char separator, ImVector!ImGuiTextRange* _out) const
         {
             _out.resize(0);
             size_t wb = 0;
             size_t we = wb;
-            while (we < b.length)
+            while (we < s.length)
             {
-                if (b[we] == separator)
+                if (s[we] == separator)
                 {
-                    _out.push_back(ImGuiTextRange(b[wb..we]));
+                    _out.push_back(ImGuiTextRange(s[wb..we]));
                     wb = we + 1;
                 }
                 we++;
             }
             if (wb != we)
-                _out.push_back(ImGuiTextRange(b[wb..we]));
+                _out.push_back(ImGuiTextRange(s[wb..we]));
         }
     }
     char[256]                    InputBuf = 0;
@@ -2182,15 +2193,15 @@ struct ImGuiTextBuffer
     void      appendf(string fmt, ...)
     {
         va_list args;
-        va_start(args, fmt);
+        mixin va_start!(args, fmt);
         appendfv(fmt, args /*get_vargs(_argptr, _arguments, v_alloc(v_space(_arguments)))*/); // TODO D_IMGUI: fix va_args stuff
         va_end(args);
     }
 
     void      appendfv(string fmt, va_list args)
     {
-        v_args args_copy;
-        va_copy(args_copy, args);
+        va_list args_copy;
+        mixin va_copy!(args_copy, args);
 
         int len = ImFormatStringV(NULL, fmt, args);         // FIXME-OPT: could do a first pass write attempt, likely successful on first pass.
         if (len <= 0)
@@ -2295,9 +2306,9 @@ struct ImGuiStorage
         it.val_f = val;
     }
 
-    void*     GetVoidPtr(ImGuiID key) const // default_val is NULL
+    void*     GetVoidPtr(ImGuiID key) // default_val is NULL
     {
-        const ImGuiStoragePair* it = LowerBound(&Data, key);
+        ImGuiStoragePair* it = LowerBound(&Data, key);
         if (it == Data.end() || it.key != key)
             return NULL;
         return it.val_p;
@@ -2361,7 +2372,7 @@ struct ImGuiStorage
             nothrow:
             @nogc:
 
-            extern(C) static int PairCompareByID(ImGuiStoragePair* lhs, ImGuiStoragePair* rhs) {
+            static int PairCompareByID(ImGuiStoragePair* lhs, ImGuiStoragePair* rhs) {
                 // We can't just do a subtraction because qsort uses signed integers and subtracting our ID doesn't play well with that.
                 if (lhs.key > rhs.key) return +1;
                 if (lhs.key < rhs.key) return -1;
@@ -2535,7 +2546,7 @@ struct ImColor
 // If you want to override the signature of ImDrawCallback, you can simply use e.g. '#define ImDrawCallback MyDrawCallback' (in imconfig.h) + update rendering back-end accordingly.
 static if (!D_IMGUI_USER_DEFINED_DRAW_CALLBACK) {
 }
-    alias ImDrawCallback = void function(const ImDrawList* parent_list, const ImDrawCmd* cmd); // TODO D_IMGUI: LDC fails if this is inside the static if
+    alias ImDrawCallback = void function(const ImDrawList* parent_list, const ImDrawCmd* cmd); // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
 
 // Special Draw callback value to request renderer back-end to reset the graphics/render state.
 // The renderer back-end needs to handle this special value, otherwise it will crash trying to call a function at this address.
@@ -2567,7 +2578,7 @@ struct ImDrawCmd
 // To use 32-bit indices: override with '#define ImDrawIdx unsigned int' in imconfig.h.
 static if (!D_IMGUI_USER_DEFINED_DRAW_IDX) {
 }
-    alias ImDrawIdx = ushort; // TODO D_IMGUI: LDC fails if this is inside the static if
+    alias ImDrawIdx = ushort; // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
 
 // Vertex layout
 // #ifndef IMGUI_OVERRIDE_DRAWVERT_STRUCT_LAYOUT
@@ -2596,6 +2607,9 @@ struct ImDrawChannel
 // This is used by the Columns api, so items of each column can be batched together in a same draw call.
 struct ImDrawListSplitter
 {
+    nothrow:
+    @nogc:
+
     int                         _Current;    // Current channel number (0)
     int                         _Count = 1;      // Number of active channels (1+)
     ImVector!ImDrawChannel     _Channels;   // Draw channels (not resized down so _Count might be < Channels.Size)
@@ -2838,7 +2852,7 @@ struct ImDrawList
         PathStroke(col, false, thickness);
     }
     
-    void  AddRect(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col, float rounding = 0.0f, ImDrawCornerFlags rounding_corners = ImDrawCornerFlags.All, float thickness = 1.0f)   // a: upper-left, b: lower-right (== upper-left + size), rounding_corners_flags: 4 bits corresponding to which corner to round
+    void  AddRect(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col, float rounding = 0.0f, ImDrawCornerFlags rounding_corners_flags = ImDrawCornerFlags.All, float thickness = 1.0f)   // a: upper-left, b: lower-right (== upper-left + size), rounding_corners_flags: 4 bits corresponding to which corner to round
     {
         if ((col & IM_COL32_A_MASK) == 0)
             return;
@@ -2849,7 +2863,7 @@ struct ImDrawList
         PathStroke(col, true, thickness);
     }
     
-    void  AddRectFilled(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col, float rounding = 0.0f, ImDrawCornerFlags rounding_corners = ImDrawCornerFlags.All)                     // a: upper-left, b: lower-right (== upper-left + size)
+    void  AddRectFilled(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col, float rounding = 0.0f, ImDrawCornerFlags rounding_corners_flags = ImDrawCornerFlags.All)                     // a: upper-left, b: lower-right (== upper-left + size)
     {
         if ((col & IM_COL32_A_MASK) == 0)
             return;
@@ -3013,7 +3027,7 @@ struct ImDrawList
         AddText(NULL, 0.0f, pos, col, text);
     }
     
-    void  AddText(const ImFont* font, float font_size, const ImVec2/*&*/ pos, ImU32 col, string text, float wrap_width = 0.0f, const ImVec4* cpu_fine_clip_rect = NULL)
+    void  AddText(const (ImFont)* font, float font_size, const ImVec2/*&*/ pos, ImU32 col, string text, float wrap_width = 0.0f, const ImVec4* cpu_fine_clip_rect = NULL)
     {
         if ((col & IM_COL32_A_MASK) == 0)
             return;
@@ -3503,9 +3517,9 @@ struct ImDrawList
     ImDrawList* CloneOutput() const                                  // Create a clone of the CmdBuffer/IdxBuffer/VtxBuffer.
     {
         ImDrawList* dst = IM_NEW!ImDrawList(_Data);
-        dst.CmdBuffer = CmdBuffer;
-        dst.IdxBuffer = IdxBuffer;
-        dst.VtxBuffer = VtxBuffer;
+        dst.CmdBuffer = cast(ImVector!(ImDrawCmd))CmdBuffer;
+        dst.IdxBuffer = cast(ImVector!(ushort))IdxBuffer;
+        dst.VtxBuffer = cast(ImVector!(ImDrawVert))VtxBuffer;
         dst.Flags = Flags;
         return dst;
     }
@@ -3516,9 +3530,9 @@ struct ImDrawList
     // - FIXME-OBSOLETE: This API shouldn't have been in ImDrawList in the first place!
     //   Prefer using your own persistent copy of ImDrawListSplitter as you can stack them.
     //   Using the ImDrawList::ChannelsXXXX you cannot stack a split over another.
-    pragma(inline, true) void     ChannelsSplit(int count)    { _Splitter.Split(this, count); }
-    pragma(inline, true) void     ChannelsMerge()             { _Splitter.Merge(this); }
-    pragma(inline, true) void     ChannelsSetCurrent(int n)   { _Splitter.SetCurrentChannel(this, n); }
+    pragma(inline, true) void     ChannelsSplit(int count)    { _Splitter.Split(&this, count); }
+    pragma(inline, true) void     ChannelsMerge()             { _Splitter.Merge(&this); }
+    pragma(inline, true) void     ChannelsSetCurrent(int n)   { _Splitter.SetCurrentChannel(&this, n); }
 
     // Internal helpers
     // NB: all primitives needs to be reserved via PrimReserve() beforehand!
@@ -3585,7 +3599,7 @@ struct ImDrawList
         IdxBuffer.shrink(IdxBuffer.Size - idx_count);
     }
     
-    void  PrimRect(const ImVec2/*&*/ a, const ImVec2/*&*/ b, ImU32 col)      // Axis aligned rectangle (composed of two triangles)
+    void  PrimRect(const ImVec2/*&*/ a, const ImVec2/*&*/ c, ImU32 col)      // Axis aligned rectangle (composed of two triangles)
     {
         ImVec2 b = ImVec2(c.x, a.y), d = ImVec2(a.x, c.y), uv = _Data.TexUvWhitePixel;
         ImDrawIdx idx = cast(ImDrawIdx)_VtxCurrentIdx;
@@ -3600,7 +3614,7 @@ struct ImDrawList
         _IdxWritePtr += 6;
     }
     
-    void  PrimRectUV(const ImVec2/*&*/ a, const ImVec2/**/ b, const ImVec2/*&*/ uv_a, const ImVec2/*&*/ uv_b, ImU32 col)
+    void  PrimRectUV(const ImVec2/*&*/ a, const ImVec2/**/ c, const ImVec2/*&*/ uv_a, const ImVec2/*&*/ uv_c, ImU32 col)
     {
         ImVec2 b = ImVec2(c.x, a.y), d = ImVec2(a.x, c.y), uv_b = ImVec2(uv_c.x, uv_a.y), uv_d = ImVec2(uv_a.x, uv_c.y);
         ImDrawIdx idx = cast(ImDrawIdx)_VtxCurrentIdx;
@@ -3693,7 +3707,7 @@ struct ImDrawData
     // Functions
     // this()    { Valid = false; Clear(); }
     void destroy()   { Clear(); }
-    void Clear()    { Valid = false; CmdLists = NULL; CmdListsCount = TotalVtxCount = TotalIdxCount = 0; DisplayPos = DisplaySize = FramebufferScale = ImVec2(0.f, 0.f); } // The ImDrawList are owned by ImGuiContext!
+    void Clear()    { Valid = false; CmdLists = NULL; CmdListsCount = TotalVtxCount = TotalIdxCount = 0; DisplayPos = DisplaySize = FramebufferScale = ImVec2(0.0f, 0.0f); } // The ImDrawList are owned by ImGuiContext!
     
     void  DeIndexAllBuffers()                    // Helper to convert all buffers from indexed to non-indexed, in case you cannot render indexed. Note: this is slow and most likely a waste of resources. Always prefer indexed rendering!
     {
@@ -3778,7 +3792,7 @@ struct ImFontConfig
         RasterizerFlags = 0x00;
         RasterizerMultiply = 1.0f;
         EllipsisChar = cast(ImWchar)-1;
-        memset(Name, 0, (Name).sizeof);
+        memset(Name.ptr, 0, (Name).sizeof);
         DstFont = NULL;
     }
 }
@@ -3830,7 +3844,7 @@ struct ImFontGlyphRangesBuilder
         }
     }
     
-    void  AddRanges(const ImWchar* ranges)                           // Add ranges, e.g. builder.AddRanges(ImFontAtlas::GetGlyphRangesDefault()) to force add all of ASCII/Latin+Ext
+    void  AddRanges(const (ImWchar)* ranges)                           // Add ranges, e.g. builder.AddRanges(ImFontAtlas::GetGlyphRangesDefault()) to force add all of ASCII/Latin+Ext
     {
         for (; ranges[0]; ranges += 2)
             for (ImWchar c = ranges[0]; c <= ranges[1]; c++)
@@ -3940,7 +3954,7 @@ struct ImFontAtlas
             new_font_cfg.DstFont = Fonts.back();
         if (!new_font_cfg.FontDataOwnedByAtlas)
         {
-            new_font_cfg.FontData = IM_ALLOC!u8(new_font_cfg.FontDataSize);
+            new_font_cfg.FontData = IM_ALLOC!ubyte(new_font_cfg.FontDataSize).ptr;
             new_font_cfg.FontDataOwnedByAtlas = true;
             memcpy(new_font_cfg.FontData, font_cfg.FontData, cast(size_t)new_font_cfg.FontDataSize);
         }
@@ -3953,7 +3967,7 @@ struct ImFontAtlas
         return new_font_cfg.DstFont;
     }
     
-    ImFont*           AddFontDefault(const ImFontConfig* font_cfg = NULL)
+    ImFont*           AddFontDefault(const ImFontConfig* font_cfg_template = NULL)
     {
         ImFontConfig font_cfg = font_cfg_template ? cast(ImFontConfig)*font_cfg_template : ImFontConfig(false);
         if (!font_cfg_template)
@@ -3974,7 +3988,7 @@ struct ImFontAtlas
         return font;
     }
     
-    ImFont*           AddFontFromFileTTF(string filename, float size_pixels, const ImFontConfig* font_cfg = NULL, const ImWchar* glyph_ranges = NULL)
+    ImFont*           AddFontFromFileTTF(string filename, float size_pixels, const ImFontConfig* font_cfg_template = NULL, const ImWchar* glyph_ranges = NULL)
     {
         IM_ASSERT(!Locked, "Cannot modify a locked ImFontAtlas between NewFrame() and EndFrame/Render()!");
         ubyte[] data = ImFileLoadToMemory(filename, "rb", 0);
@@ -3994,7 +4008,7 @@ struct ImFontAtlas
         return AddFontFromMemoryTTF(data, size_pixels, &font_cfg, glyph_ranges);
     }
     
-    ImFont*           AddFontFromMemoryTTF(ubyte[] ttf_data, float size_pixels, const ImFontConfig* font_cfg = NULL, const ImWchar* glyph_ranges = NULL) // Note: Transfer ownership of 'ttf_data' to ImFontAtlas! Will be deleted after destruction of the atlas. Set font_cfg->FontDataOwnedByAtlas=false to keep ownership of your data and it won't be freed.
+    ImFont*           AddFontFromMemoryTTF(ubyte[] ttf_data, float size_pixels, const ImFontConfig* font_cfg_template = NULL, const ImWchar* glyph_ranges = NULL) // Note: Transfer ownership of 'ttf_data' to ImFontAtlas! Will be deleted after destruction of the atlas. Set font_cfg->FontDataOwnedByAtlas=false to keep ownership of your data and it won't be freed.
     {
         IM_ASSERT(!Locked, "Cannot modify a locked ImFontAtlas between NewFrame() and EndFrame/Render()!");    
         ImFontConfig font_cfg = font_cfg_template ? cast(ImFontConfig)*font_cfg_template : ImFontConfig(false);
@@ -4007,7 +4021,7 @@ struct ImFontAtlas
         return AddFont(&font_cfg);
     }
     
-    ImFont*           AddFontFromMemoryCompressedTTF(const ubyte[] compressed_ttf_data, float size_pixels, const ImFontConfig* font_cfg = NULL, const ImWchar* glyph_ranges = NULL) // 'compressed_font_data' still owned by caller. Compress with binary_to_compressed_c.cpp.
+    ImFont*           AddFontFromMemoryCompressedTTF(const ubyte[] compressed_ttf_data, float size_pixels, const ImFontConfig* font_cfg_template = NULL, const ImWchar* glyph_ranges = NULL) // 'compressed_font_data' still owned by caller. Compress with binary_to_compressed_c.cpp.
     {
         const uint buf_decompressed_size = stb_decompress_length(compressed_ttf_data.ptr);
         ubyte[] buf_decompressed_data = IM_ALLOC!ubyte(buf_decompressed_size);
@@ -4019,7 +4033,7 @@ struct ImFontAtlas
         return AddFontFromMemoryTTF(buf_decompressed_data, size_pixels, &font_cfg, glyph_ranges);
     }
 
-    ImFont*           AddFontFromMemoryCompressedBase85TTF(const ubyte[] compressed_ttf_data_base85, float size_pixels, const ImFontConfig* font_cfg = NULL, const ImWchar* glyph_ranges = NULL)              // 'compressed_font_data_base85' still owned by caller. Compress with binary_to_compressed_c.cpp with -base85 parameter.
+    ImFont*           AddFontFromMemoryCompressedBase85TTF(string compressed_ttf_data_base85, float size_pixels, const ImFontConfig* font_cfg = NULL, const ImWchar* glyph_ranges = NULL)              // 'compressed_font_data_base85' still owned by caller. Compress with binary_to_compressed_c.cpp with -base85 parameter.
     {
         int compressed_ttf_size = ((cast(int)compressed_ttf_data_base85.length + 4) / 5) * 4;
         ubyte[] compressed_ttf = IM_ALLOC!ubyte(compressed_ttf_size);
@@ -4168,7 +4182,7 @@ struct ImFontAtlas
         // FIXME: Source a list of the revised 2136 Joyo Kanji list from 2010 and rebuild this.
         // You can use ImFontGlyphRangesBuilder to create your own ranges derived from this, by merging existing ranges or adding new characters.
         // (Stored as accumulative offsets from the initial unicode codepoint 0x4E00. This encoding is designed to helps us compact the source code size.)
-        __gshared const short[] accumulative_offsets_from_0x4E00 =
+        __gshared const short[1946] accumulative_offsets_from_0x4E00 =
         [
             0,1,2,4,1,1,1,1,2,1,6,2,2,1,8,5,7,11,1,2,10,10,8,2,4,20,2,11,8,2,1,2,1,6,2,1,7,5,3,7,1,1,13,7,9,1,4,6,1,2,1,10,1,1,9,2,2,4,5,6,14,1,1,9,3,18,
             5,4,2,2,10,7,1,1,1,3,2,4,3,23,2,10,12,2,14,2,4,13,1,6,10,3,1,7,13,6,4,13,5,2,3,17,2,2,5,7,6,4,1,7,14,16,6,13,9,15,1,1,7,16,4,7,1,19,9,2,7,15,
@@ -4203,7 +4217,7 @@ struct ImFontAtlas
             1,2,2,3,8,1,4,4,1,5,7,1,4,3,20,4,9,1,1,1,5,5,17,1,5,2,6,2,4,1,4,5,7,3,18,11,11,32,7,5,4,7,11,127,8,4,3,3,1,10,1,1,6,21,14,1,16,1,7,1,3,6,9,65,
             51,4,3,13,3,10,1,1,12,9,21,110,3,19,24,1,1,10,62,4,1,29,42,78,28,20,18,82,6,3,15,6,84,58,253,15,155,264,15,21,9,14,7,58,40,39,
         ];
-        __gshared ImWchar[8] base_ranges = // not zero-terminated
+        __gshared const ImWchar[8] base_ranges = // not zero-terminated
         [
             0x0020, 0x00FF, // Basic Latin + Latin Supplement
             0x3000, 0x30FF, // CJK Symbols and Punctuations, Hiragana, Katakana
@@ -4213,7 +4227,7 @@ struct ImFontAtlas
         __gshared ImWchar[IM_ARRAYSIZE(base_ranges) + IM_ARRAYSIZE(accumulative_offsets_from_0x4E00) * 2 + 1] full_ranges = 0;
         if (!full_ranges[0])
         {
-            memcpy(full_ranges, base_ranges, (base_ranges).sizeof);
+            memcpy(full_ranges.ptr, base_ranges.ptr, (base_ranges).sizeof);
             UnpackAccumulativeOffsetsIntoRanges(0x4E00, accumulative_offsets_from_0x4E00.ptr, IM_ARRAYSIZE(accumulative_offsets_from_0x4E00), full_ranges.ptr + IM_ARRAYSIZE(base_ranges));
         }
         return &full_ranges[0];
@@ -4249,7 +4263,7 @@ struct ImFontAtlas
         // This table covers 97.97% of all characters used during the month in July, 1987.
         // You can use ImFontGlyphRangesBuilder to create your own ranges derived from this, by merging existing ranges or adding new characters.
         // (Stored as accumulative offsets from the initial unicode codepoint 0x4E00. This encoding is designed to helps us compact the source code size.)
-        __gshared const short[] accumulative_offsets_from_0x4E00 =
+        __gshared const short[2500] accumulative_offsets_from_0x4E00 =
         [
             0,1,2,4,1,1,1,1,2,1,3,2,1,2,2,1,1,1,1,1,5,2,1,2,3,3,3,2,2,4,1,1,1,2,1,5,2,3,1,2,1,2,1,1,2,1,1,2,2,1,4,1,1,1,1,5,10,1,2,19,2,1,2,1,2,1,2,1,2,
             1,5,1,6,3,2,1,2,2,1,1,1,4,8,5,1,1,4,1,1,3,1,2,1,5,1,2,1,1,1,10,1,1,5,2,4,6,1,4,2,2,2,12,2,1,1,6,1,1,1,4,1,1,4,6,5,1,4,2,2,4,10,7,1,1,4,2,4,
@@ -4292,7 +4306,7 @@ struct ImFontAtlas
             2,2,7,34,21,13,70,2,128,1,1,2,1,1,2,1,1,3,2,2,2,15,1,4,1,3,4,42,10,6,1,49,85,8,1,2,1,1,4,4,2,3,6,1,5,7,4,3,211,4,1,2,1,2,5,1,2,4,2,2,6,5,6,
             10,3,4,48,100,6,2,16,296,5,27,387,2,2,3,7,16,8,5,38,15,39,21,9,10,3,7,59,13,27,21,47,5,21,6
         ];
-        __gshared ImWchar[10] base_ranges = // not zero-terminated
+        __gshared const ImWchar[10] base_ranges = // not zero-terminated
         [
             0x0020, 0x00FF, // Basic Latin + Latin Supplement
             0x2000, 0x206F, // General Punctuation
@@ -4303,7 +4317,7 @@ struct ImFontAtlas
         __gshared ImWchar[IM_ARRAYSIZE(base_ranges) + IM_ARRAYSIZE(accumulative_offsets_from_0x4E00) * 2 + 1] full_ranges = 0;
         if (!full_ranges[0])
         {
-            memcpy(full_ranges, base_ranges, (base_ranges).sizeof);
+            memcpy(full_ranges.ptr, base_ranges.ptr, (base_ranges).sizeof);
             UnpackAccumulativeOffsetsIntoRanges(0x4E00, accumulative_offsets_from_0x4E00.ptr, IM_ARRAYSIZE(accumulative_offsets_from_0x4E00), full_ranges.ptr + IM_ARRAYSIZE(base_ranges));
         }
         return &full_ranges[0];
@@ -4311,7 +4325,7 @@ struct ImFontAtlas
 
     const (ImWchar)*    GetGlyphRangesCyrillic()               // Default + about 400 Cyrillic characters
     {
-        __gshared const ImWchar[] ranges =
+        __gshared const ImWchar[9] ranges =
         [
             0x0020, 0x00FF, // Basic Latin + Latin Supplement
             0x0400, 0x052F, // Cyrillic + Cyrillic Supplement
@@ -4324,7 +4338,7 @@ struct ImFontAtlas
 
     const (ImWchar)*    GetGlyphRangesThai()                   // Default + Thai characters
     {
-        __gshared const ImWchar[] ranges =
+        __gshared const ImWchar[7] ranges =
         [
             0x0020, 0x00FF, // Basic Latin
             0x2010, 0x205E, // Punctuations
@@ -4336,7 +4350,7 @@ struct ImFontAtlas
 
     const (ImWchar)*    GetGlyphRangesVietnamese()             // Default + Vietnamese characters
     {
-        __gshared const ImWchar[] ranges =
+        __gshared const ImWchar[17] ranges =
         [
             0x0020, 0x00FF, // Basic Latin
             0x0102, 0x0103,
@@ -4500,7 +4514,7 @@ struct ImFont
         Scale = 1.0f;
         Ascent = Descent = 0.0f;
         MetricsTotalSurface = 0;
-        memset(Used4kPagesMap, 0, (Used4kPagesMap).sizeof);
+        memset(Used4kPagesMap.ptr, 0, (Used4kPagesMap).sizeof);
     }
     
     void destroy()
@@ -4530,7 +4544,7 @@ struct ImFont
     
     float                       GetCharAdvance(ImWchar c) const     { return (cast(int)c < IndexAdvanceX.Size) ? IndexAdvanceX[cast(int)c] : FallbackAdvanceX; }
     bool                        IsLoaded() const                    { return ContainerAtlas != NULL; }
-    string                 GetDebugName() const                { return ConfigData ? cstring(ConfigData.Name) : "<unknown>"; }
+    string                 GetDebugName() const                { return ConfigData ? ImCstring(ConfigData.Name) : "<unknown>"; }
 
     // 'max_width' stops rendering after a certain width (could be turned into a 2d size). FLT_MAX to disable.
     // 'wrap_width' enable automatic word-wrapping across multiple lines to fit into given width. 0.0f to disable.
@@ -4756,7 +4770,7 @@ struct ImFont
         if (y + line_height < clip_rect.y && !word_wrap_enabled)
             while (y + line_height < clip_rect.y && s < text.length)
             {
-                ptrdiff_t index = indexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
+                ptrdiff_t index = ImIndexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
                 s = index >= 0 ? index + s + 1 : text.length;
                 y += line_height;
             }
@@ -4769,7 +4783,7 @@ struct ImFont
             float y_end = y;
             while (y_end < clip_rect.w && s_end < text.length)
             {
-                ptrdiff_t index = indexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
+                ptrdiff_t index = ImIndexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
                 s_end = index >= 0 ? s_end + index + 1 : text.length;
                 y_end += line_height;
             }
@@ -4931,7 +4945,7 @@ struct ImFont
         IndexAdvanceX.clear();
         IndexLookup.clear();
         DirtyLookupTables = false;
-        memset(Used4kPagesMap, 0, (Used4kPagesMap).sizeof);
+        memset(Used4kPagesMap.ptr, 0, (Used4kPagesMap).sizeof);
         GrowIndex(max_codepoint + 1);
         for (int i = 0; i < Glyphs.Size; i++)
         {
@@ -4950,7 +4964,7 @@ struct ImFont
         {
             if (Glyphs.back().Codepoint != '\t')   // So we can call this function multiple times (FIXME: Flaky)
                 Glyphs.resize(Glyphs.Size + 1);
-            ImFontGlyph* tab_glyph = Glyphs.back();
+            ImFontGlyph* tab_glyph = &Glyphs.back();
             *tab_glyph = *FindGlyph(cast(ImWchar)' ');
             tab_glyph.Codepoint = '\t';
             tab_glyph.AdvanceX *= IM_TABSIZE;
@@ -4993,10 +5007,10 @@ struct ImFont
         IndexLookup.resize(new_size, cast(ImWchar)-1);
     }
     
-    void              AddGlyph(ImWchar c, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float advance_x)
+    void              AddGlyph(ImWchar codepoint, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float advance_x)
     {
         Glyphs.resize(Glyphs.Size + 1);
-        ImFontGlyph* glyph = Glyphs.back();
+        ImFontGlyph* glyph = &Glyphs.back();
         glyph.Codepoint = cast(uint)codepoint;
         glyph.Visible = (x0 != x1) && (y0 != y1);
         glyph.X0 = x0;

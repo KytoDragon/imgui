@@ -27,6 +27,7 @@ Index of this file:
 // #define _CRT_SECURE_NO_WARNINGS
 // #endif
 
+import d_imgui.imconfig;
 import d_imgui.imgui_h;
 import d_imgui.imgui;
 // #ifndef IMGUI_DISABLE
@@ -36,6 +37,7 @@ import d_imgui.imgui;
 // #endif
 import d_imgui.imgui_internal;
 
+import core.stdc.string : memcmp, memset, memcpy;
 // #include <stdio.h>      // vsnprintf, sscanf, printf
 // #if !defined(alloca)
 // #if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__) || defined(__APPLE__) || defined(__SWITCH__)
@@ -138,7 +140,7 @@ import d_imgui.imstb_rectpack;
 
 // #ifndef STB_TRUETYPE_IMPLEMENTATION                         // in case the user already have an implementation in the _same_ compilation unit (e.g. unity builds)
 // #ifndef IMGUI_DISABLE_STB_TRUETYPE_IMPLEMENTATION
-pragma(inline, true) void* STBTT_malloc(size_t x, void*u)   { cast(void)(u); return IM_ALLOC(x); }
+pragma(inline, true) void* STBTT_malloc(size_t x, void*u)   { cast(void)(u); return IM_ALLOC!ubyte(x).ptr; }
 pragma(inline, true) void STBTT_free(void* x, void*u)     { cast(void)(u); IM_FREE(x); }
 alias STBTT_assert     = IM_ASSERT;
 alias STBTT_fmod     = ImFmod;
@@ -147,8 +149,8 @@ alias STBTT_pow      = ImPow;
 alias STBTT_fabs       = ImFabs;
 alias STBTT_cos       = ImCos;
 alias STBTT_acos       = ImAcos;
-pragma(inline, true) int STBTT_ifloor(float x)     { cast(int)ImFloorStd(x); }
-pragma(inline, true) int STBTT_iceil(float x)      { cast(int)ImCeil(x); }
+pragma(inline, true) int STBTT_ifloor(float x)     { return cast(int)ImFloorStd(x); }
+pragma(inline, true) int STBTT_iceil(float x)      { return cast(int)ImCeil(x); }
 // #define STBTT_STATIC
 // #define STB_TRUETYPE_IMPLEMENTATION
 // #else
@@ -1848,7 +1850,7 @@ ImFont* ImFontAtlas.AddFontFromMemoryCompressedTTF(const ubyte[] compressed_ttf_
     return AddFontFromMemoryTTF(buf_decompressed_data, size_pixels, &font_cfg, glyph_ranges);
 }
 
-ImFont* ImFontAtlas.AddFontFromMemoryCompressedBase85TTF(const ubyte[] compressed_ttf_data_base85, float size_pixels, const ImFontConfig* font_cfg, const ImWchar* glyph_ranges)
+ImFont* ImFontAtlas.AddFontFromMemoryCompressedBase85TTF(string compressed_ttf_data_base85, float size_pixels, const ImFontConfig* font_cfg, const ImWchar* glyph_ranges)
 {
     int compressed_ttf_size = ((cast(int)compressed_ttf_data_base85.length + 4) / 5) * 4;
     ubyte[] compressed_ttf = IM_ALLOC!ubyte(compressed_ttf_size);
@@ -2157,7 +2159,7 @@ bool    ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
     atlas.TexHeight = (atlas.Flags & ImFontAtlasFlags.NoPowerOfTwoHeight) ? (atlas.TexHeight + 1) : ImUpperPowerOfTwo(atlas.TexHeight);
     atlas.TexUvScale = ImVec2(1.0f / atlas.TexWidth, 1.0f / atlas.TexHeight);
     atlas.TexPixelsAlpha8 = IM_ALLOC!ubyte(atlas.TexWidth * atlas.TexHeight);
-    memset(atlas.TexPixelsAlpha8, 0, atlas.TexWidth * atlas.TexHeight);
+    memset(atlas.TexPixelsAlpha8.ptr, 0, atlas.TexWidth * atlas.TexHeight);
     spc.pixels = atlas.TexPixelsAlpha8.ptr;
     spc.height = atlas.TexHeight;
 
@@ -2328,7 +2330,7 @@ void ImFontAtlasBuildFinish(ImFontAtlas* atlas)
     // Register custom rectangle glyphs
     for (int i = 0; i < atlas.CustomRects.Size; i++)
     {
-        const ImFontAtlasCustomRect* r = &atlas.CustomRects[i];
+        /*const*/ ImFontAtlasCustomRect* r = &atlas.CustomRects[i];
         if (r.Font == NULL || r.ID >= 0x110000)
             continue;
 
@@ -2605,7 +2607,7 @@ void ImFontGlyphRangesBuilder.AddText(string text)
     }
 }
 
-void ImFontGlyphRangesBuilder.AddRanges(const ImWchar* ranges)
+void ImFontGlyphRangesBuilder.AddRanges(const (ImWchar)* ranges)
 {
     for (; ranges[0]; ranges += 2)
         for (ImWchar c = ranges[0]; c <= ranges[1]; c++)
@@ -3218,7 +3220,7 @@ void ImFont.RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col,
 //-----------------------------------------------------------------------------
 
 // Render an arrow aimed to be aligned with text (p_min is a position in the same space text would be positioned). To e.g. denote expanded/collapsed state
-void RenderArrow(ImDrawList* draw_list, ImVec2 pos, ImU32 col, ImGuiDir dir, float scale)
+void RenderArrow(ImDrawList* draw_list, ImVec2 pos, ImU32 col, ImGuiDir dir, float scale = 1.0f)
 {
     const float h = draw_list._Data.FontSize * 1.00f;
     float r = h * 0.40f * scale;
@@ -3243,7 +3245,7 @@ void RenderArrow(ImDrawList* draw_list, ImVec2 pos, ImU32 col, ImGuiDir dir, flo
         break;
     case ImGuiDir.None:
     case ImGuiDir.COUNT:
-        IM_ASSERT(ALWAYS);
+        IM_ASSERT(0);
         break;
     default:
         break;
@@ -3379,7 +3381,7 @@ void RenderRectFilledRangeH(ImDrawList* draw_list, const ImRect/*&*/ rect, ImU32
 // NB: This is rather brittle and will show artifact when rounding this enabled if rounded corners overlap multiple cells. Caller currently responsible for avoiding that.
 // Spent a non reasonable amount of time trying to getting this right for ColorButton with rounding+anti-aliasing+ImGuiColorEditFlags_HalfAlphaPreview flag + various grid sizes and offsets, and eventually gave up... probably more reasonable to disable rounding alltogether.
 // FIXME: uses ImGui::GetColorU32
-void RenderColorRectWithAlphaCheckerboard(ImDrawList* draw_list, ImVec2 p_min, ImVec2 p_max, ImU32 col, float grid_step, ImVec2 grid_off, float rounding = 0.0f, int rounding_corners_flags = ~0)
+void RenderColorRectWithAlphaCheckerboard(ImDrawList* draw_list, ImVec2 p_min, ImVec2 p_max, ImU32 col, float grid_step, ImVec2 grid_off, float rounding = 0.0f, ImDrawCornerFlags rounding_corners_flags = ImDrawCornerFlags.All)
 {
     if (((col & IM_COL32_A_MASK) >> IM_COL32_A_SHIFT) < 0xFF)
     {
@@ -3429,7 +3431,7 @@ static uint stb_decompress_length(const ubyte *input)
 __gshared ubyte *stb__barrier_out_e, stb__barrier_out_b;
 __gshared const (ubyte) *stb__barrier_in_b;
 __gshared ubyte *stb__dout;
-static void stb__match(const ubyte *data, uint length)
+static void stb__match(const (ubyte) *data, uint length)
 {
     // INVERSE of memmove... write each byte before copying the next...
     IM_ASSERT(stb__dout + length <= stb__barrier_out_e);
@@ -3438,7 +3440,7 @@ static void stb__match(const ubyte *data, uint length)
     while (length--) *stb__dout++ = *data++;
 }
 
-static void stb__lit(const ubyte *data, uint length)
+static void stb__lit(const (ubyte) *data, uint length)
 {
     IM_ASSERT(stb__dout + length <= stb__barrier_out_e);
     if (stb__dout + length > stb__barrier_out_e) { stb__dout += length; return; }
@@ -3507,8 +3509,8 @@ uint stb_adler32(uint adler32, ubyte *buffer, uint buflen)
 
 uint stb_decompress(ubyte *output, const (ubyte) *i, uint /*length*/)
 {
-    if (stb__in4(0) != 0x57bC0000) return 0;
-    if (stb__in4(4) != 0)          return 0; // error! stream is > 4GB
+    if (stb__in4(output, 0) != 0x57bC0000) return 0;
+    if (stb__in4(output, 4) != 0)          return 0; // error! stream is > 4GB
     const uint olen = stb_decompress_length(i);
     stb__barrier_in_b = i;
     stb__barrier_out_e = output + olen;

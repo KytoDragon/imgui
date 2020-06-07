@@ -46,6 +46,7 @@ enum IMGUI_DISABLE_DEFAULT_FORMAT_FUNCTIONS = false;            // Don't impleme
 enum IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS = false;              // Don't implement ImFabs/ImSqrt/ImPow/ImFmod/ImCos/ImSin/ImAcos/ImAtan2 so you can implement them yourself.
 enum IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS = false;              // Don't implement ImFileOpen/ImFileClose/ImFileRead/ImFileWrite so you can implement them yourself if you don't want to link with fopen/fclose/fread/fwrite. This will also disable the LogToTTY() function.
 enum IMGUI_DISABLE_DEFAULT_ALLOCATORS = false;                  // Don't implement default allocators calling malloc()/free() to avoid linking with them. You will need to call ImGui::SetAllocatorFunctions().
+enum IMGUI_DISABLE_TTY_FUNCTIONS = false;                       // Don't implement logging to stdout
 
 //---- Include imgui_user.h at the end of imgui.h as a convenience
 // D_IMGUI: Not supported/necessary. Add your own module in package.d.

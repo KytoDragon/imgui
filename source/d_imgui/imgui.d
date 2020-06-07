@@ -823,11 +823,14 @@ static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
     nothrow:
     @nogc:
 
-    mixin template va_start(alias args) {
-        va_list abcd = (args = _argptr);
+    mixin template va_start(alias args, alias fmt) {
+        va_list dummy_value_va_start = (args = _argptr);
     }
-    //mixin(log!("abc"));
     pragma(inline, true) void va_end(va_list) {}
+    
+    mixin template va_copy(alias copy, alias args) {
+        va_list dummy_value_va_copy = (copy = args);
+    }
 }
 // System includes
 import core.stdc.string : memcpy, memmove, memset, strlen;
@@ -1363,7 +1366,7 @@ void ImStrncpy(char[] dst, string src)
 char[] ImStrdup(string str)
 {
     size_t len = str.length;
-    char* buf = cast(char*)IM_ALLOC(len + 1);
+    char* buf = IM_ALLOC!char(len + 1).ptr;
     memcpy(buf, cast(const void*)str.ptr, len);
     buf[len] = 0;
     return buf[0..len + 1];
@@ -1376,7 +1379,7 @@ char[] ImStrdupcpy(char[] dst, string src)
     if (dst_buf_size < src_size + 1)
     {
         IM_FREE(dst);
-        dst = (cast(char*)IM_ALLOC(src_size + 1))[0..src_size + 1];
+        dst = IM_ALLOC!char(src_size + 1);
     }
     memcpy(dst.ptr, cast(const void*)src.ptr, src_size - 1);
     dst[src_size] = '\0';
@@ -1459,6 +1462,51 @@ string ImStrSkipBlank(string str)
     return str[index..$];
 }
 
+// D_IMGUI: Convert zero-terminated char array to string
+string ImCstring(const char* str) {
+    int n = 0;
+    while (str[n]) n++;
+    return cast(string)str[0..n];
+}
+
+string ImCstring(const char[] str) {
+    int n = 0;
+    while (str[n]) n++;
+    return cast(string)str[0..n];
+}
+
+ptrdiff_t ImIndexOf(string str, char c) {
+    size_t index = 0;
+    while (index < str.length && str[index] != c)
+        index++;
+    return index;
+}
+
+ptrdiff_t ImIndexOf(string str, size_t index, char c) {
+    while (index < str.length && str[index] != c)
+        index++;
+    return index;
+}
+
+ptrdiff_t ImIndexOf(string haystack, string needle) {
+    const char un0 = needle[0];
+    size_t index = 0;
+    while (index < haystack.length)
+    {
+        if (haystack[index] == un0)
+        {
+            size_t b = 1;
+            for (; b < needle.length && index + b < haystack.length; b++)
+                if (haystack[index + b] != needle[b])
+                    break;
+            if (b == needle.length)
+                return index;
+        }
+        index++;
+    }
+    return -1;
+}
+
 // A) MSVC version appears to return -1 on overflow, whereas glibc appears to return total count (which may be >= buf_size).
 // Ideally we would test for only one of those limits at runtime depending on the behavior the vsnprintf(), but trying to deduct it at compile time sounds like a pandora can of worm.
 // B) When buf==NULL vsnprintf() will return the output size.
@@ -1480,7 +1528,7 @@ static if (!IMGUI_DISABLE_DEFAULT_FORMAT_FUNCTIONS) {
 int ImFormatString(char[] buf, string fmt, ...)
 {
     va_list args;
-    mixin va_start!(args);
+    mixin va_start!(args, fmt);
 // #ifdef IMGUI_USE_STB_SPRINTF
     // int w = stbsp_vsnprintf(buf, (int)buf_size, fmt, args);
 // #else
@@ -1537,7 +1585,7 @@ __gshared const ImU32[256] GCrc32LookupTable =
 // Known size hash
 // It is ok to call ImHashData on a string with known length but the ### operator won't be supported.
 // FIXME-OPT: Replace with e.g. FNV1a hash? CRC32 pretty much randomly access 1KB. Need to do proper measurements.
-ImU32 ImHashData(const void* data_p, size_t data_size, ImU32 seed)
+ImU32 ImHashData(const void* data_p, size_t data_size, ImU32 seed = 0)
 {
     ImU32 crc = ~seed;
     const ubyte[] data = (cast(const ubyte*)data_p)[0..data_size];
@@ -1553,7 +1601,7 @@ ImU32 ImHashData(const void* data_p, size_t data_size, ImU32 seed)
 // - If we reach ### in the string we discard the hash so far and reset to the seed.
 // - We don't do 'current += 2; continue;' after handling ### to keep the code smaller/faster (measured ~10% diff in Debug build)
 // FIXME-OPT: Replace with e.g. FNV1a hash? CRC32 pretty much randomly access 1KB. Need to do proper measurements.
-ImU32 ImHashStr(string data_p, ImU32 seed)
+ImU32 ImHashStr(string data_p, ImU32 seed = 0)
 {
     seed = ~seed;
     ImU32 crc = seed;
@@ -1619,13 +1667,13 @@ ImU64   ImFileRead(void* data, ImU64 sz, ImU64 count, ImFileHandle f)           
 ImU64   ImFileWrite(const void* data, ImU64 sz, ImU64 count, ImFileHandle f)    { return fwrite(data, cast(size_t)sz, cast(size_t)count, f); }
 // D_IMGUI: Encapsulate console handling.
 pragma(inline, true) ImFileHandle  ImGetStdout()                                           { return stdout; }
-pragma(inline, true) bool          ImFlushConsole(ImFileHandle f)                            { return fflush(f); }
+pragma(inline, true) bool          ImFlushConsole(ImFileHandle f)                            { return fflush(f) != 0; }
 } // #ifndef IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS
 
 // Helper: Load file content into memory
 // Memory allocated with IM_ALLOC(), must be freed by user using IM_FREE() == ImGui::MemFree()
 // This can't really be used with "rt" because fseek size won't match read size.
-ubyte[]   ImFileLoadToMemory(string filename, string mode, int padding_bytes)
+ubyte[]   ImFileLoadToMemory(string filename, string mode, int padding_bytes = 0)
 {
     IM_ASSERT(filename && mode);
 
@@ -1640,7 +1688,7 @@ ubyte[]   ImFileLoadToMemory(string filename, string mode, int padding_bytes)
         return NULL;
     }
 
-    ubyte* file_data = cast(ubyte*)IM_ALLOC(file_size + padding_bytes);
+    ubyte* file_data = IM_ALLOC!ubyte(file_size + padding_bytes).ptr;
     if (file_data == NULL)
     {
         ImFileClose(f);
@@ -1727,7 +1775,7 @@ int ImTextCharFromUtf8(uint* out_char, string in_text)
     return 0;
 }
 
-int ImTextStrFromUtf8(ImWchar* buf, int buf_size, string text, string* in_text_remaining)
+int ImTextStrFromUtf8(ImWchar* buf, int buf_size, string text, string* in_text_remaining = NULL)
 {
     ImWchar* buf_out = buf;
     ImWchar* buf_end = buf + buf_size;
@@ -2138,7 +2186,7 @@ void ImGuiTextFilter.ImGuiTextRange.split(char separator, ImVector!ImGuiTextRang
 void ImGuiTextFilter.Build()
 {
     Filters.resize(0);
-    ImGuiTextRange input_range = ImGuiTextRange(cstring(InputBuf));
+    ImGuiTextRange input_range = ImGuiTextRange(ImCstring(InputBuf));
     input_range.split(',', &Filters);
 
     CountGrep = 0;
@@ -2407,10 +2455,10 @@ bool ImGuiListClipper.Step()
 // [SECTION] STYLING
 //-----------------------------------------------------------------------------
 
-ImGuiStyle* GetStyle()
+ref ImGuiStyle GetStyle()
 {
     IM_ASSERT(GImGui != NULL, "No current context. Did you call ImGui::CreateContext() and ImGui::SetCurrentContext() ?");
-    return &GImGui.Style;
+    return GImGui.Style;
 }
 
 ImU32 GetColorU32(ImGuiCol idx, float alpha_mul = 1.0f)
@@ -5362,7 +5410,7 @@ void RenderWindowDecorations(ImGuiWindow* window, const ImRect/*&*/ title_bar_re
 }
 
 // Render title text, collapse button, close button
-void RenderWindowTitleBarContents(ImGuiWindow* window, const ImRect/*&*/ title_bar_rect, const char* name, bool* p_open)
+void RenderWindowTitleBarContents(ImGuiWindow* window, const ImRect/*&*/ title_bar_rect, string name, bool* p_open)
 {
     ImGuiContext* g = GImGui;
     ImGuiStyle* style = &g.Style;
@@ -5607,12 +5655,10 @@ bool Begin(string name, bool* p_open = NULL, ImGuiWindowFlags flags = ImGuiWindo
         bool window_title_visible_elsewhere = false;
         if (g.NavWindowingList != NULL && (window.Flags & ImGuiWindowFlags.NoNavFocus) == 0)   // Window titles visible when using CTRL+TAB
             window_title_visible_elsewhere = true;
-        if (window_title_visible_elsewhere && !window_just_created && strcmp(name, window.Name) != 0)
+        if (window_title_visible_elsewhere && !window_just_created && name == window.Name)
         {
-            size_t buf_len = cast(size_t)window.NameBufLen;
-            window.NameBuf = ImStrdupcpy(window.NameBuf, &buf_len, name);
-            window.NameBufLen = cast(int)buf_len;
-            window.Name = cstring(window.NameBuf);
+            window.NameBuf = ImStrdupcpy(window.NameBuf, name);
+            window.Name = ImCstring(window.NameBuf);
         }
 
         // UPDATE CONTENTS SIZE, UPDATE HIDDEN STATUS
@@ -6225,7 +6271,7 @@ void FocusTopMostWindowUnderOne(ImGuiWindow* under_this_window, ImGuiWindow* ign
 void SetCurrentFont(ImFont* font)
 {
     ImGuiContext* g = GImGui;
-    IM_ASSERTert(font && font.IsLoaded());    // Font Atlas not created. Did you call io.Fonts.GetTexDataAsRGBA32 / GetTexDataAsAlpha8 ?
+    IM_ASSERT(font && font.IsLoaded());    // Font Atlas not created. Did you call io.Fonts.GetTexDataAsRGBA32 / GetTexDataAsAlpha8 ?
     IM_ASSERT(font.Scale > 0.0f);
     g.Font = font;
     g.FontBaseSize = ImMax(1.0f, g.IO.FontGlobalScale * g.Font.FontSize * g.Font.Scale);
@@ -6517,7 +6563,7 @@ bool IsWindowAppearing()
     return window.Appearing;
 }
 
-void SetWindowCollapsed(const char* name, bool collapsed, ImGuiCond cond)
+void SetWindowCollapsed(string name, bool collapsed, ImGuiCond cond)
 {
     if (ImGuiWindow* window = FindWindowByName(name))
         SetWindowCollapsed(window, collapsed, cond);
@@ -6528,7 +6574,7 @@ void SetWindowFocus()
     FocusWindow(GImGui.CurrentWindow);
 }
 
-void SetWindowFocus(const char* name)
+void SetWindowFocus(string name)
 {
     if (name)
     {
@@ -6560,7 +6606,7 @@ void SetNextWindowSize(const ImVec2/*&*/ size, ImGuiCond cond = ImGuiCond.None)
     g.NextWindowData.SizeCond = cond ? cond : ImGuiCond.Always;
 }
 
-void SetNextWindowSizeConstraints(const ImVec2/*&*/ size_min, const ImVec2/*&*/ size_max, ImGuiSizeCallback custom_callback, void* custom_callback_user_data)
+void SetNextWindowSizeConstraints(const ImVec2/*&*/ size_min, const ImVec2/*&*/ size_max, ImGuiSizeCallback custom_callback = NULL, void* custom_callback_user_data = NULL)
 {
     ImGuiContext* g = GImGui;
     g.NextWindowData.Flags |= ImGuiNextWindowDataFlags.HasSizeConstraint;
@@ -7555,7 +7601,7 @@ void SetTooltipV(string fmt, va_list args)
 void SetTooltip(string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     SetTooltipV(fmt, args);
     va_end(args);
 }
@@ -8480,7 +8526,7 @@ void NavUpdate()
         if (g.IO.KeyAlt && !g.IO.KeyCtrl) // AltGR is Alt+Ctrl, also even on keyboards without AltGR we don't want Alt+Ctrl to open menu.
             g.IO.NavInputs[ImGuiNavInput.KeyMenu_]  = 1.0f;
     }
-    memcpy(g.IO.NavInputsDownDurationPrev, g.IO.NavInputsDownDuration, sizeof(g.IO.NavInputsDownDuration));
+    memcpy(g.IO.NavInputsDownDurationPrev.ptr, g.IO.NavInputsDownDuration.ptr, sizeof(g.IO.NavInputsDownDuration));
     for (int i = 0; i < IM_ARRAYSIZE(g.IO.NavInputs); i++)
         g.IO.NavInputsDownDuration[i] = (g.IO.NavInputs[i] > 0.0f) ? (g.IO.NavInputsDownDuration[i] < 0.0f ? 0.0f : g.IO.NavInputsDownDuration[i] + g.IO.DeltaTime) : -1.0f;
 
@@ -9044,7 +9090,7 @@ string GetFallbackWindowNameForWindowingList(ImGuiWindow* window)
 {
     if (window.Flags & ImGuiWindowFlags.Popup)
         return "(Popup)";
-    if ((window.Flags & ImGuiWindowFlags.MenuBar) && cstring(window.Name) == "##MainMenuBar")
+    if ((window.Flags & ImGuiWindowFlags.MenuBar) && ImCstring(window.Name) == "##MainMenuBar")
         return "(Main menu bar)";
     return "(Untitled)";
 }
@@ -9069,7 +9115,7 @@ void NavUpdateWindowingOverlay()
         ImGuiWindow* window = g.WindowsFocusOrder[n];
         if (!IsWindowNavFocusable(window))
             continue;
-        string label = cstring(window.Name);
+        string label = ImCstring(window.Name);
         if (label.length == FindRenderedTextEnd(label).length)
             label = GetFallbackWindowNameForWindowingList(window);
         Selectable(label, g.NavWindowingTarget == window);
@@ -9233,7 +9279,7 @@ bool SetDragDropPayload(string type, const void* data, size_t data_size, ImGuiCo
     if (cond == ImGuiCond.Always || payload.DataFrameCount == -1)
     {
         // Copy payload
-        ImStrncpy(payload.DataType.ptr, type.ptr, IM_ARRAYSIZE(payload.DataType));
+        ImStrncpy(payload.DataType, type);
         g.DragDropPayloadBufHeap.resize(0);
         if (data_size > (g.DragDropPayloadBufLocal).sizeof)
         {
@@ -9386,12 +9432,12 @@ void EndDragDropTarget()
 // Pass text data straight to log (without being displayed)
 void LogText(string fmt, ...)
 {
-    ImGuiContext& g = *GImGui;
+    ImGuiContext* g = GImGui;
     if (!g.LogEnabled)
         return;
 
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     if (g.LogFile)
     {
         g.LogBuffer.Buf.resize(0);
@@ -9487,7 +9533,7 @@ void LogToTTY(int auto_open_depth = -1)
 // Start logging/capturing text output to given file
 void LogToFile(int auto_open_depth = -1, string filename = NULL)
 {
-    ImGuiContext& g = *GImGui;
+    ImGuiContext* g = GImGui;
     if (g.LogEnabled)
         return;
 
@@ -9520,10 +9566,10 @@ void LogToClipboard(int auto_open_depth = -1)
 
 void LogToBuffer(int auto_open_depth = -1)
 {
-    ImGuiContext& g = *GImGui;
+    ImGuiContext* g = GImGui;
     if (g.LogEnabled)
         return;
-    LogBegin(ImGuiLogType_Buffer, auto_open_depth);
+    LogBegin(ImGuiLogType.Buffer, auto_open_depth);
 }
 
 void LogFinish()
@@ -9536,7 +9582,7 @@ void LogFinish()
     final switch (g.LogType)
     {
     case ImGuiLogType.TTY:
-        ImFlush(g.LogFile);
+        ImFlushConsole(g.LogFile);
         break;
     case ImGuiLogType.File:
         ImFileClose(g.LogFile);
@@ -9641,7 +9687,7 @@ ImGuiWindowSettings* CreateNewWindowSettings(string name)
     version (IMGUI_DEBUG_INI_SETTINGS) {} else {
         // Skip to the "###" marker if any. We don't skip past to match the behavior of GetID()
         // Preserve the full string when IMGUI_DEBUG_INI_SETTINGS is set to make .ini inspection easier.
-        ptrdiff_t index = indexOf(name, "###");
+        ptrdiff_t index = ImIndexOf(name, "###");
         if (index != -1)
             name = name[index..$];
     }
@@ -9720,8 +9766,8 @@ void LoadIniSettingsFromMemory(string ini_data)
             //line_end[-1] = 0;
             size_t name_end = line_end - 1;
             size_t type_start = line + 1;
-            size_t type_end = indexOf(ini_data[type_start..name_end], ']');
-            size_t name_start = type_end >= 0 ? indexOf(ini_data[type_start + type_end + 1..name_end], '[') : -1;
+            ptrdiff_t type_end = ImIndexOf(ini_data[type_start..name_end], ']');
+            ptrdiff_t name_start = type_end >= 0 ? ImIndexOf(ini_data[type_start + type_end + 1..name_end], '[') : -1;
             if (type_end < 0 || name_start < 0)
                 continue;
             name_start += type_start + type_end + 1;
@@ -9750,7 +9796,7 @@ void SaveIniSettingsToDisk(string ini_filename)
     ImFileHandle f = ImFileOpen(ini_filename, "wt");
     if (!f)
         return;
-    ImFileWrite(ini_data.ptr, (char).sizeof, cast(int)ini_data.length(), f);
+    ImFileWrite(ini_data.ptr, (char).sizeof, cast(int)ini_data.length, f);
     ImFileClose(f);
 }
 
@@ -9848,13 +9894,13 @@ static if (D_IMGUI_Windows && !IMGUI_DISABLE_WIN32_FUNCTIONS && !IMGUI_DISABLE_W
 // #pragma comment(lib, "user32")
 // #pragma comment(lib, "kernel32")
 // #endif
-//import core.sys.windows.windows;
+import core.sys.windows.windows : HANDLE, OpenClipboard, GetClipboardData, SetClipboardData, CF_UNICODETEXT, CP_UTF8, HGLOBAL, GMEM_MOVEABLE, CloseClipboard, WideCharToMultiByte, MultiByteToWideChar, GlobalLock, GlobalUnlock, GlobalAlloc, GlobalFree, WCHAR, EmptyClipboard;
 
 // Win32 clipboard implementation
 // We use g.ClipboardHandlerData for temporary storage to ensure it is freed on Shutdown()
 string GetClipboardTextFn_DefaultImpl(void*)
 {
-    ImGuiContext& g = *GImGui;
+    ImGuiContext* g = GImGui;
     g.ClipboardHandlerData.clear();
     if (!OpenClipboard(NULL))
         return NULL;
@@ -9864,10 +9910,10 @@ string GetClipboardTextFn_DefaultImpl(void*)
         CloseClipboard();
         return NULL;
     }
-    const WCHAR* wbuf_global;
-    if (wbuf_global = cast(const WCHAR*)GlobalLock(wbuf_handle))
+    const WCHAR* wbuf_global = cast(const WCHAR*)GlobalLock(wbuf_handle);
+    if (wbuf_global)
     {
-        int wbuf_len = ImStrlenW(wbuf_global);
+        int wbuf_len = ImStrlenW(cast(const(ImWchar)*)wbuf_global);
         int buf_len = WideCharToMultiByte(CP_UTF8, 0, wbuf_global, wbuf_len, NULL, 0, NULL, NULL);
         g.ClipboardHandlerData.resize(buf_len);
         WideCharToMultiByte(CP_UTF8, 0, wbuf_global, wbuf_len, g.ClipboardHandlerData.Data, buf_len, NULL, NULL);
@@ -9882,7 +9928,7 @@ void SetClipboardTextFn_DefaultImpl(void*, string text)
     if (!OpenClipboard(NULL))
         return;
     const int wbuf_length = MultiByteToWideChar(CP_UTF8, 0, text.ptr, cast(int)text.length, NULL, 0);
-    HGLOBAL wbuf_handle = GlobalAlloc(GMEM_MOVEABLE, cast(SIZE_T)wbuf_length * (WCHAR).sizeof + 1);
+    HGLOBAL wbuf_handle = GlobalAlloc(GMEM_MOVEABLE, cast(size_t)wbuf_length * (WCHAR).sizeof + 1);
     if (wbuf_handle == NULL)
     {
         CloseClipboard();
@@ -9937,7 +9983,7 @@ string GetClipboardTextFn_DefaultImpl(void*)
             CFDataRef cf_data;
             if (PasteboardCopyItemFlavorData(main_clipboard, item_id, CFSTR("public.utf8-plain-text"), &cf_data) == noErr)
             {
-                ImGuiContext& g = *GImGui;
+                ImGuiContext* g = GImGui;
                 g.ClipboardHandlerData.clear();
                 int length = cast(int)CFDataGetLength(cf_data);
                 g.ClipboardHandlerData.resize(length + 1);
@@ -9979,6 +10025,12 @@ static if (D_IMGUI_Windows && !IMGUI_DISABLE_WIN32_FUNCTIONS && !IMGUI_DISABLE_W
 // #ifdef _MSC_VER
 // #pragma comment(lib, "imm32")
 // #endif
+
+import core.sys.windows.windows : HWND, HIMC, COMPOSITIONFORM, CFS_FORCE_POSITION, BOOL;
+// D_IMGUI: Some Windows apis are incorectly defined, see: https://issues.dlang.org/show_bug.cgi?id=16267
+extern(Windows) nothrow @nogc HIMC ImmGetContext(HWND);
+extern(Windows) nothrow @nogc BOOL ImmSetCompositionWindow(HIMC, COMPOSITIONFORM* lpCompForm);
+extern(Windows) nothrow @nogc BOOL ImmReleaseContext(HWND, HIMC);
 
 void ImeSetInputScreenPosFn_DefaultImpl(int x, int y)
 {
@@ -10050,7 +10102,7 @@ void ShowMetricsWindow(bool* p_open = NULL)
 
     // Basic info
     ImGuiContext* g = GImGui;
-    ImGuiIO* io = GetIO();
+    ImGuiIO* io = &GetIO();
     Text("Dear ImGui %s", GetVersion());
     Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
     Text("%d vertices, %d indices (%d triangles)", io.MetricsRenderVertices, io.MetricsRenderIndices, io.MetricsRenderIndices / 3);
@@ -10086,7 +10138,7 @@ void ShowMetricsWindow(bool* p_open = NULL)
         static void NodeDrawCmdShowMeshAndBoundingBox(ImGuiWindow* window, const ImDrawList* draw_list, const ImDrawCmd* draw_cmd, int elem_offset, bool show_mesh, bool show_aabb)
         {
             IM_ASSERT(show_mesh || show_aabb);
-            ImDrawList* fg_draw_list = GetForegroundDrawList(window); // Render additional visuals into the top-most draw list
+            ImDrawList* fg_draw_list = GetForegroundDrawList2(window); // Render additional visuals into the top-most draw list
             const ImDrawIdx* idx_buffer = (draw_list.IdxBuffer.Size > 0) ? draw_list.IdxBuffer.Data : NULL;
 
             // Draw wire-frame version of all triangles
@@ -10126,7 +10178,7 @@ void ShowMetricsWindow(bool* p_open = NULL)
                 return;
             }
 
-            ImDrawList* fg_draw_list = GetForegroundDrawList(window); // Render additional visuals into the top-most draw list
+            ImDrawList* fg_draw_list = GetForegroundDrawList2(window); // Render additional visuals into the top-most draw list
             if (window && IsItemHovered())
                 fg_draw_list.AddRect(window.Pos, window.Pos + window.Size, IM_COL32(255, 255, 0, 255));
             if (!node_open)
@@ -10416,7 +10468,7 @@ void ShowMetricsWindow(bool* p_open = NULL)
             ImGuiWindow* window = g.Windows[n];
             if (!window.WasActive)
                 continue;
-            ImDrawList* draw_list = GetForegroundDrawList(window);
+            ImDrawList* draw_list = GetForegroundDrawList2(window);
             if (show_windows_rects)
             {
                 ImRect r = Funcs.GetWindowRect(window, show_windows_rect_type);

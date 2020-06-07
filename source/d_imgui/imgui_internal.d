@@ -34,7 +34,14 @@ Index of this file:
 // #endif
 import d_imgui.imconfig;
 import d_imgui.imgui_h;
+import d_imgui.imgui;
 
+import d_imgui.imgui_draw;
+
+import d_imgui.imstb_textedit;
+
+import core.stdc.string : memset, memcpy;
+import core.stdc.stdarg : va_list;
 // #include <stdio.h>      // FILE*, sscanf
 // #include <stdlib.h>     // NULL, malloc, free, qsort, atoi, atof
 // #include <math.h>       // sqrtf, fabsf, fmodf, powf, floorf, ceilf, cosf, sinf
@@ -257,7 +264,7 @@ void ImQsortInternal(T)(T[] data, int left, int right, int function(T*, T*) noth
 // ImU32         ImHashData(const void* data, size_t data_size, ImU32 seed = 0);
 // ImU32         ImHashStr(const char* data, size_t data_size = 0, ImU32 seed = 0);
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-    pragma(inline, true) ImU32     ImHash(const void* data, int size, ImU32 seed = 0) { return size ? ImHashData(data, cast(size_t)size, seed) : ImHashStr(cstring(cast(const char*)data), seed); } // [moved to ImHashStr/ImHashData in 1.68]
+    pragma(inline, true) ImU32     ImHash(const void* data, int size, ImU32 seed = 0) { return size ? ImHashData(data, cast(size_t)size, seed) : ImHashStr(ImCstring(cast(const char*)data), seed); } // [moved to ImHashStr/ImHashData in 1.68]
 }
 
 // Helpers: Color Blending
@@ -348,6 +355,7 @@ static if (!IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS) {
 // Helpers: Maths
 // - Wrapper for standard libs functions. (Note that imgui_demo.cpp does _not_ use them to keep the code easy to copy)
 static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
+}
     import core.stdc.math;
     alias ImFabs = fabsf;
     alias ImSqrt = sqrtf;
@@ -356,12 +364,26 @@ static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
     alias ImSin = sinf;
     alias ImAcos = acosf;
     alias ImAtan2 = atan2f;
-    //alias ImAtof = atof;
+    double ImAtof(string str) {
+        double result = 0.0;
+        // ignore parse errors
+        sscanf(str, "%llf", &result);
+        return result;
+    }
     alias ImFloorStd = floorf;           // We already uses our own ImFloor() { return (float)(int)v } internally so the standard one wrapper is named differently (it's used by e.g. stb_truetype)
     alias ImCeil = ceilf;
     pragma(inline, true) float  ImPow(float x, float y)    { return powf(x, y); }          // DragBehaviorT/SliderBehaviorT uses ImPow with either float/double and need the precision
-    pragma(inline, true) double ImPow(double x, double y)  { return pow(x, y); }
-}
+    pragma(inline, true) double ImPow(double x, double y)  { return pow(x, y); } // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
+    int sscanf(string str, string fmt, ...) {
+        va_list args;
+        mixin va_start!(args, fmt);
+
+        // this function only needs to handle the following formats:
+        // %d, %i, %u, %lld, %llu, %f, %llf, %08X, %02X%02X%02X, %02X%02X%02X%02X
+
+        return 0;
+    }
+
 // - ImMin/ImMax/ImClamp/ImLerp/ImSwap are used by widgets which support variety of types: signed/unsigned int/long long float/double
 // (Exceptionally using templates here but we could also redefine them for those types)
 pragma(inline, true) T ImMin(T)(T lhs, T rhs)                        { return lhs < rhs ? lhs : rhs; }
@@ -421,6 +443,9 @@ pragma(inline, true) void          ImBitArraySetBitRange(ImU32* arr, int n, int 
 // Store 1-bit per value.
 struct ImBitVector
 {
+    nothrow:
+    @nogc:
+
     ImVector!ImU32 Storage;
     void            Create(int sz)              { Storage.resize((sz + 31) >> 5); memset(Storage.Data, 0, cast(size_t)Storage.Size * (Storage.Data[0]).sizeof); }
     void            Clear()                     { Storage.clear(); }
@@ -586,7 +611,16 @@ enum ImGuiItemStatusFlags : int
     ToggledOpen        = 1 << 4,   // Set when TreeNode() reports toggling their open state.
     HasDeactivated     = 1 << 5,   // Set if the widget/group is able to provide data for the ImGuiItemStatusFlags_Deactivated flag.
     Deactivated        = 1 << 6    // Only valid if ImGuiItemStatusFlags_HasDeactivated is set.
+
+// #ifdef IMGUI_ENABLE_TEST_ENGINE
+    , // [imgui_tests only]
+    Openable           = 1 << 10,  //
+    Opened             = 1 << 11,  //
+    Checkable          = 1 << 12,  //
+    Checked            = 1 << 13   //
+// #endif
 }
+
 
 version (IMGUI_ENABLE_TEST_ENGINE) {
     // [imgui_tests only]
@@ -832,7 +866,7 @@ struct ImGuiMenuColumns
         Width = NextWidth = 0.0f;
         Spacing = spacing;
         if (clear)
-            memset(NextWidths, 0, (NextWidths).sizeof);
+            memset(NextWidths.ptr, 0, (NextWidths).sizeof);
         for (int i = 0; i < IM_ARRAYSIZE(Pos); i++)
         {
             if (i > 0 && NextWidths[i] > 0.0f)
@@ -890,7 +924,7 @@ struct ImGuiInputTextState
     int         GetRedoAvailCount() const   { return STB_TEXTEDIT_UNDOSTATECOUNT - Stb.undostate.redo_point; }
     void        OnKeyPressed(int key)      // Cannot be inline because we call in code in stb_textedit.h implementation
     {
-        ImStb.stb_textedit_key(&this, &Stb, key);
+        stb_textedit_key(&this, &Stb, key);
         CursorFollow = true;
         CursorAnimReset();
     }
@@ -920,7 +954,7 @@ struct ImGuiWindowSettings
 
     @disable this();
     this(size_t name_length)       { ID = 0; Pos = Size = ImVec2ih(0,0); Collapsed = false; name_len = name_length;}
-    char* GetName()             {  return cast(string)(cast(char*)(&this + 1))[0..name_len]; }
+    string GetName()             {  return cast(string)(cast(char*)(&this + 1))[0..name_len]; }
 }
 
 struct ImGuiSettingsHandler
@@ -947,13 +981,13 @@ struct ImGuiPopupData
     ImGuiID             PopupId;        // Set on OpenPopup()
     ImGuiWindow*        Window;         // Resolved on BeginPopup() - may stay unresolved if user never calls OpenPopup()
     ImGuiWindow*        SourceWindow;   // Set on OpenPopup() copy of NavWindow at the time of opening the popup
-    int                 OpenFrameCount; // Set on OpenPopup()
+    int                 OpenFrameCount = -1; // Set on OpenPopup()
     ImGuiID             OpenParentId;   // Set on OpenPopup(), we need this to differentiate multiple menu sets from each others (e.g. inside menu bar vs loose menu items)
     ImVec2              OpenPopupPos;   // Set on OpenPopup(), preferred popup position (typically == OpenMousePos when using mouse)
     ImVec2              OpenMousePos;   // Set on OpenPopup(), copy of mouse position at the time of opening popup
 
-    @disable this();
-    this(bool dummy) { PopupId = 0; Window = SourceWindow = NULL; OpenFrameCount = -1; OpenParentId = 0; }
+    // @disable this();
+    // this(bool dummy) { PopupId = 0; Window = SourceWindow = NULL; OpenFrameCount = -1; OpenParentId = 0; }
 }
 
 struct ImGuiColumnData
@@ -1048,7 +1082,7 @@ struct ImDrawListSharedData
             const float a = (cast(float)i * 2 * IM_PI) / cast(float)IM_ARRAYSIZE(ArcFastVtx);
             ArcFastVtx[i] = ImVec2(ImCos(a), ImSin(a));
         }
-        memset(CircleSegmentCounts, 0, (CircleSegmentCounts).sizeof); // This will be set by SetCircleSegmentMaxError()
+        memset(CircleSegmentCounts.ptr, 0, (CircleSegmentCounts).sizeof); // This will be set by SetCircleSegmentMaxError()
     }
 
     void SetCircleSegmentMaxError(float max_error)
@@ -1095,6 +1129,9 @@ struct ImDrawDataBuilder
 
 struct ImGuiNavMoveResult
 {
+    nothrow:
+    @nogc:
+
     ImGuiWindow*    Window;             // Best candidate window
     ImGuiID         ID;                 // Best candidate ID
     ImGuiID         FocusScopeId;       // Best candidate focus scope ID
@@ -1122,6 +1159,9 @@ enum ImGuiNextWindowDataFlags : int
 // Storage for SetNexWindow** functions
 struct ImGuiNextWindowData
 {
+    nothrow:
+    @nogc:
+
     ImGuiNextWindowDataFlags    Flags;
     ImGuiCond                   PosCond;
     ImGuiCond                   SizeCond;
@@ -1150,6 +1190,9 @@ enum ImGuiNextItemDataFlags
 
 struct ImGuiNextItemData
 {
+    nothrow:
+    @nogc:
+
     ImGuiNextItemDataFlags      Flags;
     float                       Width = 0;          // Set by SetNextItemWidth()
     ImGuiID                     FocusScopeId;   // Set by SetNextItemMultiSelectData() (!= 0 signify value has been set, so it's an alternate version of HasSelectionData, we don't use Flags for this because they are cleared too early. This is mostly used for debugging)
@@ -1400,6 +1443,10 @@ struct ImGuiContext
 
     this(ImFontAtlas* shared_font_atlas)
     {
+        IO = ImGuiIO(false);
+        Style = ImGuiStyle(false);
+        InputTextPasswordFont = ImFont(false);
+
         BackgroundDrawList = ImDrawList(&DrawListSharedData);
         ForegroundDrawList = ImDrawList(&DrawListSharedData);
 
@@ -1407,7 +1454,7 @@ struct ImGuiContext
         Font = NULL;
         FontSize = FontBaseSize = 0.0f;
         FontAtlasOwnedByContext = shared_font_atlas ? false : true;
-        IO.Fonts = shared_font_atlas ? shared_font_atlas : IM_NEW!ImFontAtlas(fase);
+        IO.Fonts = shared_font_atlas ? shared_font_atlas : IM_NEW!ImFontAtlas(false);
         Time = 0.0f;
         FrameCount = 0;
         FrameCountEnded = FrameCountRendered = -1;
@@ -1483,12 +1530,12 @@ struct ImGuiContext
         DimBgRatio = 0.0f;
         BackgroundDrawList._OwnerName = "##Background"; // Give it a name for debugging
         ForegroundDrawList._OwnerName = "##Foreground"; // Give it a name for debugging
-        MouseCursor = ImGuiMouseCursor_Arrow;
+        MouseCursor = ImGuiMouseCursor.Arrow;
 
         DragDropActive = DragDropWithinSource = DragDropWithinTarget = false;
         DragDropSourceFlags = ImGuiDragDropFlags.None;
         DragDropSourceFrameCount = -1;
-        DragDropMouseButton = -1;
+        DragDropMouseButton = ImGuiMouseButton.None;
         DragDropTargetId = 0;
         DragDropAcceptFlags = ImGuiDragDropFlags.None;
         DragDropAcceptIdCurrRectSurface = 0.0f;
@@ -1525,11 +1572,11 @@ struct ImGuiContext
         DebugItemPickerActive = false;
         DebugItemPickerBreakId = 0;
 
-        memset(FramerateSecPerFrame, 0, (FramerateSecPerFrame).sizeof);
+        memset(FramerateSecPerFrame.ptr, 0, (FramerateSecPerFrame).sizeof);
         FramerateSecPerFrameIdx = 0;
         FramerateSecPerFrameAccum = 0.0f;
         WantCaptureMouseNextFrame = WantCaptureKeyboardNextFrame = WantTextInputNextFrame = -1;
-        memset(TempBuffer, 0, (TempBuffer).sizeof);
+        memset(TempBuffer.ptr, 0, (TempBuffer).sizeof);
     }
 }
 
@@ -1630,7 +1677,7 @@ struct ImGuiWindowTempData
         ItemFlags = ImGuiItemFlags.Default_;
         ItemWidth = 0.0f;
         TextWrapPos = -1.0f;
-        memset(StackSizesBackup, 0, (StackSizesBackup).sizeof);
+        memset(StackSizesBackup.ptr, 0, (StackSizesBackup).sizeof);
     }
 }
 
@@ -1726,6 +1773,8 @@ struct ImGuiWindow
 public:
     this(ImGuiContext* context, string name)
     {
+        DC = ImGuiWindowTempData(false);
+
         DrawListInst = ImDrawList(&context.DrawListSharedData);
 
         NameBuf = ImStrdup(name);
@@ -1794,7 +1843,7 @@ public:
     void destroy()
     {
         IM_ASSERT(DrawList == &DrawListInst);
-        IM_DELETE(NameBuf);
+        IM_DELETE(NameBuf.ptr);
         for (int i = 0; i != ColumnsStorage.Size; i++)
             ColumnsStorage[i].destroy();
     }
@@ -1852,10 +1901,10 @@ public:
 
     // We don't use g.FontSize because the window may be != g.CurrentWidow.
     ImRect      Rect() const                { return ImRect(Pos.x, Pos.y, Pos.x+Size.x, Pos.y+Size.y); }
-    float       CalcFontSize() const        { ImGuiContext& g = *GImGui; float scale = g.FontBaseSize * FontWindowScale; if (ParentWindow) scale *= ParentWindow.FontWindowScale; return scale; }
-    float       TitleBarHeight() const      { ImGuiContext& g = *GImGui; return (Flags & ImGuiWindowFlags_NoTitleBar) ? 0.0f : CalcFontSize() + g.Style.FramePadding.y * 2.0f; }
+    float       CalcFontSize() const        { ImGuiContext* g = GImGui; float scale = g.FontBaseSize * FontWindowScale; if (ParentWindow) scale *= ParentWindow.FontWindowScale; return scale; }
+    float       TitleBarHeight() const      { ImGuiContext* g = GImGui; return (Flags & ImGuiWindowFlags.NoTitleBar) ? 0.0f : CalcFontSize() + g.Style.FramePadding.y * 2.0f; }
     ImRect      TitleBarRect() const        { return ImRect(Pos, ImVec2(Pos.x + SizeFull.x, Pos.y + TitleBarHeight())); }
-    float       MenuBarHeight() const       { ImGuiContext& g = *GImGui; return (Flags & ImGuiWindowFlags_MenuBar) ? DC.MenuBarOffset.y + CalcFontSize() + g.Style.FramePadding.y * 2.0f : 0.0f; }
+    float       MenuBarHeight() const       { ImGuiContext* g = GImGui; return (Flags & ImGuiWindowFlags.MenuBar) ? DC.MenuBarOffset.y + CalcFontSize() + g.Style.FramePadding.y * 2.0f : 0.0f; }
     ImRect      MenuBarRect() const         { float y1 = Pos.y + TitleBarHeight(); return ImRect(Pos.x, y1, Pos.x + SizeFull.x, y1 + MenuBarHeight()); }
 }
 
@@ -1918,6 +1967,9 @@ struct ImGuiTabItem
 // Storage for a tab bar (sizeof() 92~96 bytes)
 struct ImGuiTabBar
 {
+    nothrow:
+    @nogc:
+
     ImVector!ImGuiTabItem Tabs;
     ImGuiID             ID;                     // Zero for tab-bars used by docking
     ImGuiID             SelectedTabId;          // Selected tab/window
@@ -1963,7 +2015,7 @@ struct ImGuiTabBar
     string         GetTabName(const ImGuiTabItem* tab) const
     {
         IM_ASSERT(tab.NameOffset != -1 && tab.NameOffset < TabsNames.Buf.Size);
-        return cstring(TabsNames.Buf.Data + tab.NameOffset);
+        return ImCstring(TabsNames.Buf.Data + tab.NameOffset);
     }
 }
 
@@ -1979,8 +2031,8 @@ struct ImGuiTabBar
     // If this ever crash because g.CurrentWindow is NULL it means that either
     // - ImGui::NewFrame() has never been called, which is illegal.
     // - You are calling ImGui functions after ImGui::EndFrame()/ImGui::Render() and before the next ImGui::NewFrame(), which is also illegal.
-    pragma(inline, true)    ImGuiWindow*  GetCurrentWindowRead()      { ImGuiContext& g = *GImGui; return g.CurrentWindow; }
-    pragma(inline, true)    ImGuiWindow*  GetCurrentWindow()          { ImGuiContext& g = *GImGui; g.CurrentWindow.WriteAccessed = true; return g.CurrentWindow; }
+    pragma(inline, true)    ImGuiWindow*  GetCurrentWindowRead()      { ImGuiContext* g = GImGui; return g.CurrentWindow; }
+    pragma(inline, true)    ImGuiWindow*  GetCurrentWindow()          { ImGuiContext* g = GImGui; g.CurrentWindow.WriteAccessed = true; return g.CurrentWindow; }
 
     /+
     IMGUI_API ImGuiWindow*  FindWindowByID(ImGuiID id);
@@ -2005,8 +2057,9 @@ struct ImGuiTabBar
     IMGUI_API void          SetCurrentFont(ImFont* font);
     +/
 
-    pragma(inline, true) ImFont*          GetDefaultFont() { ImGuiContext& g = *GImGui; return g.IO.FontDefault ? g.IO.FontDefault : g.IO.Fonts.Fonts[0]; }
-    pragma(inline, true) ImDrawList*      GetForegroundDrawList(ImGuiWindow* window) { IM_UNUSED(window); ImGuiContext& g = *GImGui; return &g.ForegroundDrawList; } // This seemingly unnecessary wrapper simplifies compatibility between the 'master' and 'docking' branches.
+    pragma(inline, true) ImFont*          GetDefaultFont() { ImGuiContext* g = GImGui; return g.IO.FontDefault ? g.IO.FontDefault : g.IO.Fonts.Fonts[0]; }
+    // D_IMGUI: D can't handle overloading between modules, so this is now GetForegroundDrawList2 instead of GetForegroundDrawList
+    pragma(inline, true) ImDrawList*      GetForegroundDrawList2(ImGuiWindow* window) { IM_UNUSED(window); ImGuiContext* g = GImGui; return &g.ForegroundDrawList; } // This seemingly unnecessary wrapper simplifies compatibility between the 'master' and 'docking' branches.
 
     /+
     // Init
@@ -2169,8 +2222,8 @@ struct ImGuiTabBar
 
     static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
         // [1.71: 2019/06/07: Updating prototypes of some of the internal functions. Leaving those for reference for a short while]
-        pragma(inline, true) void RenderArrow(ImVec2 pos, ImGuiDir dir, float scale=1.0f) { ImGuiWindow* window = GetCurrentWindow(); RenderArrow(window.DrawList, pos, GetColorU32(ImGuiCol_Text), dir, scale); }
-        pragma(inline, true) void RenderBullet(ImVec2 pos)                                { ImGuiWindow* window = GetCurrentWindow(); RenderBullet(window.DrawList, pos, GetColorU32(ImGuiCol_Text)); }
+        pragma(inline, true) void RenderArrowOld(ImVec2 pos, ImGuiDir dir, float scale=1.0f) { ImGuiWindow* window = GetCurrentWindow(); RenderArrow(window.DrawList, pos, GetColorU32(ImGuiCol.Text), dir, scale); }
+        pragma(inline, true) void RenderBulletOld(ImVec2 pos)                                { ImGuiWindow* window = GetCurrentWindow(); RenderBullet(window.DrawList, pos, GetColorU32(ImGuiCol.Text)); }
     }
 
     /+
@@ -2238,7 +2291,7 @@ struct ImGuiTabBar
     +/
 
     // Debug Tools
-    pragma(inline, true) void             DebugDrawItemRect(ImU32 col = IM_COL32(255,0,0,255))    { ImGuiContext* g = GImGui; ImGuiWindow* window = g.CurrentWindow; GetForegroundDrawList(window).AddRect(window.DC.LastItemRect.Min, window.DC.LastItemRect.Max, col); }
+    pragma(inline, true) void             DebugDrawItemRect(ImU32 col = IM_COL32(255,0,0,255))    { ImGuiContext* g = GImGui; ImGuiWindow* window = g.CurrentWindow; GetForegroundDrawList2(window).AddRect(window.DC.LastItemRect.Min, window.DC.LastItemRect.Max, col); }
     pragma(inline, true) void             DebugStartItemPicker()                                  { ImGuiContext* g = GImGui; g.DebugItemPickerActive = true; }
 
 // } // namespace ImGui
@@ -2258,7 +2311,7 @@ static if (!D_IMGUI_USER_DEFINED_DEBUG_BREAK) {
     pragma(inline, true) void IM_DEBUG_BREAK() {    // It is expected that you define IM_DEBUG_BREAK() into something that will break nicely in a debugger!
         version (LDC) {
             import ldc.llvmasm : __asm;
-            __asm!void("int 3");
+            __asm("int 3", "");
         } else {
             asm {
                 int 3;
@@ -2281,6 +2334,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
 } else {
     pragma(inline, true) void IMGUI_TEST_ENGINE_ITEM_ADD(const ImRect _BB, ImGuiID _ID) {}
     pragma(inline, true) void IMGUI_TEST_ENGINE_ITEM_INFO(ImGuiID _ID, string _LABEL, ImGuiItemStatusFlags _FLAGS) {}
+    pragma(inline, true) void IMGUI_TEST_ENGINE_ITEM_INFO(ImGuiID _ID, string _LABEL, ImGuiItemFlags _FLAGS) {}
     pragma(inline, true) void IMGUI_TEST_ENGINE_LOG(string _FMT, ...) {}
 }
 
