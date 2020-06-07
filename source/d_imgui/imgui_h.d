@@ -1,3 +1,4 @@
+module d_imgui.imgui_h;
 // dear imgui, v1.76
 // (headers)
 
@@ -53,8 +54,10 @@ import d_imgui.imconfig;
 
 // Includes
 // #include <float.h>                  // FLT_MIN, FLT_MAX
-immutable float FLT_MIN = 1.175494351e-38;
-immutable float FLT_MAX = 3.402823466e+38;
+immutable float FLT_MIN = float.min_normal;
+immutable float FLT_MAX = float.max;
+immutable float DBL_MAX = double.max;
+immutable int INT_MAX = int.max;
 // #include <stdarg.h>                 // va_list, va_start, va_end
 // #include <stddef.h>                 // ptrdiff_t, NULL
 enum NULL = null;
@@ -65,6 +68,7 @@ static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
 import core.stdc.string : memset, memmove, memcpy, strlen, strchr, strcpy, strcmp;
 
 import d_imgui.imgui_internal;
+import d_imgui.imgui;
 
 nothrow:
 @nogc:
@@ -74,6 +78,9 @@ nothrow:
 enum IMGUI_VERSION              = "1.76";
 enum IMGUI_VERSION_NUM          = 17600;
 pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndDataLayout(IMGUI_VERSION, sizeof(ImGuiIO), sizeof(ImGuiStyle), sizeof(ImVec2), sizeof(ImVec4), sizeof(ImDrawVert), sizeof(ImDrawIdx));}
+
+pragma(inline, true) int sizeof(T)() {return cast(int)T.sizeof;}
+pragma(inline, true) int sizeof(T)(T t) {return cast(int)T.sizeof;}
 
 // Define attributes of all API symbols declarations (e.g. for DLL under Windows)
 // IMGUI_API is used for core imgui functions, IMGUI_IMPL_API is used for the default bindings files (imgui_impl_xxx.h)
@@ -87,9 +94,9 @@ pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndData
 
 // Helper Macros
 static if (!D_IMGUI_USER_DEFINED_ASSERT) {
-    pragma(inline, true) void IM_ASSERT(T)(T _EXPR) {assert(_EXPR);}                               // You can override the default assert handler by editing imconfig.h
-    pragma(inline, true) void IM_ASSERT(T)(T _EXPR, string _MSG) {assert(_EXPR, _MSG);}
 }
+    pragma(inline, true) void IM_ASSERT(T)(T _EXPR) {assert(_EXPR);}                               // You can override the default assert handler by editing imconfig.h
+    pragma(inline, true) void IM_ASSERT(T)(T _EXPR, string _MSG) {assert(_EXPR, _MSG);} // TODO D_IMGUI: LDC fails if this is inside the static if
 // #if !defined(IMGUI_USE_STB_SPRINTF) && (defined(__clang__) || defined(__GNUC__))
 // #define IM_FMTARGS(FMT)             __attribute__((format(printf, FMT, FMT+1))) // To apply printf-style warnings to our functions.
 // #define IM_FMTLIST(FMT)             __attribute__((format(printf, FMT, 0)))
@@ -998,11 +1005,11 @@ enum ImGuiTabItemFlags : int
 // Flags for ImGui::IsWindowFocused()
 enum ImGuiFocusedFlags : int
 {
-    ImGuiFocusedFlags_None                          = 0,
-    ImGuiFocusedFlags_ChildWindows                  = 1 << 0,   // IsWindowFocused(): Return true if any children of the window is focused
-    ImGuiFocusedFlags_RootWindow                    = 1 << 1,   // IsWindowFocused(): Test from root window (top most parent of the current hierarchy)
-    ImGuiFocusedFlags_AnyWindow                     = 1 << 2,   // IsWindowFocused(): Return true if any window is focused. Important: If you are trying to tell how to dispatch your low-level inputs, do NOT use this. Use 'io.WantCaptureMouse' instead! Please read the FAQ!
-    ImGuiFocusedFlags_RootAndChildWindows           = ImGuiFocusedFlags_RootWindow | ImGuiFocusedFlags_ChildWindows
+    None                          = 0,
+    ChildWindows                  = 1 << 0,   // IsWindowFocused(): Return true if any children of the window is focused
+    RootWindow                    = 1 << 1,   // IsWindowFocused(): Test from root window (top most parent of the current hierarchy)
+    AnyWindow                     = 1 << 2,   // IsWindowFocused(): Return true if any window is focused. Important: If you are trying to tell how to dispatch your low-level inputs, do NOT use this. Use 'io.WantCaptureMouse' instead! Please read the FAQ!
+    RootAndChildWindows           = RootWindow | ChildWindows
 }
 
 // Flags for ImGui::IsItemHovered(), ImGui::IsWindowHovered()
@@ -1440,7 +1447,7 @@ struct ImVector(T)
     pragma(inline, true) void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
     pragma(inline, true) void         resize(int new_size, const T/*&*/ v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
     pragma(inline, true) void         shrink(int new_size)                { IM_ASSERT(new_size <= Size); Size = new_size; } // Resize a vector to a smaller size, guaranteed not to cause a reallocation
-    pragma(inline, true) void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = cast(T*)IM_ALLOC(cast(size_t)new_capacity * (T).sizeof); if (Data) { memcpy(new_data, Data, cast(size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+    pragma(inline, true) void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = cast(T*)IM_ALLOC(cast(size_t)new_capacity * (T).sizeof); if (Data) { memcpy(new_data, Data, cast(size_t)Size * sizeof!(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
 
     // NB: It is illegal to call push_back/push_front/insert with a reference pointing inside the ImVector data itself! e.g. v.push_back(v[10]) is forbidden.
     pragma(inline, true) void         push_back(const T/*&*/ v)               { if (Size == Capacity) reserve(_grow_capacity(Size + 1)); memcpy(&Data[Size], &v, sizeof(v)); Size++; }
@@ -1448,10 +1455,10 @@ struct ImVector(T)
     pragma(inline, true) void         push_front(const T/*&*/ v)              { if (Size == 0) push_back(v); else insert(Data, v); }
     pragma(inline, true) T*           erase(const T* it)                  { IM_ASSERT(it >= Data && it < Data+Size); const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + 1, (cast(size_t)Size - cast(size_t)off - 1) * (T).sizeof); Size--; return Data + off; }
     pragma(inline, true) T*           erase(const T* it, const T* it_last){ IM_ASSERT(it >= Data && it < Data+Size && it_last > it && it_last <= Data+Size); const ptrdiff_t count = it_last - it; const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + count, (cast(size_t)Size - cast(size_t)off - count) * (T).sizeof); Size -= cast(int)count; return Data + off; }
-    pragma(inline, true) T*           erase_unsorted(const T* it)         { IM_ASSERT(it >= Data && it < Data+Size);  const ptrdiff_t off = it - Data; if (it < Data+Size-1) memcpy(Data + off, Data + Size - 1, sizeof(T)); Size--; return Data + off; }
+    pragma(inline, true) T*           erase_unsorted(const T* it)         { IM_ASSERT(it >= Data && it < Data+Size);  const ptrdiff_t off = it - Data; if (it < Data+Size-1) memcpy(Data + off, Data + Size - 1, sizeof!(T)); Size--; return Data + off; }
     pragma(inline, true) T*           insert(const T* it, const T/*&*/ v)     { IM_ASSERT(it >= Data && it <= Data+Size); const ptrdiff_t off = it - Data; if (Size == Capacity) reserve(_grow_capacity(Size + 1)); if (off < cast(int)Size) memmove(Data + off + 1, Data + off, (cast(size_t)Size - cast(size_t)off) * (T).sizeof); memcpy(&Data[off], &v, (v).sizeof); Size++; return Data + off; }
-    pragma(inline, true) bool         contains(const T/*&*/ v) const          { const T* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data++ == v) return true; return false; }
-    pragma(inline, true) inout (T)*     find(const T/*&*/ v) inout              { const T* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data == v) break; else ++data; return data; }
+    pragma(inline, true) bool         contains(const T/*&*/ v) const          { const (T)* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data++ == v) return true; return false; }
+    pragma(inline, true) inout (T)*     find(const T/*&*/ v) inout              { inout (T)* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data == v) break; else ++data; return data; }
     pragma(inline, true) bool         find_erase(const T/*&*/ v)              { const T* it = find(v); if (it < Data + Size) { erase(it); return true; } return false; }
     pragma(inline, true) bool         find_erase_unsorted(const T/*&*/ v)     { const T* it = find(v); if (it < Data + Size) { erase_unsorted(it); return true; } return false; }
     pragma(inline, true) int          index_from_ptr(const T* it) const   { IM_ASSERT(it >= Data && it < Data + Size); const ptrdiff_t off = it - Data; return cast(int)off; }
@@ -1640,14 +1647,14 @@ struct ImGuiIO
     void        function(int x, int y) ImeSetInputScreenPosFn;
     void*       ImeWindowHandle;                // = null           // (Windows) Set this to your HWND to get automatic IME cursor positioning.
 
-    // #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
-    //     // [OBSOLETE since 1.60+] Rendering function, will be automatically called in Render(). Please call your rendering function yourself now!
-    //     // You can obtain the ImDrawData* by calling ImGui::GetDrawData() after Render(). See example applications if you are unsure of how to implement this.
-    //     void        (*RenderDrawListsFn)(ImDrawData* data);
-    // #else
-    // This is only here to keep ImGuiIO the same size/layout, so that IMGUI_DISABLE_OBSOLETE_FUNCTIONS can exceptionally be used outside of imconfig.h.
-    void*       RenderDrawListsFnUnused;
-    // #endif
+    static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+        // [OBSOLETE since 1.60+] Rendering function, will be automatically called in Render(). Please call your rendering function yourself now!
+        // You can obtain the ImDrawData* by calling ImGui::GetDrawData() after Render(). See example applications if you are unsure of how to implement this.
+        void        function(ImDrawData* data) RenderDrawListsFn;
+    } else {
+        // This is only here to keep ImGuiIO the same size/layout, so that IMGUI_DISABLE_OBSOLETE_FUNCTIONS can exceptionally be used outside of imconfig.h.
+        void*       RenderDrawListsFnUnused;
+    }
 
     //------------------------------------------------------------------
     // Input - Fill before calling NewFrame()
@@ -2527,8 +2534,8 @@ struct ImColor
 // The expected behavior from your rendering function is 'if (cmd.UserCallback != NULL) { cmd.UserCallback(parent_list, cmd); } else { RenderTriangles() }'
 // If you want to override the signature of ImDrawCallback, you can simply use e.g. '#define ImDrawCallback MyDrawCallback' (in imconfig.h) + update rendering back-end accordingly.
 static if (!D_IMGUI_USER_DEFINED_DRAW_CALLBACK) {
-    alias ImDrawCallback = void function(const ImDrawList* parent_list, const ImDrawCmd* cmd);
 }
+    alias ImDrawCallback = void function(const ImDrawList* parent_list, const ImDrawCmd* cmd); // TODO D_IMGUI: LDC fails if this is inside the static if
 
 // Special Draw callback value to request renderer back-end to reset the graphics/render state.
 // The renderer back-end needs to handle this special value, otherwise it will crash trying to call a function at this address.
@@ -2559,8 +2566,8 @@ struct ImDrawCmd
 // To allow large meshes with 16-bit indices: set 'io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset' and handle ImDrawCmd::VtxOffset in the renderer back-end (recommended).
 // To use 32-bit indices: override with '#define ImDrawIdx unsigned int' in imconfig.h.
 static if (!D_IMGUI_USER_DEFINED_DRAW_IDX) {
-    alias ImDrawIdx = ushort;
 }
+    alias ImDrawIdx = ushort; // TODO D_IMGUI: LDC fails if this is inside the static if
 
 // Vertex layout
 // #ifndef IMGUI_OVERRIDE_DRAWVERT_STRUCT_LAYOUT
@@ -4749,7 +4756,7 @@ struct ImFont
         if (y + line_height < clip_rect.y && !word_wrap_enabled)
             while (y + line_height < clip_rect.y && s < text.length)
             {
-                ptrdiff_t index = ConV.indexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
+                ptrdiff_t index = indexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
                 s = index >= 0 ? index + s + 1 : text.length;
                 y += line_height;
             }
@@ -4762,7 +4769,7 @@ struct ImFont
             float y_end = y;
             while (y_end < clip_rect.w && s_end < text.length)
             {
-                ptrdiff_t index = ConV.indexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
+                ptrdiff_t index = indexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
                 s_end = index >= 0 ? s_end + index + 1 : text.length;
                 y_end += line_height;
             }

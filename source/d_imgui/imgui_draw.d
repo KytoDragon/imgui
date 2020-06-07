@@ -139,7 +139,7 @@ import d_imgui.imstb_rectpack;
 // #ifndef STB_TRUETYPE_IMPLEMENTATION                         // in case the user already have an implementation in the _same_ compilation unit (e.g. unity builds)
 // #ifndef IMGUI_DISABLE_STB_TRUETYPE_IMPLEMENTATION
 pragma(inline, true) void* STBTT_malloc(size_t x, void*u)   { cast(void)(u); return IM_ALLOC(x); }
-pragma(inline, true) void STBTT_free(size_t x, void*u)     { cast(void)(u); IM_FREE(x); }
+pragma(inline, true) void STBTT_free(void* x, void*u)     { cast(void)(u); IM_FREE(x); }
 alias STBTT_assert     = IM_ASSERT;
 alias STBTT_fmod     = ImFmod;
 alias STBTT_sqrt       = ImSqrt;
@@ -182,7 +182,7 @@ import d_imgui.imstb_truetype;
 // [SECTION] Style functions
 //-----------------------------------------------------------------------------
 
-void StyleColorsDark(ImGuiStyle* dst)
+void StyleColorsDark(ImGuiStyle* dst = NULL)
 {
     ImGuiStyle* style = dst ? dst : &GetStyle();
     ImVec4[] colors = style.Colors;
@@ -237,7 +237,7 @@ void StyleColorsDark(ImGuiStyle* dst)
     colors[ImGuiCol.ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
 }
 
-void StyleColorsClassic(ImGuiStyle* dst)
+void StyleColorsClassic(ImGuiStyle* dst = NULL)
 {
     ImGuiStyle* style = dst ? dst : &GetStyle();
     ImVec4[] colors = style.Colors;
@@ -293,7 +293,7 @@ void StyleColorsClassic(ImGuiStyle* dst)
 }
 
 // Those light colors are better suited with a thicker font than the default one + FrameBorder
-void StyleColorsLight(ImGuiStyle* dst)
+void StyleColorsLight(ImGuiStyle* dst = NULL)
 {
     ImGuiStyle* style = dst ? dst : &GetStyle();
     ImVec4[] colors = style.Colors;
@@ -3038,7 +3038,7 @@ void ImFont.RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col,
     if (y + line_height < clip_rect.y && !word_wrap_enabled)
         while (y + line_height < clip_rect.y && s < text.length)
         {
-            ptrdiff_t index = ConV.indexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
+            ptrdiff_t index = indexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
             s = index >= 0 ? index + s + 1 : text.length;
             y += line_height;
         }
@@ -3051,7 +3051,7 @@ void ImFont.RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col,
         float y_end = y;
         while (y_end < clip_rect.w && s_end < text.length)
         {
-            ptrdiff_t index = ConV.indexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
+            ptrdiff_t index = indexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
             s_end = index >= 0 ? s_end + index + 1 : text.length;
             y_end += line_height;
         }
@@ -3379,7 +3379,7 @@ void RenderRectFilledRangeH(ImDrawList* draw_list, const ImRect/*&*/ rect, ImU32
 // NB: This is rather brittle and will show artifact when rounding this enabled if rounded corners overlap multiple cells. Caller currently responsible for avoiding that.
 // Spent a non reasonable amount of time trying to getting this right for ColorButton with rounding+anti-aliasing+ImGuiColorEditFlags_HalfAlphaPreview flag + various grid sizes and offsets, and eventually gave up... probably more reasonable to disable rounding alltogether.
 // FIXME: uses ImGui::GetColorU32
-void RenderColorRectWithAlphaCheckerboard(ImDrawList* draw_list, ImVec2 p_min, ImVec2 p_max, ImU32 col, float grid_step, ImVec2 grid_off, float rounding, int rounding_corners_flags)
+void RenderColorRectWithAlphaCheckerboard(ImDrawList* draw_list, ImVec2 p_min, ImVec2 p_max, ImU32 col, float grid_step, ImVec2 grid_off, float rounding = 0.0f, int rounding_corners_flags = ~0)
 {
     if (((col & IM_COL32_A_MASK) >> IM_COL32_A_SHIFT) < 0xFF)
     {

@@ -63,6 +63,8 @@ module d_imgui.imstb_rectpack;
 //       INCLUDE SECTION
 //
 
+import d_imgui.imgui_h : NULL;
+
 nothrow:
 @nogc:
 
@@ -272,10 +274,10 @@ void stbrp_init_target(stbrp_context *context, int width, int height, stbrp_node
       STBRP_ASSERT(width <= 0xffff && height <= 0xffff);
    }
 
-   for (i=0; i < num_nodes-1; ++i)
+   for (i=0; i < nodes.length-1; ++i)
       nodes[i].next = &nodes[i+1];
    nodes[i].next = NULL;
-   context.init_mode = STBRP_INIT.skyline;
+   context.init_mode = STBRP__INIT.skyline;
    context.heuristic = STBRP_HEURISTIC.Skyline_default;
    context.free_head = &nodes[0];
    context.active_head = &context.extra[0];
@@ -378,7 +380,7 @@ private stbrp__findresult stbrp__skyline_find_best_pos(stbrp_context *c, int wid
    while (node.x + width <= c.width) {
       int y,waste;
       y = stbrp__skyline_find_min_y(c, node, node.x, width, &waste);
-      if (c.heuristic == STBRP_HEURISTIC_Skyline_BL_sortHeight) { // actually just want to test BL
+      if (c.heuristic == STBRP_HEURISTIC.Skyline_BL_sortHeight) { // actually just want to test BL
          // bottom left
          if (y < best_y) {
             best_y = y;
@@ -418,7 +420,7 @@ private stbrp__findresult stbrp__skyline_find_best_pos(stbrp_context *c, int wid
    //
    // This makes BF take about 2x the time
 
-   if (c.heuristic == STBRP_HEURISTIC_Skyline_BF_sortHeight) {
+   if (c.heuristic == STBRP_HEURISTIC.Skyline_BF_sortHeight) {
       tail = c.active_head;
       node = c.active_head;
       prev = &c.active_head;
@@ -537,10 +539,8 @@ private stbrp__findresult stbrp__skyline_pack_rectangle(stbrp_context *context, 
 }
 
 // [DEAR IMGUI] Added STBRP__CDECL
-private extern(C) int rect_height_compare(const void *a, const void *b)
+private int rect_height_compare(const stbrp_rect *p, const stbrp_rect *q)
 {
-   const stbrp_rect* p = cast(const stbrp_rect*) a;
-   const stbrp_rect* q = cast(const stbrp_rect*) b;
    if (p.h > q.h)
       return -1;
    if (p.h < q.h)
@@ -549,10 +549,8 @@ private extern(C) int rect_height_compare(const void *a, const void *b)
 }
 
 // [DEAR IMGUI] Added STBRP__CDECL
-private extern(C) int rect_original_order(const void *a, const void *b)
+private int rect_original_order(const stbrp_rect *p, const stbrp_rect *q)
 {
-   const stbrp_rect* p = cast(const stbrp_rect*) a;
-   const stbrp_rect* q = cast(const stbrp_rect*) b;
    return (p.was_packed < q.was_packed) ? -1 : (p.was_packed > q.was_packed);
 }
 
@@ -580,8 +578,8 @@ int stbrp_pack_rects(stbrp_context *context, stbrp_rect[] rects)
       } else {
          stbrp__findresult fr = stbrp__skyline_pack_rectangle(context, rects[i].w, rects[i].h);
          if (fr.prev_link) {
-            rect.x = cast(stbrp_coord) fr.x;
-            rect.y = cast(stbrp_coord) fr.y;
+            rects[i].x = cast(stbrp_coord) fr.x;
+            rects[i].y = cast(stbrp_coord) fr.y;
          } else {
             rects[i].x = rects[i].y = STBRP__MAXVAL;
          }

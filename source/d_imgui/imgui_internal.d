@@ -226,7 +226,34 @@ pragma(inline, true) float IM_ROUND(float _VAL) {
 //-----------------------------------------------------------------------------
 
 // Helpers: Misc
-// alias ImQsort         = qsort;
+// D_IMGUI: Dummy qsort implementation
+void ImQsort(T)(T[] data, int function(const T*, const T*) nothrow @nogc comp) {
+    ImQsort(data, cast(int function(T*, T*) nothrow @nogc)comp);
+}
+void ImQsort(T)(T[] data, int function(T*, T*) nothrow @nogc comp) {
+    ImQsortInternal(data, 0, cast(int)data.length, comp);
+}
+
+void ImQsortInternal(T)(T[] data, int left, int right, int function(T*, T*) nothrow @nogc comp) {
+    
+    int i, last;
+    void swap(T[] data, int a, int b) {
+        T tmp = data[a];
+        data[a] = data[b];
+        data[b] = tmp;
+    }
+
+    if (left >= right)
+        return;
+    swap(data, left, (left + right)/2);
+    last = left;
+    for (i = left+1; i <= right; i++)
+        if (comp(&data[i], &data[left]) < 0)
+            swap(data, ++last, i);
+    swap(data, left, last);
+    ImQsortInternal(data, left, last-1, comp);
+    ImQsortInternal(data, last+1, right, comp);
+}
 // ImU32         ImHashData(const void* data, size_t data_size, ImU32 seed = 0);
 // ImU32         ImHashStr(const char* data, size_t data_size = 0, ImU32 seed = 0);
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
@@ -329,7 +356,7 @@ static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
     alias ImSin = sinf;
     alias ImAcos = acosf;
     alias ImAtan2 = atan2f;
-    alias ImAtof = atof; // TODO D_IMGUI: do we need string or const(char)* ?
+    //alias ImAtof = atof;
     alias ImFloorStd = floorf;           // We already uses our own ImFloor() { return (float)(int)v } internally so the standard one wrapper is named differently (it's used by e.g. stb_truetype)
     alias ImCeil = ceilf;
     pragma(inline, true) float  ImPow(float x, float y)    { return powf(x, y); }          // DragBehaviorT/SliderBehaviorT uses ImPow with either float/double and need the precision
@@ -420,7 +447,7 @@ struct ImPool(T)
     T*          GetOrAddByKey(ImGuiID key)          { int* p_idx = Map.GetIntRef(key, -1); if (*p_idx != -1) return &Buf[*p_idx]; *p_idx = FreeIdx; return Add(); }
     bool        Contains(const T* p) const          { return (p >= Buf.Data && p < Buf.Data + Buf.Size); }
     void        Clear()                             { for (int n = 0; n < Map.Data.Size; n++) { int idx = Map.Data[n].val_i; if (idx != -1) Buf[idx].destroy(); } Map.Clear(); Buf.clear(); FreeIdx = 0; }
-    T*          Add()                               { int idx = FreeIdx; if (idx == Buf.Size) { Buf.resize(Buf.Size + 1); FreeIdx++; } else { FreeIdx = *cast(int*)&Buf[idx]; } IM_PLACEMENT_NEW(&Buf[idx], T()); return &Buf[idx]; }
+    T*          Add()                               { int idx = FreeIdx; if (idx == Buf.Size) { Buf.resize(Buf.Size + 1); FreeIdx++; } else { FreeIdx = *cast(int*)&Buf[idx]; } IM_PLACEMENT_NEW(&Buf[idx], T(false)); return &Buf[idx]; }
     void        Remove(ImGuiID key, const T* p)     { Remove(key, GetIndex(p)); }
     void        Remove(ImGuiID key, ImPoolIdx idx)  { Buf[idx].destroy(); *cast(int*)&Buf[idx] = FreeIdx; FreeIdx = idx; Map.SetInt(key, -1); }
     void        Reserve(int capacity)               { Buf.reserve(capacity); Map.Data.reserve(capacity); }
@@ -1300,7 +1327,7 @@ struct ImGuiContext
     bool                    DragDropWithinTarget;               // Set when within a BeginDragDropXXX/EndDragDropXXX block for a drag target.
     ImGuiDragDropFlags      DragDropSourceFlags;
     int                     DragDropSourceFrameCount;
-    int                     DragDropMouseButton;
+    ImGuiMouseButton                     DragDropMouseButton;
     ImGuiPayload            DragDropPayload;
     ImRect                  DragDropTargetRect;                 // Store rectangle of current target candidate (we favor small targets when overlapping)
     ImGuiID                 DragDropTargetId;

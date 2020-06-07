@@ -10,6 +10,7 @@
 		"source/"
 	],
 	"license": "MIT",
+	"dflags": ["-preview=intpromote"],
 	"name": "d_imgui",
 	"sourcePaths": [
 		"source/"
@@ -19,10 +20,5 @@
     
     "excludedSourceFiles": [
         "source/d_imgui/imgui_demo.d",
-        "source/d_imgui/imgui_draw.d",
-        "source/d_imgui/imgui_h.d",
-        "source/d_imgui/imgui_internal.d",
-        "source/d_imgui/imgui_widgets.d",
-        "source/d_imgui/imgui.d"
     ]
 }

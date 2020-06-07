@@ -39,7 +39,9 @@ import d_imgui.imgui_h;
 // #ifndef IMGUI_DEFINE_MATH_OPERATORS
 // #define IMGUI_DEFINE_MATH_OPERATORS
 // #endif
+import d_imgui.imconfig;
 import d_imgui.imgui_internal;
+import core.stdc.stdarg : va_list;
 
 nothrow:
 @nogc:
@@ -95,14 +97,14 @@ __gshared const short   IM_S16_MIN = -32768;
 __gshared const short   IM_S16_MAX = 32767;
 __gshared const ushort IM_U16_MIN = 0;
 __gshared const ushort IM_U16_MAX = 0xFFFF;
-__gshared const ImS32          IM_S32_MIN = INT_MIN;    // (-2147483647 - 1), (0x80000000);
-__gshared const ImS32          IM_S32_MAX = INT_MAX;    // (2147483647), (0x7FFFFFFF)
+__gshared const ImS32          IM_S32_MIN = 0x80000000;    // (-2147483647 - 1), (0x80000000);
+__gshared const ImS32          IM_S32_MAX = 0x7FFFFFFF;    // (2147483647), (0x7FFFFFFF)
 __gshared const ImU32          IM_U32_MIN = 0;
-__gshared const ImU32          IM_U32_MAX = UINT_MAX;   // (0xFFFFFFFF)
-__gshared const ImS64          IM_S64_MIN = LLONG_MIN;  // (-9223372036854775807ll - 1ll);
-__gshared const ImS64          IM_S64_MAX = LLONG_MAX;  // (9223372036854775807ll);
+__gshared const ImU32          IM_U32_MAX = 0xFFFFFFFF;   // (0xFFFFFFFF)
+__gshared const ImS64          IM_S64_MIN = 0x8000000000000000L;  // (-9223372036854775807ll - 1ll);
+__gshared const ImS64          IM_S64_MAX = 0x7FFFFFFFFFFFFFFFL;  // (9223372036854775807ll);
 __gshared const ImU64          IM_U64_MIN = 0;
-__gshared const ImU64          IM_U64_MAX = ULLONG_MAX; // (0xFFFFFFFFFFFFFFFFull);
+__gshared const ImU64          IM_U64_MAX = 0xFFFFFFFFFFFFFFFFL; // (0xFFFFFFFFFFFFFFFFull);
 
 //-------------------------------------------------------------------------
 // [SECTION] Forward Declarations
@@ -132,7 +134,7 @@ __gshared const ImU64          IM_U64_MAX = ULLONG_MAX; // (0xFFFFFFFFFFFFFFFFul
 // - BulletTextV()
 //-------------------------------------------------------------------------
 
-void TextEx(string text, ImGuiTextFlags flags)
+void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -451,7 +453,7 @@ void BulletTextV(string fmt, va_list args)
 //   Frame N + RepeatDelay + RepeatRate*N   true                     true              -                   true
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 
-bool ButtonBehavior(const ImRect/*&*/ bb, ImGuiID id, bool* out_hovered, bool* out_held, ImGuiButtonFlags flags)
+bool ButtonBehavior(const ImRect/*&*/ bb, ImGuiID id, bool* out_hovered, bool* out_held, ImGuiButtonFlags flags = ImGuiButtonFlags.None)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();
@@ -629,7 +631,7 @@ bool ButtonBehavior(const ImRect/*&*/ bb, ImGuiID id, bool* out_hovered, bool* o
     return pressed;
 }
 
-bool ButtonEx(string label, const ImVec2/*&*/ size_arg, ImGuiButtonFlags flags)
+bool ButtonEx(string label, const ImVec2/*&*/ size_arg = ImVec2(0,0), ImGuiButtonFlags flags = ImGuiButtonFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -669,7 +671,7 @@ bool ButtonEx(string label, const ImVec2/*&*/ size_arg, ImGuiButtonFlags flags)
     return pressed;
 }
 
-bool Button(string label, const ImVec2/*&*/ size_arg)
+bool Button(string label, const ImVec2/*&*/ size_arg = ImVec2(0,0))
 {
     return ButtonEx(label, size_arg, ImGuiButtonFlags.None);
 }
@@ -709,7 +711,7 @@ bool InvisibleButton(string str_id, const ImVec2/*&*/ size_arg)
     return pressed;
 }
 
-bool ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size, ImGuiButtonFlags flags)
+bool ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size, ImGuiButtonFlags flags = ImGuiButtonFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -946,7 +948,7 @@ bool ScrollbarEx(const ImRect/*&*/ bb_frame, ImGuiID id, ImGuiAxis axis, float* 
     return held;
 }
 
-void Image(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, const ImVec4/*&*/ tint_col, const ImVec4/*&*/ border_col)
+void Image(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0 = ImVec2(0,0), const ImVec2/*&*/ uv1 = ImVec2(1,1), const ImVec4/*&*/ tint_col = ImVec4(1,1,1,1), const ImVec4/*&*/ border_col = ImVec4(0,0,0,0))
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -974,7 +976,7 @@ void Image(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVec2/*&*
 // frame_padding = 0: no framing
 // frame_padding > 0: set framing size
 // The color used are the button colors.
-bool ImageButton(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, int frame_padding, const ImVec4/*&*/ bg_col, const ImVec4/*&*/ tint_col)
+bool ImageButton(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0 = ImVec2(0,0), const ImVec2/*&*/ uv1 = ImVec2(1,1), int frame_padding = -1, const ImVec4/*&*/ bg_col = ImVec4(0,0,0,0), const ImVec4/*&*/ tint_col = ImVec4(1,1,1,1))
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -1137,7 +1139,7 @@ bool RadioButton(string label, int* v, int v_button)
 }
 
 // size_arg (for each axis) < 0.0f: align to end, 0.0f: auto, > 0.0f: specified size
-void ProgressBar(float fraction, const ImVec2/*&*/ size_arg, string overlay)
+void ProgressBar(float fraction, const ImVec2/*&*/ size_arg = ImVec2(-1,0), string overlay = NULL)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -1327,7 +1329,7 @@ void Separator()
 }
 
 // Using 'hover_visibility_delay' allows us to hide the highlight and mouse cursor for a short time, which can be convenient to reduce visual noise.
-bool SplitterBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiAxis axis, float* size1, float* size2, float min_size1, float min_size2, float hover_extend, float hover_visibility_delay)
+bool SplitterBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiAxis axis, float* size1, float* size2, float min_size1, float min_size2, float hover_extend = 0.0f, float hover_visibility_delay = 0.0f)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -1443,7 +1445,7 @@ float CalcMaxPopupHeightFromItemCount(int items_count)
     return (g.FontSize + g.Style.ItemSpacing.y) * items_count - g.Style.ItemSpacing.y + (g.Style.WindowPadding.y * 2);
 }
 
-bool BeginCombo(string label, string preview_value, ImGuiComboFlags flags)
+bool BeginCombo(string label, string preview_value, ImGuiComboFlags flags = ImGuiComboFlags.None)
 {
     // Always consume the SetNextWindowSizeConstraint() call in our early return paths
     ImGuiContext* g = GImGui;
@@ -1587,7 +1589,7 @@ bool Items_SingleStringGetter(void* data, int idx, string* out_text)
 }
 
 // Old API, prefer using BeginCombo() nowadays if you can.
-bool Combo(string label, int* current_item, bool function(void[], int, string*) nothrow @nogc items_getter, void* data, int items_count, int popup_max_height_in_items)
+bool Combo(string label, int* current_item, bool function(void[], int, string*) nothrow @nogc items_getter, void* data, int items_count, int popup_max_height_in_items = -1)
 {
     ImGuiContext* g = GImGui;
 
@@ -1628,14 +1630,14 @@ bool Combo(string label, int* current_item, bool function(void[], int, string*) 
 }
 
 // Combo box helper allowing to pass an array of strings.
-bool Combo(string label, int* current_item, string[] items, int height_in_items)
+bool Combo(string label, int* current_item, string[] items, int height_in_items = -1)
 {
     const bool value_changed = Combo(label, current_item, &Items_ArrayGetter, cast(void*)&items, cast(int)items.length, height_in_items);
     return value_changed;
 }
 
 // Combo box helper allowing to pass all items in a single string literal holding multiple zero-terminated items "item1\0item2\0"
-bool Combo(string label, int* current_item, string items_separated_by_zeros, int height_in_items)
+bool Combo(string label, int* current_item, string items_separated_by_zeros, int height_in_items = -1)
 {
     int items_count = 0;
     size_t index = 0;       // FIXME-OPT: Avoid computing this, or at least only when combo is open
@@ -1661,7 +1663,7 @@ bool Combo(string label, int* current_item, string items_separated_by_zeros, int
 // - RoundScalarWithFormat<>()
 //-------------------------------------------------------------------------
 
-__gshared const ImGuiDataTypeInfo[] GDataTypeInfo =
+__gshared const ImGuiDataTypeInfo[ImGuiDataType.COUNT] GDataTypeInfo =
 [
     { byte.sizeof,             "%d",   "%d"    },  // ImGuiDataType_S8
     { ubyte.sizeof,    "%u",   "%u"    },
@@ -1674,7 +1676,6 @@ __gshared const ImGuiDataTypeInfo[] GDataTypeInfo =
     { float.sizeof,            "%f",   "%f"    },  // ImGuiDataType_Float (float are promoted to double in va_arg)
     { double.sizeof,           "%lf",   "%lf"  },  // ImGuiDataType_Double
 ];
-static assert(IM_ARRAYSIZE(GDataTypeInfo) == ImGuiDataType_COUNT);
 
 // FIXME-LEGACY: Prior to 1.61 our DragInt() function internally used floats and because of this the compile-time default value for format was "%.0f".
 // Even though we changed the compile-time default, we expect users to have carried %f around, which would break the display of DragInt() calls.
@@ -1809,7 +1810,7 @@ bool DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType
 
     // Copy the value in an opaque buffer so we can compare at the end of the function if it changed at all.
     IM_ASSERT(data_type < ImGuiDataType.COUNT);
-    int data_backup[2];
+    int[2] data_backup;
     const ImGuiDataTypeInfo* type_info = DataTypeGetInfo(data_type);
     IM_ASSERT(type_info.Size <= (data_backup).sizeof);
     memcpy(data_backup, p_data, type_info.Size);
@@ -2086,7 +2087,7 @@ bool DragBehavior(ImGuiID id, ImGuiDataType data_type, void* p_v, float v_speed,
 
 // Note: p_data, p_min and p_max are _pointers_ to a memory address holding the data. For a Drag widget, p_min and p_max are optional.
 // Read code of e.g. SliderFloat(), SliderInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
-bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, string format, float power)
+bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, float power = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2162,7 +2163,7 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
     return value_changed;
 }
 
-bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min, const void* p_max, const char* format, float power)
+bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, float power = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2197,22 +2198,22 @@ bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int compon
     return value_changed;
 }
 
-bool DragFloat(string label, float* v, float v_speed, float v_min, float v_max, const char* format, float power)
+bool DragFloat(string label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
 {
     return DragScalar(label, ImGuiDataType.Float, v, v_speed, &v_min, &v_max, format, power);
 }
 
-bool DragFloat2(string label, float[/*2*/] v, float v_speed, float v_min, float v_max, const char* format, float power)
+bool DragFloat2(string label, float[/*2*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
 {
     return DragScalarN(label, ImGuiDataType.Float, v.ptr, 2, v_speed, &v_min, &v_max, format, power);
 }
 
-bool DragFloat3(string label, float[/*3*/] v, float v_speed, float v_min, float v_max, const char* format, float power)
+bool DragFloat3(string label, float[/*3*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
 {
     return DragScalarN(label, ImGuiDataType.Float, v.ptr, 3, v_speed, &v_min, &v_max, format, power);
 }
 
-bool DragFloat4(string label, float[/*4*/] v, float v_speed, float v_min, float v_max, const char* format, float power)
+bool DragFloat4(string label, float[/*4*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
 {
     return DragScalarN(label, ImGuiDataType.Float, v.ptr, 4, v_speed, &v_min, &v_max, format, power);
 }
@@ -2222,7 +2223,7 @@ bool DragFloat2(string label, ImVec2* v, float v_speed = 1.0f, float v_min = 0.0
     return DragFloat2(label, (&v.x)[0..2], v_speed, v_min, v_max, format, power);
 }
 
-bool DragFloatRange2(string label, float* v_current_min, float* v_current_max, float v_speed, float v_min, float v_max, const char* format, const char* format_max, float power)
+bool DragFloatRange2(string label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", string format_max = NULL, float power = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2247,27 +2248,27 @@ bool DragFloatRange2(string label, float* v_current_min, float* v_current_max, f
 }
 
 // NB: v_speed is float to allow adjusting the drag speed with more precision
-bool DragInt(string label, int* v, float v_speed, int v_min, int v_max, string format)
+bool DragInt(string label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
 {
     return DragScalar(label, ImGuiDataType.S32, v, v_speed, &v_min, &v_max, format);
 }
 
-bool DragInt2(string label, int v[2], float v_speed, int v_min, int v_max, string format)
+bool DragInt2(string label, int[/*2*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
 {
     return DragScalarN(label, ImGuiDataType.S32, v.ptr, 2, v_speed, &v_min, &v_max, format);
 }
 
-bool DragInt3(string label, int v[3], float v_speed, int v_min, int v_max, string format)
+bool DragInt3(string label, int[/*3*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
 {
     return DragScalarN(label, ImGuiDataType.S32, v.ptr, 3, v_speed, &v_min, &v_max, format);
 }
 
-bool DragInt4(string label, int v[4], float v_speed, int v_min, int v_max, string format)
+bool DragInt4(string label, int[/*4*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
 {
     return DragScalarN(label, ImGuiDataType.S32, v.ptr, 4, v_speed, &v_min, &v_max, format);
 }
 
-bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v_speed, int v_min, int v_max, string format, string format_max)
+bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", string format_max = NULL)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2546,7 +2547,7 @@ bool SliderBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiDataType data_type, v
 
 // Note: p_data, p_min and p_max are _pointers_ to a memory address holding the data. For a slider, they are all required.
 // Read code of e.g. SliderFloat(), SliderInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
-bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format, float power)
+bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format = NULL, float power = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2623,7 +2624,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
 }
 
 // Add multiple sliders on 1 line for compact edition of multiple components
-bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int components, const void* v_min, const void* v_max, string format, float power)
+bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int components, const void* v_min, const void* v_max, string format = NULL, float power = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2658,22 +2659,22 @@ bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int component
     return value_changed;
 }
 
-bool SliderFloat(string label, float* v, float v_min, float v_max, string format, float power)
+bool SliderFloat(string label, float* v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
 {
     return SliderScalar(label, ImGuiDataType.Float, v, &v_min, &v_max, format, power);
 }
 
-bool SliderFloat2(string label, float[/*2*/] v, float v_min, float v_max, string format, float power)
+bool SliderFloat2(string label, float[/*2*/] v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
 {
     return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 2, &v_min, &v_max, format, power);
 }
 
-bool SliderFloat3(string label, float[/*3*/] v, float v_min, float v_max, string format, float power)
+bool SliderFloat3(string label, float[/*3*/] v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
 {
     return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 3, &v_min, &v_max, format, power);
 }
 
-bool SliderFloat4(string label, float[/*4*/] v, float v_min, float v_max, string format, float power)
+bool SliderFloat4(string label, float[/*4*/] v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
 {
     return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 4, &v_min, &v_max, format, power);
 }
@@ -2683,7 +2684,7 @@ bool SliderFloat2(string label, ImVec2* v, float v_min, float v_max, string form
     return SliderFloat2(label, (&v.x)[0..2], v_min, v_max, format, power);
 }
 
-bool SliderAngle(string label, float* v_rad, float v_degrees_min, float v_degrees_max, string format)
+bool SliderAngle(string label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f, string format = "%.0f deg")
 {
     if (format == NULL)
         format = "%.0f deg";
@@ -2693,27 +2694,27 @@ bool SliderAngle(string label, float* v_rad, float v_degrees_min, float v_degree
     return value_changed;
 }
 
-bool SliderInt(string label, int* v, int v_min, int v_max, string format)
+bool SliderInt(string label, int* v, int v_min, int v_max, string format = "%d")
 {
     return SliderScalar(label, ImGuiDataType.S32, v, &v_min, &v_max, format);
 }
 
-bool SliderInt2(string label, int v[2], int v_min, int v_max, string format)
+bool SliderInt2(string label, int[/*2*/] v, int v_min, int v_max, string format = "%d")
 {
     return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 2, &v_min, &v_max, format);
 }
 
-bool SliderInt3(string label, int v[3], int v_min, int v_max, string format)
+bool SliderInt3(string label, int[/*3*/] v, int v_min, int v_max, string format = "%d")
 {
     return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 3, &v_min, &v_max, format);
 }
 
-bool SliderInt4(string label, int v[4], int v_min, int v_max, string format)
+bool SliderInt4(string label, int[/*4*/] v, int v_min, int v_max, string format = "%d")
 {
     return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 4, &v_min, &v_max, format);
 }
 
-bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format, float power)
+bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format = NULL, float power = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2772,12 +2773,12 @@ bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type
     return value_changed;
 }
 
-bool VSliderFloat(string label, const ImVec2/*&*/ size, float* v, float v_min, float v_max, string format, float power)
+bool VSliderFloat(string label, const ImVec2/*&*/ size, float* v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
 {
     return VSliderScalar(label, size, ImGuiDataType.Float, v, &v_min, &v_max, format, power);
 }
 
-bool VSliderInt(string label, const ImVec2/*&*/ size, int* v, int v_min, int v_max, string format)
+bool VSliderInt(string label, const ImVec2/*&*/ size, int* v, int v_min, int v_max, string format = "%d")
 {
     return VSliderScalar(label, size, ImGuiDataType.S32, v, &v_min, &v_max, format);
 }
@@ -2923,7 +2924,7 @@ bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataTy
 
 // Note: p_data, p_step, p_step_fast are _pointers_ to a memory address holding the data. For an Input widget, p_step and p_step_fast are optional.
 // Read code of e.g. InputFloat(), InputInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
-bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_step, const void* p_step_fast, string format, ImGuiInputTextFlags flags)
+bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_step = NULL, const void* p_step_fast = NULL, string format = NULL, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2995,7 +2996,7 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
     return value_changed;
 }
 
-bool InputScalarN(string label, ImGuiDataType data_type, void* p_data, int components, const void* p_step, const void* p_step_fast, string format, ImGuiInputTextFlags flags)
+bool InputScalarN(string label, ImGuiDataType data_type, void* p_data, int components, const void* p_step = NULL, const void* p_step_fast = NULL, string format = NULL, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -3030,23 +3031,23 @@ bool InputScalarN(string label, ImGuiDataType data_type, void* p_data, int compo
     return value_changed;
 }
 
-bool InputFloat(string label, float* v, float step, float step_fast, string format, ImGuiInputTextFlags flags)
+bool InputFloat(string label, float* v, float step = 0.0f, float step_fast = 0.0f, string format = "%.3f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     flags |= ImGuiInputTextFlags.CharsScientific;
     return InputScalar(label, ImGuiDataType.Float, cast(void*)v, cast(void*)(step>0.0f ? &step : NULL), cast(void*)(step_fast>0.0f ? &step_fast : NULL), format, flags);
 }
 
-bool InputFloat2(string label, float[/*2*/] v, string format, ImGuiInputTextFlags flags)
+bool InputFloat2(string label, float[/*2*/] v, string format = "%.3f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     return InputScalarN(label, ImGuiDataType.Float, v.ptr, 2, NULL, NULL, format, flags);
 }
 
-bool InputFloat3(string label, float[/*3*/] v, string format, ImGuiInputTextFlags flags)
+bool InputFloat3(string label, float[/*3*/] v, string format = "%.3f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     return InputScalarN(label, ImGuiDataType.Float, v.ptr, 3, NULL, NULL, format, flags);
 }
 
-bool InputFloat4(string label, float[/*4*/] v, string format, ImGuiInputTextFlags flags)
+bool InputFloat4(string label, float[/*4*/] v, string format = "%.3f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     return InputScalarN(label, ImGuiDataType.Float, v.ptr, 4, NULL, NULL, format, flags);
 }
@@ -3090,29 +3091,29 @@ bool InputFloat4(string label, float[/*4*/] v, int decimal_precision, ImGuiInput
 }
 } // IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
-bool InputInt(string label, int* v, int step, int step_fast, ImGuiInputTextFlags flags)
+bool InputInt(string label, int* v, int step = 1, int step_fast = 100, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     // Hexadecimal input provided as a convenience but the flag name is awkward. Typically you'd use InputText() to parse your own data, if you want to handle prefixes.
     string format = (flags & ImGuiInputTextFlags.CharsHexadecimal) ? "%08X" : "%d";
     return InputScalar(label, ImGuiDataType.S32, cast(void*)v, cast(void*)(step>0 ? &step : NULL), cast(void*)(step_fast>0 ? &step_fast : NULL), format, flags);
 }
 
-bool InputInt2(string label, int v[2], ImGuiInputTextFlags flags)
+bool InputInt2(string label, int[/*2*/] v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     return InputScalarN(label, ImGuiDataType.S32, v.ptr, 2, NULL, NULL, "%d", flags);
 }
 
-bool InputInt3(string label, int v[3], ImGuiInputTextFlags flags)
+bool InputInt3(string label, int[/*3*/] v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     return InputScalarN(label, ImGuiDataType.S32, v.ptr, 3, NULL, NULL, "%d", flags);
 }
 
-bool InputInt4(string label, int v[4], ImGuiInputTextFlags flags)
+bool InputInt4(string label, int[/*4*/] v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     return InputScalarN(label, ImGuiDataType.S32, v.ptr, 4, NULL, NULL, "%d", flags);
 }
 
-bool InputDouble(string label, double* v, double step, double step_fast, string format, ImGuiInputTextFlags flags)
+bool InputDouble(string label, double* v, double step = 0.0, double step_fast = 0.0, string format = "%.6f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     flags |= ImGuiInputTextFlags.CharsScientific;
     return InputScalar(label, ImGuiDataType.Double, cast(void*)v, cast(void*)(step>0.0 ? &step : NULL), cast(void*)(step_fast>0.0 ? &step_fast : NULL), format, flags);
@@ -3127,18 +3128,18 @@ bool InputDouble(string label, double* v, double step, double step_fast, string 
 // - InputTextEx() [Internal]
 //-------------------------------------------------------------------------
 
-bool InputText(string label, char[] buf, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+bool InputText(string label, char[] buf, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None, ImGuiInputTextCallback callback = NULL, void* user_data = NULL)
 {
     IM_ASSERT(!(flags & ImGuiInputTextFlags.Multiline)); // call InputTextMultiline()
     return InputTextEx(label, NULL, buf, ImVec2(0,0), flags, callback, user_data);
 }
 
-bool InputTextMultiline(string label, char[] buf, const ImVec2/*&*/ size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+bool InputTextMultiline(string label, char[] buf, const ImVec2/*&*/ size = ImVec2(0,0), ImGuiInputTextFlags flags = ImGuiInputTextFlags.None, ImGuiInputTextCallback callback = NULL, void* user_data = NULL)
 {
     return InputTextEx(label, NULL, buf, size, flags | ImGuiInputTextFlags.Multiline, callback, user_data);
 }
 
-bool InputTextWithHint(string label, string hint, char[] buf, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+bool InputTextWithHint(string label, string hint, char[] buf, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None, ImGuiInputTextCallback callback = NULL, void* user_data = NULL)
 {
     IM_ASSERT(!(flags & ImGuiInputTextFlags.Multiline)); // call InputTextMultiline()
     return InputTextEx(label, hint, buf, ImVec2(0, 0), flags, callback, user_data);
@@ -3235,7 +3236,7 @@ static if (D_IMGUI_Apple) {    // FIXME: Move setting to IO structure
 } else {
     int  STB_TEXTEDIT_MOVEWORDRIGHT(STB_TEXTEDIT_STRING* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_right(obj, idx)) idx++; return idx > len ? len : idx; }
 }
-// #define STB_TEXTEDIT_MOVEWORDLEFT   STB_TEXTEDIT_MOVEWORDLEFT_IMPL    // They need to be #define for stb_textedit.h
+alias STB_TEXTEDIT_MOVEWORDLEFT   = STB_TEXTEDIT_MOVEWORDLEFT_IMPL;    // They need to be #define for stb_textedit.h
 // #define STB_TEXTEDIT_MOVEWORDRIGHT  STB_TEXTEDIT_MOVEWORDRIGHT_IMPL
 
 void STB_TEXTEDIT_DELETECHARS(STB_TEXTEDIT_STRING* obj, int pos, int n)
@@ -3474,7 +3475,7 @@ bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, ImGuiInpu
 // - If you want to use ImGui::InputText() with std::string, see misc/cpp/imgui_stdlib.h
 // (FIXME: Rather confusing and messy function, among the worse part of our codebase, expecting to rewrite a V2 at some point.. Partly because we are
 //  doing UTF8 > U16 > UTF8 conversions on the go to easily interface with stb_textedit. Ideally should stay in UTF-8 all the time. See https://github.com/nothings/stb/issues/188)
-bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_arg, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* callback_user_data)
+bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_arg, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback = NULL, void* callback_user_data = NULL)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -4265,7 +4266,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 // - ColorPickerOptionsPopup() [Internal]
 //-------------------------------------------------------------------------
 
-bool ColorEdit3(string label, float[/*3*/] col, ImGuiColorEditFlags flags)
+bool ColorEdit3(string label, float[/*3*/] col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
 {
     return ColorEdit4(label, col, flags | ImGuiColorEditFlags.NoAlpha);
 }
@@ -4273,7 +4274,7 @@ bool ColorEdit3(string label, float[/*3*/] col, ImGuiColorEditFlags flags)
 // Edit colors components (each component in 0.0f..1.0f range).
 // See enum ImGuiColorEditFlags_ for available options. e.g. Only access 3 floats if ImGuiColorEditFlags_NoAlpha flag is set.
 // With typical options: Left-click on colored square to open color picker. Right-click to open option menu. CTRL-Click over input fields to edit them and TAB to go to next item.
-bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags)
+bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -4483,12 +4484,13 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags)
     if ((window.DC.LastItemStatusFlags & ImGuiItemStatusFlags.HoveredRect) && !(flags & ImGuiColorEditFlags.NoDragDrop) && BeginDragDropTarget())
     {
         bool accepted_drag_drop = false;
-        if (const ImGuiPayload* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F))
+        const ImGuiPayload* payload;
+        if (payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F))
         {
             memcpy(col.ptr, payload.Data, (float).sizeof * 3); // Preserve alpha if any //-V512
             value_changed = accepted_drag_drop = true;
         }
-        if (const ImGuiPayload* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F))
+        if (payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F))
         {
             memcpy(col.ptr, payload.Data, (float).sizeof * components);
             value_changed = accepted_drag_drop = true;
@@ -4514,7 +4516,7 @@ bool ColorEdit4(string label, ImVec4* col, ImGuiColorEditFlags flags = ImGuiColo
     return ColorEdit4(label, (&col.x)[0..4], flags);
 }
 
-bool ColorPicker3(string label, float col[3], ImGuiColorEditFlags flags)
+bool ColorPicker3(string label, float[/*3*/] col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
 {
     float[4] col4 = [ col[0], col[1], col[2], 1.0f ];
     if (!ColorPicker4(label, col4, flags | ImGuiColorEditFlags.NoAlpha))
@@ -4537,7 +4539,7 @@ static void RenderArrowsForVerticalBar(ImDrawList* draw_list, ImVec2 pos, ImVec2
 // (In C++ the 'float col[4]' notation for a function argument is equivalent to 'float* col', we only specify a size to facilitate understanding of the code.)
 // FIXME: we adjust the big color square height based on item width, which may cause a flickering feedback loop (if automatic height makes a vertical scrollbar appears, affecting automatic width..)
 // FIXME: this is trying to be aware of style.Alpha but not fully correct. Also, the color wheel will have overlapping glitches with (style.Alpha < 1.0)
-bool ColorPicker4(string label, float col[4], ImGuiColorEditFlags flags, const float* ref_col)
+bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, const float* ref_col = NULL)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();
@@ -4916,7 +4918,7 @@ bool ColorPicker4(string label, float col[4], ImGuiColorEditFlags flags, const f
 // FIXME: May want to display/ignore the alpha component in the color display? Yet show it in the tooltip.
 // 'desc_id' is not called 'label' because we don't display it next to the button, but only in the tooltip.
 // Note that 'col' may be encoded in HSV if ImGuiColorEditFlags_InputHSV is set.
-bool ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flags, ImVec2 size)
+bool ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, ImVec2 size = ImVec2(0,0))
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -5193,7 +5195,7 @@ bool TreeNodeV(const void* ptr_id, string fmt, va_list args)
     return TreeNodeExV(ptr_id, ImGuiTreeNodeFlags.None, fmt, args);
 }
 
-bool TreeNodeEx(string label, ImGuiTreeNodeFlags flags)
+bool TreeNodeEx(string label, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -5242,7 +5244,7 @@ bool TreeNodeExV(const void* ptr_id, ImGuiTreeNodeFlags flags, string fmt, va_li
     return TreeNodeBehavior(window.GetID(ptr_id), flags, cast(string)g.TempBuffer[0..label_end]);
 }
 
-bool TreeNodeBehaviorIsOpen(ImGuiID id, ImGuiTreeNodeFlags flags)
+bool TreeNodeBehaviorIsOpen(ImGuiID id, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None)
 {
     if (flags & ImGuiTreeNodeFlags.Leaf)
         return true;
@@ -5489,7 +5491,7 @@ void TreePush(string str_id)
     PushID(str_id ? str_id : "#TreePush");
 }
 
-void TreePush(const void* ptr_id)
+void TreePush(const void* ptr_id = NULL)
 {
     ImGuiWindow* window = GetCurrentWindow();
     Indent();
@@ -5535,7 +5537,7 @@ float GetTreeNodeToLabelSpacing()
 }
 
 // Set next TreeNode/CollapsingHeader open state.
-void SetNextItemOpen(bool is_open, ImGuiCond cond)
+void SetNextItemOpen(bool is_open, ImGuiCond cond = ImGuiCond.None)
 {
     ImGuiContext* g = GImGui;
     if (g.CurrentWindow.SkipItems)
@@ -5547,7 +5549,7 @@ void SetNextItemOpen(bool is_open, ImGuiCond cond)
 
 // CollapsingHeader returns true when opened but do not indent nor push into the ID stack (because of the ImGuiTreeNodeFlags_NoTreePushOnOpen flag).
 // This is basically the same as calling TreeNodeEx(label, ImGuiTreeNodeFlags_CollapsingHeader). You can remove the _NoTreePushOnOpen flag if you want behavior closer to normal TreeNode().
-bool CollapsingHeader(string label, ImGuiTreeNodeFlags flags)
+bool CollapsingHeader(string label, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -5556,7 +5558,7 @@ bool CollapsingHeader(string label, ImGuiTreeNodeFlags flags)
     return TreeNodeBehavior(window.GetID(label), flags | ImGuiTreeNodeFlags.CollapsingHeader, label);
 }
 
-bool CollapsingHeader(string label, bool* p_open, ImGuiTreeNodeFlags flags)
+bool CollapsingHeader(string label, bool* p_open, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -5598,7 +5600,7 @@ bool CollapsingHeader(string label, bool* p_open, ImGuiTreeNodeFlags flags)
 // But you need to make sure the ID is unique, e.g. enclose calls in PushID/PopID or use ##unique_id.
 // With this scheme, ImGuiSelectableFlags_SpanAllColumns and ImGuiSelectableFlags_AllowItemOverlap are also frequently used flags.
 // FIXME: Selectable() with (size.x == 0.0f) and (SelectableTextAlign.x > 0.0f) followed by SameLine() is currently not supported.
-bool Selectable(string label, bool selected, ImGuiSelectableFlags flags, const ImVec2/*&*/ size_arg)
+bool Selectable(string label, bool selected, ImGuiSelectableFlags flags = ImGuiSelectableFlags.None, const ImVec2/*&*/ size_arg = ImVec2(0,0))
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -5720,7 +5722,7 @@ bool Selectable(string label, bool selected, ImGuiSelectableFlags flags, const I
     return pressed;
 }
 
-bool Selectable(string label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2/*&*/ size_arg)
+bool Selectable(string label, bool* p_selected, ImGuiSelectableFlags flags = ImGuiSelectableFlags.None, const ImVec2/*&*/ size_arg = ImVec2(0,0))
 {
     if (Selectable(label, *p_selected, flags, size_arg))
     {
@@ -5744,7 +5746,7 @@ bool Selectable(string label, bool* p_selected, ImGuiSelectableFlags flags, cons
 // FIXME: In principle this function should be called BeginListBox(). We should rename it after re-evaluating if we want to keep the same signature.
 // Helper to calculate the size of a listbox and display a label on the right.
 // Tip: To have a list filling the entire window width, PushItemWidth(-1) and pass an non-visible label e.g. "##empty"
-bool ListBoxHeader(string label, const ImVec2/*&*/ size_arg)
+bool ListBoxHeader(string label, const ImVec2/*&*/ size_arg = ImVec2(0,0))
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();
@@ -5779,7 +5781,7 @@ bool ListBoxHeader(string label, const ImVec2/*&*/ size_arg)
 }
 
 // FIXME: In principle this function should be called EndListBox(). We should rename it after re-evaluating if we want to keep the same signature.
-bool ListBoxHeader(string label, int items_count, int height_in_items)
+bool ListBoxHeader(string label, int items_count, int height_in_items = -1)
 {
     // Size default to hold ~7.25 items.
     // We add +25% worth of item height to allow the user to see at a glance if there are more items up/down, without looking at the scrollbar.
@@ -5814,13 +5816,13 @@ void ListBoxFooter()
     EndGroup();
 }
 
-bool ListBox(string label, int* current_item, string[] items, int items_count, int height_items)
+bool ListBox(string label, int* current_item, string[] items, int items_count, int height_items = -1)
 {
     const bool value_changed = ListBox(label, current_item, &Items_ArrayGetter, toVoid(items), height_items);
     return value_changed;
 }
 
-bool ListBox(string label, int* current_item, bool function(void[] data, int idx, string* out_text) nothrow @nogc items_getter, void[] data, int height_in_items)
+bool ListBox(string label, int* current_item, bool function(void[] data, int idx, string* out_text) nothrow @nogc items_getter, void[] data, int height_in_items = -1)
 {
     if (!ListBoxHeader(label, cast(int)data.length, height_in_items))
         return false;
@@ -5999,24 +6001,24 @@ static float Plot_ArrayGetter(void* data, int idx)
     return v;
 }
 
-void PlotLines(string label, const float* values, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, ImVec2 graph_size, int stride)
+void PlotLines(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
 {
     ImGuiPlotArrayGetterData data = ImGuiPlotArrayGetterData(values, stride);
     PlotEx(ImGuiPlotType.Lines, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values.length * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
 }
 
-void PlotLines(string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, ImVec2 graph_size)
+void PlotLines(string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0))
 {
     PlotEx(ImGuiPlotType.Lines, label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, graph_size);
 }
 
-void PlotHistogram(string label, const float* values, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, ImVec2 graph_size, int stride)
+void PlotHistogram(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
 {
     ImGuiPlotArrayGetterData data = ImGuiPlotArrayGetterData(values, stride);
     PlotEx(ImGuiPlotType.Histogram, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values.length * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
 }
 
-void PlotHistogram(string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, ImVec2 graph_size)
+void PlotHistogram(string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0))
 {
     PlotEx(ImGuiPlotType.Histogram, label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, graph_size);
 }
@@ -6043,7 +6045,7 @@ void Value(string prefix, uint v)
     Text("%s: %d", prefix, v);
 }
 
-void Value(string prefix, float v, string float_format)
+void Value(string prefix, float v, string float_format = NULL)
 {
     if (float_format)
     {
@@ -6402,7 +6404,7 @@ void EndMenu()
     EndPopup();
 }
 
-bool MenuItem(string label, string shortcut, bool selected, bool enabled)
+bool MenuItem(string label, string shortcut = NULL, bool selected = false, bool enabled = true)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -6451,7 +6453,7 @@ bool MenuItem(string label, string shortcut, bool selected, bool enabled)
     return pressed;
 }
 
-bool MenuItem(string label, string shortcut, bool* p_selected, bool enabled)
+bool MenuItem(string label, string shortcut, bool* p_selected, bool enabled = true)
 {
     if (MenuItem(label, shortcut, p_selected ? *p_selected : false, enabled))
     {
@@ -6529,7 +6531,7 @@ ImGuiPtrOrIndex GetTabBarRefFromTabBar(ImGuiTabBar* tab_bar)
     return ImGuiPtrOrIndex(tab_bar);
 }
 
-bool    BeginTabBar(string str_id, ImGuiTabBarFlags flags)
+bool    BeginTabBar(string str_id, ImGuiTabBarFlags flags = ImGuiTabBarFlags.None)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -6989,7 +6991,7 @@ ImGuiTabItem* TabBarTabListPopupButton(ImGuiTabBar* tab_bar)
 // - TabItemLabelAndCloseButton() [Internal]
 //-------------------------------------------------------------------------
 
-bool    BeginTabItem(string label, bool* p_open, ImGuiTabItemFlags flags)
+bool    BeginTabItem(string label, bool* p_open = NULL, ImGuiTabItemFlags flags = ImGuiTabItemFlags.None)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -7396,7 +7398,7 @@ float GetDraggedColumnOffset(ImGuiColumns* columns, int column_index)
     return x;
 }
 
-float GetColumnOffset(int column_index)
+float GetColumnOffset(int column_index = -1)
 {
     ImGuiWindow* window = GetCurrentWindowRead();
     ImGuiColumns* columns = window.DC.CurrentColumns;
@@ -7425,7 +7427,7 @@ float GetColumnWidthEx(ImGuiColumns* columns, int column_index, bool before_resi
     return GetColumnOffsetFromNorm(columns, offset_norm);
 }
 
-float GetColumnWidth(int column_index)
+float GetColumnWidth(int column_index = -1)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -7532,7 +7534,7 @@ ImGuiID GetColumnsID(string str_id, int columns_count)
     return id;
 }
 
-void BeginColumns(string str_id, int columns_count, ImGuiColumnsFlags flags)
+void BeginColumns(string str_id, int columns_count, ImGuiColumnsFlags flags = ImGuiColumnsFlags.None)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();

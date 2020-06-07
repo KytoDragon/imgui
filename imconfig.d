@@ -123,6 +123,7 @@ namespace ImGui
 // D_IMGUI: Additional compile time options
 //-----------------------------------------------------------------------------
 
+//---- System compiletime enums (for static ifs)
 version (Windows) {
     enum D_IMGUI_Windows = true;
 } else {
