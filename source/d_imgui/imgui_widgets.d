@@ -4541,7 +4541,7 @@ bool ColorPicker3(string label, float[/*3*/] col, ImGuiColorEditFlags flags = Im
 // Helper for ColorPicker4()
 static void RenderArrowsForVerticalBar(ImDrawList* draw_list, ImVec2 pos, ImVec2 half_sz, float bar_w, float alpha)
 {
-    ImU32 alpha8 = IM_F32_TO_INT8_SAT(alpha);
+    ubyte alpha8 = IM_F32_TO_INT8_SAT(alpha);
     RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x + 1,         pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir.Right, IM_COL32(0,0,0,alpha8));
     RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x,             pos.y), half_sz,                              ImGuiDir.Right, IM_COL32(255,255,255,alpha8));
     RenderArrowPointingAt(draw_list, ImVec2(pos.x + bar_w - half_sz.x - 1, pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir.Left,  IM_COL32(0,0,0,alpha8));
@@ -4598,7 +4598,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     float bars_triangles_half_sz = IM_FLOOR(bars_width * 0.20f);
 
     float[4] backup_initial_col;
-    memcpy(backup_initial_col, col, components * (float).sizeof);
+    memcpy(backup_initial_col.ptr, col.ptr, components * (float).sizeof);
 
     float wheel_thickness = sv_picker_size * 0.08f;
     float wheel_r_outer = sv_picker_size * 0.50f;
@@ -4617,7 +4617,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     {
         // Hue is lost when converting from greyscale rgb (saturation=0). Restore it.
         ColorConvertRGBtoHSV(R, G, B, H, S, V);
-        if (memcmp(g.ColorEditLastColor, col, (float).sizeof * 3) == 0)
+        if (memcmp(g.ColorEditLastColor.ptr, col.ptr, (float).sizeof * 3) == 0)
         {
             if (S == 0)
                 H = g.ColorEditLastHue;
@@ -4736,7 +4736,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
             ImVec4 ref_col_v4 = ImVec4(ref_col[0], ref_col[1], ref_col[2], (flags & ImGuiColorEditFlags.NoAlpha) ? 1.0f : ref_col[3]);
             if (ColorButton("##original", ref_col_v4, (flags & sub_flags_to_forward), ImVec2(square_sz * 3, square_sz * 2)))
             {
-                memcpy(col.ptr, ref_col.ptr, components * (float).sizeof);
+                memcpy(col.ptr, ref_col, components * (float).sizeof);
                 value_changed = true;
             }
         }
@@ -4752,7 +4752,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
             ColorConvertHSVtoRGB(H >= 1.0f ? H - 10 * 1e-6f : H, S > 0.0f ? S : 10*1e-6f, V > 0.0f ? V : 1e-6f, col[0], col[1], col[2]);
             g.ColorEditLastHue = H;
             g.ColorEditLastSat = S;
-            memcpy(g.ColorEditLastColor, col, (float).sizeof * 3);
+            memcpy(g.ColorEditLastColor.ptr, col.ptr, (float).sizeof * 3);
         }
         else if (flags & ImGuiColorEditFlags.InputHSV)
         {
@@ -4806,7 +4806,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
             G = col[1];
             B = col[2];
             ColorConvertRGBtoHSV(R, G, B, H, S, V);
-            if (memcmp(g.ColorEditLastColor, col, (float).sizeof * 3) == 0) // Fix local Hue as display below will use it immediately.
+            if (memcmp(g.ColorEditLastColor.ptr, col.ptr, (float).sizeof * 3) == 0) // Fix local Hue as display below will use it immediately.
             {
                 if (S == 0)
                     H = g.ColorEditLastHue;
@@ -5144,7 +5144,7 @@ void ColorPickerOptionsPopup(const float* ref_col, ImGuiColorEditFlags flags)
             SetCursorScreenPos(backup_pos);
             ImVec4 dummy_ref_col;
             memcpy(&dummy_ref_col, ref_col, (float).sizeof * (picker_flags & ImGuiColorEditFlags.NoAlpha ? 3 : 4));
-            ColorPicker4("##dummypicker", &dummy_ref_col, picker_flags);
+            ColorPicker4("##dummypicker", dummy_ref_col.array(), picker_flags);
             PopID();
         }
         PopItemWidth();
@@ -5175,7 +5175,7 @@ void ColorPickerOptionsPopup(const float* ref_col, ImGuiColorEditFlags flags)
 bool TreeNode(string str_id, string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     bool is_open = TreeNodeExV(str_id, ImGuiTreeNodeFlags.None, fmt, args);
     va_end(args);
     return is_open;
@@ -5184,7 +5184,7 @@ bool TreeNode(string str_id, string fmt, ...)
 bool TreeNode(const void* ptr_id, string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     bool is_open = TreeNodeExV(ptr_id, ImGuiTreeNodeFlags.None, fmt, args);
     va_end(args);
     return is_open;
@@ -5220,7 +5220,7 @@ bool TreeNodeEx(string label, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None
 bool TreeNodeEx(string str_id, ImGuiTreeNodeFlags flags, string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     bool is_open = TreeNodeExV(str_id, flags, fmt, args);
     va_end(args);
     return is_open;
@@ -5229,7 +5229,7 @@ bool TreeNodeEx(string str_id, ImGuiTreeNodeFlags flags, string fmt, ...)
 bool TreeNodeEx(const void* ptr_id, ImGuiTreeNodeFlags flags, string fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    mixin va_start!(args, fmt);
     bool is_open = TreeNodeExV(ptr_id, flags, fmt, args);
     va_end(args);
     return is_open;
@@ -5492,7 +5492,7 @@ bool TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, string label)
 
     if (is_open && !(flags & ImGuiTreeNodeFlags.NoTreePushOnOpen))
         TreePushOverrideID(id);
-    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, window.DC.ItemFlags | (is_leaf ? 0 : ImGuiItemStatusFlags.Openable) | (is_open ? ImGuiItemStatusFlags.Opened : 0));
+    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, cast(ImGuiItemStatusFlags)window.DC.ItemFlags | (is_leaf ? ImGuiItemStatusFlags.None : ImGuiItemStatusFlags.Openable) | (is_open ? ImGuiItemStatusFlags.Opened : ImGuiItemStatusFlags.None));
     return is_open;
 }
 
@@ -5591,7 +5591,7 @@ bool CollapsingHeader(string label, bool* p_open, ImGuiTreeNodeFlags flags = ImG
         // FIXME: We can evolve this into user accessible helpers to add extra buttons on title bars, headers, etc.
         // FIXME: CloseButton can overlap into text, need find a way to clip the text somehow.
         ImGuiContext* g = GImGui;
-        ImGuiItemHoveredDataBackup last_item_backup;
+        ImGuiItemHoveredDataBackup last_item_backup = ImGuiItemHoveredDataBackup(false);
         float button_size = g.FontSize;
         float button_x = ImMax(window.DC.LastItemRect.Min.x, window.DC.LastItemRect.Max.x - g.Style.FramePadding.x * 2.0f - button_size);
         float button_y = window.DC.LastItemRect.Min.y;
@@ -5802,7 +5802,7 @@ bool ListBoxHeader(string label, int items_count, int height_in_items = -1)
     // I am expecting that someone will come and complain about this behavior in a remote future, then we can advise on a better solution.
     if (height_in_items < 0)
         height_in_items = ImMin(items_count, 7);
-    const ImGuiStyle* style = GetStyle();
+    const ImGuiStyle* style = &GetStyle();
     float height_in_items_f = (height_in_items < items_count) ? (height_in_items + 0.25f) : (height_in_items + 0.00f);
 
     // We include ItemSpacing.y so that a list sized for the exact number of items doesn't make a scrollbar appears. We could also enforce that by passing a flag to BeginChild().
@@ -5817,7 +5817,7 @@ void ListBoxFooter()
 {
     ImGuiWindow* parent_window = GetCurrentWindow().ParentWindow;
     const ImRect bb = parent_window.DC.LastItemRect;
-    const ImGuiStyle* style = GetStyle();
+    const ImGuiStyle* style = &GetStyle();
 
     EndChildFrame();
 
@@ -5831,19 +5831,19 @@ void ListBoxFooter()
 
 bool ListBox(string label, int* current_item, string[] items, int items_count, int height_items = -1)
 {
-    const bool value_changed = ListBox(label, current_item, &Items_ArrayGetter, toVoid(items), height_items);
+    const bool value_changed = ListBox(label, current_item, &Items_ArrayGetter, &items, items_count, height_items);
     return value_changed;
 }
 
-bool ListBox(string label, int* current_item, bool function(void[] data, int idx, string* out_text) nothrow @nogc items_getter, void[] data, int height_in_items = -1)
+bool ListBox(string label, int* current_item, bool function(void* data, int idx, string* out_text) nothrow @nogc items_getter, void* data, int items_count, int height_in_items = -1)
 {
-    if (!ListBoxHeader(label, cast(int)data.length, height_in_items))
+    if (!ListBoxHeader(label, items_count, height_in_items))
         return false;
 
     // Assume all items have even height (= 1 line of text). If you need items of different or variable sizes you can create a custom version of ListBox() in your code without using the clipper.
     ImGuiContext* g = GImGui;
     bool value_changed = false;
-    ImGuiListClipper clipper = ImGuiListClipper(false, cast(int)data.length, GetTextLineHeightWithSpacing()); // We know exactly our line height here so we pass it as a minor optimization, but generally you don't need to.
+    ImGuiListClipper clipper = ImGuiListClipper(items_count, GetTextLineHeightWithSpacing()); // We know exactly our line height here so we pass it as a minor optimization, but generally you don't need to.
     scope(exit) {clipper.destroy();}
     while (clipper.Step())
         for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
@@ -6017,7 +6017,7 @@ static float Plot_ArrayGetter(void* data, int idx)
 void PlotLines(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
 {
     ImGuiPlotArrayGetterData data = ImGuiPlotArrayGetterData(values, stride);
-    PlotEx(ImGuiPlotType.Lines, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values.length * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
+    PlotEx(ImGuiPlotType.Lines, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values_count * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
 }
 
 void PlotLines(string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0))
@@ -6028,7 +6028,7 @@ void PlotLines(string label, float function(void* data, int idx) nothrow @nogc v
 void PlotHistogram(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
 {
     ImGuiPlotArrayGetterData data = ImGuiPlotArrayGetterData(values, stride);
-    PlotEx(ImGuiPlotType.Histogram, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values.length * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
+    PlotEx(ImGuiPlotType.Histogram, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values_count * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
 }
 
 void PlotHistogram(string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0))
@@ -6375,7 +6375,7 @@ bool BeginMenu(string label, bool enabled)
     if (want_close && IsPopupOpen(id))
         ClosePopupToLevel(g.BeginPopupStack.Size, true);
 
-    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, window.DC.ItemFlags | ImGuiItemStatusFlags.Openable | (menu_is_open ? ImGuiItemStatusFlags.Opened : 0));
+    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, cast(ImGuiItemStatusFlags)window.DC.ItemFlags | ImGuiItemStatusFlags.Openable | (menu_is_open ? ImGuiItemStatusFlags.Opened : ImGuiItemStatusFlags.None));
 
     if (!menu_is_open && want_open && g.OpenPopupStack.Size > g.BeginPopupStack.Size)
     {
@@ -6462,7 +6462,7 @@ bool MenuItem(string label, string shortcut = NULL, bool selected = false, bool 
             RenderCheckMark(window.DrawList, pos + ImVec2(window.DC.MenuColumns.Pos[2] + extra_w + g.FontSize * 0.40f, g.FontSize * 0.134f * 0.5f), GetColorU32(enabled ? ImGuiCol.Text : ImGuiCol.TextDisabled), g.FontSize  * 0.866f);
     }
 
-    IMGUI_TEST_ENGINE_ITEM_INFO(window.DC.LastItemId, label, window.DC.ItemFlags | ImGuiItemStatusFlags.Checkable | (selected ? ImGuiItemStatusFlags.Checked : 0));
+    IMGUI_TEST_ENGINE_ITEM_INFO(window.DC.LastItemId, label, cast(ImGuiItemStatusFlags)window.DC.ItemFlags | ImGuiItemStatusFlags.Checkable | (selected ? ImGuiItemStatusFlags.Checked : ImGuiItemStatusFlags.None));
     return pressed;
 }
 
@@ -7327,7 +7327,7 @@ bool TabItemLabelAndCloseButton(ImDrawList* draw_list, const ImRect/*&*/ bb, ImG
             close_button_visible = true;
     if (close_button_visible)
     {
-        ImGuiItemHoveredDataBackup last_item_backup;
+        ImGuiItemHoveredDataBackup last_item_backup = ImGuiItemHoveredDataBackup(false);
         const float close_button_sz = g.FontSize * 0.5f;
         PushStyleVar(ImGuiStyleVar.FramePadding, frame_padding);
         if (CloseButton(close_button_id, ImVec2(bb.Max.x - frame_padding.x * 2.0f - close_button_sz, bb.Min.y)))
@@ -7382,7 +7382,7 @@ int GetColumnsCount()
     return window.DC.CurrentColumns ? window.DC.CurrentColumns.Count : 1;
 }
 
-float GetColumnOffsetFromNorm(const ImGuiColumns* columns, float offset_norm)
+float GetColumnOffsetFromNorm(const ImGuiColumns* columns, float offset)
 {
     return offset / (columns.OffMaxX - columns.OffMinX);
 }

@@ -1215,6 +1215,9 @@ struct ImGuiShrinkWidthItem
 
 struct ImGuiPtrOrIndex
 {
+    nothrow:
+    @nogc:
+
     void*           Ptr;                // Either field can be set, not both. e.g. Dock node tab bars are loose while BeginTabBar() ones are in a pool.
     int             Index;              // Usually index in a main pool.
 
