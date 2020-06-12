@@ -238,7 +238,8 @@ void ImQsort(T)(T[] data, int function(const T*, const T*) nothrow @nogc comp) {
     ImQsort(data, cast(int function(T*, T*) nothrow @nogc)comp);
 }
 void ImQsort(T)(T[] data, int function(T*, T*) nothrow @nogc comp) {
-    ImQsortInternal(data, 0, cast(int)data.length, comp);
+    if (data.length == 0) return
+    ImQsortInternal(data, 0, cast(int)data.length - 1, comp);
 }
 
 void ImQsortInternal(T)(T[] data, int left, int right, int function(T*, T*) nothrow @nogc comp) {
@@ -340,8 +341,6 @@ version (IMGUI_DISABLE_FILE_FUNCTIONS) {
 } else
 
 static if (!IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS) {
-    import core.stdc.stdio : FILE;
-    alias ImFileHandle = FILE*;
     // IMGUI_API ImFileHandle      ImFileOpen(string filename, string mode);
     // IMGUI_API bool              ImFileClose(ImFileHandle file);
     // IMGUI_API ImU64             ImFileGetSize(ImFileHandle file);
@@ -350,6 +349,8 @@ static if (!IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS) {
 // #else
 // #define IMGUI_DISABLE_TTY_FUNCTIONS // Can't use stdout, fflush if we are not using default file functions
 }
+    import core.stdc.stdio : FILE; // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
+    alias ImFileHandle = FILE*;
 // IMGUI_API void*             ImFileLoadToMemory(string filename, string mode, size_t* out_file_size = NULL, int padding_bytes = 0);
 
 // Helpers: Maths
@@ -1448,6 +1449,7 @@ struct ImGuiContext
         IO = ImGuiIO(false);
         Style = ImGuiStyle(false);
         InputTextPasswordFont = ImFont(false);
+        DrawListSharedData = ImDrawListSharedData(false);
 
         BackgroundDrawList = ImDrawList(&DrawListSharedData);
         ForegroundDrawList = ImDrawList(&DrawListSharedData);
@@ -1580,6 +1582,11 @@ struct ImGuiContext
         WantCaptureMouseNextFrame = WantCaptureKeyboardNextFrame = WantTextInputNextFrame = -1;
         memset(TempBuffer.ptr, 0, (TempBuffer).sizeof);
     }
+
+    void destroy() {
+        BackgroundDrawList.destroy();
+        ForegroundDrawList.destroy();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1681,6 +1688,14 @@ struct ImGuiWindowTempData
         TextWrapPos = -1.0f;
         memset(StackSizesBackup.ptr, 0, (StackSizesBackup).sizeof);
     }
+
+    void destroy() {
+        ItemFlagsStack.destroy();
+        ItemWidthStack.destroy();
+        TextWrapPosStack.destroy();
+        GroupStack.destroy();
+        ChildWindows.destroy();
+    }
 }
 
 // Storage for one window
@@ -1780,7 +1795,7 @@ public:
         DrawListInst = ImDrawList(&context.DrawListSharedData);
 
         NameBuf = ImStrdup(name);
-        Name = cast(string)NameBuf;
+        Name = cast(string)NameBuf[0..$-1];
         ID = ImHashStr(name);
         IDStack.push_back(ID);
         Flags = ImGuiWindowFlags.None;
@@ -1845,9 +1860,13 @@ public:
     void destroy()
     {
         IM_ASSERT(DrawList == &DrawListInst);
-        IM_DELETE(NameBuf.ptr);
+        IM_FREE(NameBuf.ptr);
         for (int i = 0; i != ColumnsStorage.Size; i++)
             ColumnsStorage[i].destroy();
+
+		DrawListInst.destroy();
+        IDStack.destroy();
+        DC.destroy();
     }
 
     ImGuiID     GetID(string str)

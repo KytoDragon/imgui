@@ -3509,8 +3509,8 @@ uint stb_adler32(uint adler32, ubyte *buffer, uint buflen)
 
 uint stb_decompress(ubyte *output, const (ubyte) *i, uint /*length*/)
 {
-    if (stb__in4(output, 0) != 0x57bC0000) return 0;
-    if (stb__in4(output, 4) != 0)          return 0; // error! stream is > 4GB
+    if (stb__in4(i, 0) != 0x57bC0000) return 0;
+    if (stb__in4(i, 4) != 0)          return 0; // error! stream is > 4GB
     const uint olen = stb_decompress_length(i);
     stb__barrier_in_b = i;
     stb__barrier_out_e = output + olen;

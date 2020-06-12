@@ -1395,8 +1395,9 @@ pragma(inline) void IM_PLACEMENT_NEW(T)(T* ptr, T value) {
     *ptr = value;
 }
 pragma(inline) T* IM_NEW(T, A...)(A args) {
+    import std.conv : emplace;
     T* result = cast(T*)MemAlloc((T).sizeof);
-    *result = T(args);
+    emplace(result, args);
     return result;
 }
 pragma(inline) void IM_DELETE(T)(T* p)   { if (p) { p.destroy(); MemFree(p); } }

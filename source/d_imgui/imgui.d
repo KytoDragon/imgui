@@ -1466,13 +1466,17 @@ ptrdiff_t ImIndexOf(string str, char c) {
     size_t index = 0;
     while (index < str.length && str[index] != c)
         index++;
-    return index;
+    if (index < str.length)
+        return index;
+    return -1;
 }
 
 ptrdiff_t ImIndexOf(string str, size_t index, char c) {
     while (index < str.length && str[index] != c)
         index++;
-    return index;
+    if (index < str.length)
+        return index;
+    return -1;
 }
 
 ptrdiff_t ImIndexOf(string haystack, string needle) {
@@ -1634,11 +1638,13 @@ ImFileHandle ImFileOpen(string filename, string mode)
         const int filename_wsize = MultiByteToWideChar(CP_UTF8, 0, filename.ptr, cast(int)filename.length, NULL, 0);
         const int mode_wsize = MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, NULL, 0);
         ImVector!ImWchar buf;
-        buf.resize(filename_wsize + mode_wsize);
+        buf.resize(filename_wsize + mode_wsize + 1 + 1);
         scope (exit) {buf.destroy();}
         MultiByteToWideChar(CP_UTF8, 0, filename.ptr, cast(int)filename.length, cast(wchar*)&buf[0], filename_wsize);
-        MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, cast(wchar*)&buf[filename_wsize], mode_wsize);
-        return _wfopen(cast(const wchar*)&buf[0], cast(const wchar*)&buf[filename_wsize]);
+        MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, cast(wchar*)&buf[filename_wsize + 1], mode_wsize);
+        buf[filename_wsize] = 0;
+        buf[filename_wsize + mode_wsize] = 0;
+        return _wfopen(cast(const wchar*)&buf[0], cast(const wchar*)&buf[filename_wsize + 1]);
     } else {
         return fopen(filename, mode);
     }
@@ -2968,7 +2974,7 @@ ImGuiWindow.this(ImGuiContext* context, string name)
 void ImGuiWindow.destroy()
 {
     IM_ASSERT(DrawList == &DrawListInst);
-    IM_DELETE(NameBuf);
+    IM_FREE(NameBuf.ptr);
     for (int i = 0; i != ColumnsStorage.Size; i++)
         ColumnsStorage[i].destroy();
 }
@@ -3326,8 +3332,9 @@ void MemFree(void* ptr)
         ImGuiContext* ctx = GImGui;
         if (ctx)
             ctx.IO.MetricsActiveAllocations--;
+        // D_IMGUI: Don't free null pointer
+        return GImAllocatorFreeFunc(ptr, GImAllocatorUserData);
     }
-    return GImAllocatorFreeFunc(ptr, GImAllocatorUserData);
 }
 
 string GetClipboardText()
@@ -3371,7 +3378,7 @@ void SetAllocatorFunctions(void* function(size_t sz, void* user_data) nothrow @n
     GImAllocatorUserData = user_data;
 }
 
-ImGuiContext* CreateContext(ImFontAtlas* shared_font_atlas)
+ImGuiContext* CreateContext(ImFontAtlas* shared_font_atlas = NULL)
 {
     ImGuiContext* ctx = IM_NEW!ImGuiContext(shared_font_atlas);
     if (GImGui == NULL)
@@ -3380,7 +3387,7 @@ ImGuiContext* CreateContext(ImFontAtlas* shared_font_atlas)
     return ctx;
 }
 
-void DestroyContext(ImGuiContext* ctx)
+void DestroyContext(ImGuiContext* ctx = NULL)
 {
     if (ctx == NULL)
         ctx = GImGui;
@@ -5638,7 +5645,7 @@ bool Begin(string name, bool* p_open = NULL, ImGuiWindowFlags flags = ImGuiWindo
         bool window_title_visible_elsewhere = false;
         if (g.NavWindowingList != NULL && (window.Flags & ImGuiWindowFlags.NoNavFocus) == 0)   // Window titles visible when using CTRL+TAB
             window_title_visible_elsewhere = true;
-        if (window_title_visible_elsewhere && !window_just_created && name == window.Name)
+        if (window_title_visible_elsewhere && !window_just_created && name != window.Name)
         {
             window.NameBuf = ImStrdupcpy(window.NameBuf, name);
             window.Name = ImCstring(window.NameBuf);

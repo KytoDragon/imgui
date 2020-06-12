@@ -3504,7 +3504,7 @@ private stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts,
    for (pass=0; pass < 2; ++pass) {
       float x=0,y=0;
       if (pass == 1) {
-         points = cast(stbtt__point *) STBTT_malloc(num_points * sizeof(points[0]), userdata);
+         points = cast(stbtt__point *) STBTT_malloc(num_points * (points[0]).sizeof, userdata);
          if (points == NULL) goto error;
       }
       num_points = 0;

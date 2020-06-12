@@ -6225,7 +6225,7 @@ void EndMainMenuBar()
     End();
 }
 
-bool BeginMenu(string label, bool enabled)
+bool BeginMenu(string label, bool enabled = true)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
