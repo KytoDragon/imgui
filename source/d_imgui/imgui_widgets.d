@@ -46,9 +46,7 @@ import d_imgui.imgui_draw;
 import d_imgui.imstb_textedit;
 
 import core.stdc.string : strlen, memcpy, memcmp, memmove, memset, strcmp;
-static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
-    import core.stdc.stdarg : va_list;
-}
+import d_snprintf.vararg;
 
 nothrow:
 @nogc:
@@ -251,10 +249,9 @@ void TextUnformatted(string text)
 
 void Text(string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    TextV(fmt, args);
-    va_end(args);
+    mixin va_start;
+    TextV(fmt, va_args);
+    va_end(va_args);
 }
 
 void TextV(string fmt, va_list args)
@@ -270,10 +267,9 @@ void TextV(string fmt, va_list args)
 
 void TextColored(const ImVec4/*&*/ col, string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    TextColoredV(col, fmt, args);
-    va_end(args);
+    mixin va_start;
+    TextColoredV(col, fmt, va_args);
+    va_end(va_args);
 }
 
 void TextColoredV(const ImVec4/*&*/ col, string fmt, va_list args)
@@ -285,10 +281,9 @@ void TextColoredV(const ImVec4/*&*/ col, string fmt, va_list args)
 
 void TextDisabled(string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    TextDisabledV(fmt, args);
-    va_end(args);
+    mixin va_start;
+    TextDisabledV(fmt, va_args);
+    va_end(va_args);
 }
 
 void TextDisabledV(string fmt, va_list args)
@@ -300,10 +295,9 @@ void TextDisabledV(string fmt, va_list args)
 
 void TextWrapped(string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    TextWrappedV(fmt, args);
-    va_end(args);
+    mixin va_start;
+    TextWrappedV(fmt, va_args);
+    va_end(va_args);
 }
 
 void TextWrappedV(string fmt, va_list args)
@@ -319,10 +313,9 @@ void TextWrappedV(string fmt, va_list args)
 
 void LabelText(string label, string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    LabelTextV(label, fmt, args);
-    va_end(args);
+    mixin va_start;
+    LabelTextV(label, fmt, va_args);
+    va_end(va_args);
 }
 
 // Add a label+text combo aligned to other label+value widgets
@@ -352,10 +345,9 @@ void LabelTextV(string label, string fmt, va_list args)
 
 void BulletText(string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    BulletTextV(fmt, args);
-    va_end(args);
+    mixin va_start;
+    BulletTextV(fmt, va_args);
+    va_end(va_args);
 }
 
 // Text with a little bullet aligned to the typical tree node.
@@ -5174,19 +5166,17 @@ void ColorPickerOptionsPopup(const float* ref_col, ImGuiColorEditFlags flags)
 
 bool TreeNode(string str_id, string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    bool is_open = TreeNodeExV(str_id, ImGuiTreeNodeFlags.None, fmt, args);
-    va_end(args);
+    mixin va_start;
+    bool is_open = TreeNodeExV(str_id, ImGuiTreeNodeFlags.None, fmt, va_args);
+    va_end(va_args);
     return is_open;
 }
 
 bool TreeNode(const void* ptr_id, string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    bool is_open = TreeNodeExV(ptr_id, ImGuiTreeNodeFlags.None, fmt, args);
-    va_end(args);
+    mixin va_start;
+    bool is_open = TreeNodeExV(ptr_id, ImGuiTreeNodeFlags.None, fmt, va_args);
+    va_end(va_args);
     return is_open;
 }
 
@@ -5219,19 +5209,17 @@ bool TreeNodeEx(string label, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None
 
 bool TreeNodeEx(string str_id, ImGuiTreeNodeFlags flags, string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    bool is_open = TreeNodeExV(str_id, flags, fmt, args);
-    va_end(args);
+    mixin va_start;
+    bool is_open = TreeNodeExV(str_id, flags, fmt, va_args);
+    va_end(va_args);
     return is_open;
 }
 
 bool TreeNodeEx(const void* ptr_id, ImGuiTreeNodeFlags flags, string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    bool is_open = TreeNodeExV(ptr_id, flags, fmt, args);
-    va_end(args);
+    mixin va_start;
+    bool is_open = TreeNodeExV(ptr_id, flags, fmt, va_args);
+    va_end(va_args);
     return is_open;
 }
 

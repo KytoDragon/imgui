@@ -41,7 +41,7 @@ import d_imgui.imgui_draw;
 import d_imgui.imstb_textedit;
 
 import core.stdc.string : memset, memcpy;
-import core.stdc.stdarg : va_list;
+import d_snprintf.vararg;
 // #include <stdio.h>      // FILE*, sscanf
 // #include <stdlib.h>     // NULL, malloc, free, qsort, atoi, atof
 // #include <math.h>       // sqrtf, fabsf, fmodf, powf, floorf, ceilf, cosf, sinf
@@ -367,7 +367,7 @@ static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
     double ImAtof(string str) {
         double result = 0.0;
         // ignore parse errors
-        sscanf(str, "%llf", &result);
+        sscanf(str, "%lf", &result);
         return result;
     }
     alias ImFloorStd = floorf;           // We already uses our own ImFloor() { return (float)(int)v } internally so the standard one wrapper is named differently (it's used by e.g. stb_truetype)
@@ -375,11 +375,10 @@ static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
     pragma(inline, true) float  ImPow(float x, float y)    { return powf(x, y); }          // DragBehaviorT/SliderBehaviorT uses ImPow with either float/double and need the precision
     pragma(inline, true) double ImPow(double x, double y)  { return pow(x, y); } // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
     int sscanf(string str, string fmt, ...) {
-        va_list args;
-        mixin va_start!(args, fmt);
+        mixin va_start;
 
         // this function only needs to handle the following formats:
-        // %d, %i, %u, %lld, %llu, %f, %llf, %08X, %02X%02X%02X, %02X%02X%02X%02X
+        // %d, %i, %u, %lld, %llu, %f, %lf, %08X, %02X%02X%02X, %02X%02X%02X%02X
 
         return 0;
     }
@@ -2311,12 +2310,16 @@ struct ImGuiTabBar
 // Debug Tools
 // Use 'Metrics->Tools->Item Picker' to break into the call-stack of a specific item.
 static if (!D_IMGUI_USER_DEFINED_DEBUG_BREAK) {
-    pragma(inline, true) void IM_DEBUG_BREAK() {    // It is expected that you define IM_DEBUG_BREAK() into something that will break nicely in a debugger!
-        version (LDC) {
+    // It is expected that you define IM_DEBUG_BREAK() into something that will break nicely in a debugger!
+    version (LDC) {
+        pragma(inline, true) void IM_DEBUG_BREAK() {
             import ldc.llvmasm : __asm;
-            __asm("int 3", "");
-        } else {
-            asm {
+            __asm("int3", "");
+        }
+    } else {
+        // On DMD asm cannot be inlined
+        void IM_DEBUG_BREAK() {
+            asm nothrow @nogc{
                 int 3;
             }
         }

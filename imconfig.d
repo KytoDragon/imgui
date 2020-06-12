@@ -68,7 +68,7 @@ enum IMGUI_DISABLE_TTY_FUNCTIONS = false;                       // Don't impleme
 
 //---- Unless IMGUI_DISABLE_DEFAULT_FORMAT_FUNCTIONS is defined, use the much faster STB sprintf library implementation of vsnprintf instead of the one from the default C library.
 // Note that stb_sprintf.h is meant to be provided by the user and available in the include path at compile time. Also, the compatibility checks of the arguments and formats done by clang and GCC will be disabled in order to support the extra formats provided by STB sprintf.
-//import stb.snprintf : snprintf, vsnprintf;
+// D_IMGUI: Not supported. We use the d_snprintf package.
 //version = IMGUI_USE_STB_SPRINTF;
 
 //---- Define constructor and implicit cast operators to convert back<>forth between your math types and ImVec2/ImVec4.
@@ -138,9 +138,6 @@ version (OSX) {
 
 //---- Don't use \r\n on windows
 enum D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS = false;
-
-//---- Don't import va_* methods from the c standard library
-enum D_IMGUI_DISABLE_C_STD_VARARGS = false;
 
 //---- Define your own backend texture id
 alias ImTextureID = int;

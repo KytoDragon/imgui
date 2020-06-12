@@ -817,21 +817,8 @@ import d_imgui.imgui_widgets;
 // #define IMGUI_DEFINE_MATH_OPERATORS
 // #endif
 import d_imgui.imgui_internal;
-static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
-    import core.stdc.stdarg : va_list;
-    
-    nothrow:
-    @nogc:
-
-    mixin template va_start(alias args, alias fmt) {
-        va_list dummy_value_va_start = (args = _argptr);
-    }
-    pragma(inline, true) void va_end(va_list) {}
-    
-    mixin template va_copy(alias copy, alias args) {
-        va_list dummy_value_va_copy = (copy = args);
-    }
-}
+import d_snprintf.vararg;
+import d_snprintf.snprintf;
 // System includes
 import core.stdc.string : memcpy, memmove, memset, strlen;
 import core.stdc.ctype : toupper;
@@ -1527,14 +1514,9 @@ static if (!IMGUI_DISABLE_DEFAULT_FORMAT_FUNCTIONS) {
 
 int ImFormatString(char[] buf, string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-// #ifdef IMGUI_USE_STB_SPRINTF
-    // int w = stbsp_vsnprintf(buf, (int)buf_size, fmt, args);
-// #else
-    int w = vsnprintf(buf, fmt, args);
-// #endif
-    va_end(args);
+    mixin va_start;
+    int w = vsnprintf(buf, fmt, va_args);
+    va_end(va_args);
     if (buf == NULL)
         return w;
     if (w == -1 || w >= cast(int)buf.length)
@@ -1637,13 +1619,15 @@ ImU32 ImHashStr(string data_p, ImU32 seed = 0)
 static if (!IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS) {
 
 import core.stdc.stdio : fopen, fclose, ftell, fseek, fread, fwrite, SEEK_END, SEEK_SET, FILE, stdout, fflush;
+version (CRuntime_Microsoft) {
+    extern (C) nothrow @nogc FILE* _wfopen(const wchar* filename, const wchar* mode); // D_IMGUI: This function is missing from druntime
+}
 
 ImFileHandle ImFileOpen(string filename, string mode)
 {
     // TODO D_IMGUI: zero terminator
     version (CRuntime_Microsoft) {
         import core.sys.windows.windows : MultiByteToWideChar, CP_UTF8;
-        extern (C) nothrow @nogc FILE* _wfopen(const wchar* filename, const wchar* mode); // D_IMGUI: This function is missing from druntime
 
         // We need a fopen() wrapper because MSVC/Windows fopen doesn't handle UTF-8 filenames.
         // Previously we used ImTextCountCharsFromUtf8/ImTextStrFromUtf8 here but we now need to support ImWchar16 and ImWchar32!
@@ -2277,10 +2261,9 @@ void ImGuiTextBuffer.append(string str)
 
 void ImGuiTextBuffer.appendf(string fmt, ...)
 {
-    va_list args;
-    va_start(args, fmt);
-    appendfv(fmt, args);
-    va_end(args);
+    mixin va_start;
+    appendfv(fmt, va_args);
+    va_end(va_args);
 }
 
 // Helper: Text buffer for logging/accumulating text
@@ -7600,10 +7583,9 @@ void SetTooltipV(string fmt, va_list args)
 
 void SetTooltip(string fmt, ...)
 {
-    va_list args;
-    mixin va_start!(args, fmt);
-    SetTooltipV(fmt, args);
-    va_end(args);
+    mixin va_start;
+    SetTooltipV(fmt, va_args);
+    va_end(va_args);
 }
 
 //-----------------------------------------------------------------------------
@@ -9436,19 +9418,18 @@ void LogText(string fmt, ...)
     if (!g.LogEnabled)
         return;
 
-    va_list args;
-    mixin va_start!(args, fmt);
+    mixin va_start;
     if (g.LogFile)
     {
         g.LogBuffer.Buf.resize(0);
-        g.LogBuffer.appendfv(fmt, args);
+        g.LogBuffer.appendfv(fmt, va_args);
         ImFileWrite(g.LogBuffer.c_str().ptr, (char).sizeof, cast(ImU64)g.LogBuffer.size(), g.LogFile);
     }
     else
     {
-        g.LogBuffer.appendfv(fmt, args);
+        g.LogBuffer.appendfv(fmt, va_args);
     }
-    va_end(args);
+    va_end(va_args);
 }
 
 // Internal version that takes a position to decide on newline placement and pad items according to their depth.

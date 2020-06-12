@@ -59,13 +59,10 @@ immutable float FLT_MAX = float.max;
 immutable float DBL_MAX = double.max;
 immutable int INT_MIN = int.min;
 immutable int INT_MAX = int.max;
-// #include <stdarg.h>                 // va_list, va_start, va_end
+import d_snprintf.vararg;                 // va_list, va_start, va_end
 // #include <stddef.h>                 // ptrdiff_t, NULL
 enum NULL = null;
 // #include <string.h>                 // memset, memmove, memcpy, strlen, strchr, strcpy, strcmp
-static if (!D_IMGUI_DISABLE_C_STD_VARARGS) {
-    import core.stdc.stdarg : va_list;
-}
 import core.stdc.string : memset, memmove, memcpy, memcmp, strlen, strchr, strcpy, strcmp;
 import core.stdc.stdlib : alloca;
 
@@ -2192,18 +2189,17 @@ struct ImGuiTextBuffer
 
     void      appendf(string fmt, ...)
     {
-        va_list args;
-        mixin va_start!(args, fmt);
-        appendfv(fmt, args /*get_vargs(_argptr, _arguments, v_alloc(v_space(_arguments)))*/); // TODO D_IMGUI: fix va_args stuff
-        va_end(args);
+        mixin va_start;
+        appendfv(fmt, va_args);
+        va_end(va_args);
     }
 
-    void      appendfv(string fmt, va_list args)
+    void      appendfv(string fmt, va_list va_args)
     {
         va_list args_copy;
-        mixin va_copy!(args_copy, args);
+        va_copy(args_copy, va_args);
 
-        int len = ImFormatStringV(NULL, fmt, args);         // FIXME-OPT: could do a first pass write attempt, likely successful on first pass.
+        int len = ImFormatStringV(NULL, fmt, va_args);         // FIXME-OPT: could do a first pass write attempt, likely successful on first pass.
         if (len <= 0)
         {
             va_end(args_copy);

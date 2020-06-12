@@ -3694,11 +3694,10 @@ struct ExampleAppConsole
     {
         // FIXME-OPT
         char buf[1024];
-        va_list args;
-        va_start(args, fmt);
-        vsnprintf(buf, IM_ARRAYSIZE(buf), fmt, args);
+        mixin va_start;
+        vsnprintf(buf, IM_ARRAYSIZE(buf), fmt, va_args);
         buf[IM_ARRAYSIZE(buf)-1] = 0;
-        va_end(args);
+        va_end(va_args);
         Items.push_back(Strdup(buf));
     }
 
@@ -3999,10 +3998,9 @@ struct ExampleAppLog
     void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
     {
         int old_size = Buf.size();
-        va_list args;
-        va_start(args, fmt);
-        Buf.appendfv(fmt, args);
-        va_end(args);
+        mixin va_start;
+        Buf.appendfv(fmt, va_args);
+        va_end(va_args);
         for (int new_size = Buf.size(); old_size < new_size; old_size++)
             if (Buf[old_size] == '\n')
                 LineOffsets.push_back(old_size + 1);
