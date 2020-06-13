@@ -447,6 +447,7 @@ struct ImBitVector
     @nogc:
 
     ImVector!ImU32 Storage;
+    void destroy() { Storage.destroy(); }
     void            Create(int sz)              { Storage.resize((sz + 31) >> 5); memset(Storage.Data, 0, cast(size_t)Storage.Size * (Storage.Data[0]).sizeof); }
     void            Clear()                     { Storage.clear(); }
     bool            TestBit(int n) const        { IM_ASSERT(n < (Storage.Size << 5)); return ImBitArrayTestBit(Storage.Data, n); }
@@ -488,6 +489,7 @@ struct ImChunkStream(T)
 {
     ImVector!char  Buf;
 
+    void destroy() { Buf.destroy(); }
     void    clear()                     { Buf.clear(); }
     bool    empty() const               { return Buf.Size == 0; }
     int     size() const                { return Buf.Size; }
@@ -918,6 +920,7 @@ struct ImGuiInputTextState
     void*                   UserCallbackData;       // "
 
     // this()                   { memset(&this, 0, (this).sizeof); }
+    void destroy() { ClearFreeMemory(); }
     void        ClearText()                 { CurLenW = CurLenA = 0; TextW[0] = 0; TextA[0] = 0; CursorClamp(); }
     void        ClearFreeMemory()           { TextW.clear(); TextA.clear(); InitialTextA.clear(); }
     int         GetUndoAvailCount() const   { return Stb.undostate.undo_point; }
@@ -1021,6 +1024,7 @@ struct ImGuiColumns
     ImDrawListSplitter  Splitter;
 
     // this()      { Clear(); }
+    void destroy() { Clear(); Splitter.destroy(); }
     void Clear()
     {
         ID = 0;
@@ -1106,6 +1110,7 @@ struct ImDrawDataBuilder
 
     ImVector!(ImDrawList*)[2]   Layers;           // Global layers for: regular, tooltip
 
+    void destroy() { ClearFreeMemory(); }
     void Clear()            { for (int n = 0; n < IM_ARRAYSIZE(Layers); n++) Layers[n].resize(0); }
     void ClearFreeMemory()  { for (int n = 0; n < IM_ARRAYSIZE(Layers); n++) Layers[n].clear(); }
     void FlattenIntoSingleLayer()
@@ -1584,8 +1589,34 @@ struct ImGuiContext
     }
 
     void destroy() {
+        Windows.destroy();
+        WindowsFocusOrder.destroy();
+        WindowsTempSortBuffer.destroy();
+        CurrentWindowStack.destroy();
+        ColorModifiers.destroy();
+        StyleModifiers.destroy();
+        FontStack.destroy();
+        OpenPopupStack.destroy();
+        BeginPopupStack.destroy(); 
+        DragDropPayloadBufHeap.destroy();
+        CurrentTabBarStack.destroy();
+        ShrinkWidthBuffer.destroy();
+        ClipboardHandlerData.destroy();
+        MenusIdSubmittedThisFrame.destroy();
+        SettingsHandlers.destroy();
+
+        IO.destroy();
+        SettingsIniData.destroy();
+        LogBuffer.destroy();
+        WindowsById.destroy();
         BackgroundDrawList.destroy();
         ForegroundDrawList.destroy();
+        DrawData.destroy();
+        InputTextPasswordFont.destroy();
+        TabBars.destroy();
+        SettingsWindows.destroy();
+        InputTextState.destroy();
+        DrawDataBuilder.destroy();
     }
 }
 
@@ -1690,11 +1721,11 @@ struct ImGuiWindowTempData
     }
 
     void destroy() {
+        ChildWindows.destroy();
         ItemFlagsStack.destroy();
         ItemWidthStack.destroy();
         TextWrapPosStack.destroy();
         GroupStack.destroy();
-        ChildWindows.destroy();
     }
 }
 
@@ -1787,7 +1818,6 @@ struct ImGuiWindow
     int                     MemoryDrawListIdxCapacity;
     int                     MemoryDrawListVtxCapacity;
 
-public:
     this(ImGuiContext* context, string name)
     {
         DC = ImGuiWindowTempData(false);
@@ -1866,6 +1896,8 @@ public:
 
 		DrawListInst.destroy();
         IDStack.destroy();
+        ColumnsStorage.destroy();
+        StateStorage.destroy();
         DC.destroy();
     }
 
@@ -2030,6 +2062,10 @@ struct ImGuiTabBar
         ReorderRequestDir = 0;
         WantLayout = VisibleTabWasSubmitted = false;
         LastTabItemIdx = -1;
+    }
+
+    void destroy() {
+        Tabs.destroy();
     }
 
     int                 GetTabOrder(const ImGuiTabItem* tab) const  { return Tabs.index_from_ptr(tab); }

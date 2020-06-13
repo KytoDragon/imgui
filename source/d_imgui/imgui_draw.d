@@ -1455,6 +1455,7 @@ void ImDrawListSplitter::SetCurrentChannel(ImDrawList* draw_list, int idx)
 void ImDrawData::DeIndexAllBuffers()
 {
     ImVector!ImDrawVert new_vtx_buffer;
+    scope(exit) new_vtx_buffer.destroy();
     TotalVtxCount = TotalIdxCount = 0;
     for (int i = 0; i < CmdListsCount; i++)
     {
@@ -1948,6 +1949,9 @@ void    ImFontAtlasBuildMultiplyRectAlpha8(const ubyte[/*256*/] table, ubyte[] p
 // (C++03 doesn't allow instancing ImVector<> with function-local types so we declare the type here.)
 struct ImFontBuildSrcData
 {
+    nothrow:
+    @nogc:
+
     stbtt_fontinfo      FontInfo;
     stbtt_pack_range    PackRange;          // Hold the list of codepoints to pack (essentially points to Codepoints.Data)
     stbrp_rect*         Rects;              // Rectangle to pack. We first fill in their size and the packer will give us their position.
@@ -1958,15 +1962,27 @@ struct ImFontBuildSrcData
     int                 GlyphsCount;        // Glyph count (excluding missing glyphs and glyphs already set by an earlier source font)
     ImBitVector         GlyphsSet;          // Glyph bit map (random access, 1-bit per codepoint. This will be a maximum of 8KB)
     ImVector!int       GlyphsList;         // Glyph codepoints list (flattened version of GlyphsMap)
+
+    void destroy() {
+        GlyphsSet.destroy();
+        GlyphsList.destroy();
+    }
 }
 
 // Temporary data for one destination ImFont* (multiple source fonts can be merged into one destination ImFont)
 struct ImFontBuildDstData
 {
+    nothrow:
+    @nogc:
+
     int                 SrcCount;           // Number of source fonts targeting this destination font.
     int                 GlyphsHighest;
     int                 GlyphsCount;
     ImBitVector         GlyphsSet;          // This is used to resolve collision when multiple sources are merged into a same destination font.
+
+    void destroy() {
+        GlyphsSet.destroy();
+    }
 }
 
 void UnpackBitVectorToFlatIndexList(const ImBitVector* _in, ImVector!int* _out)
@@ -1997,6 +2013,8 @@ bool    ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
     // Temporary storage for building
     ImVector!ImFontBuildSrcData src_tmp_array;
     ImVector!ImFontBuildDstData dst_tmp_array;
+    scope(exit) src_tmp_array.destroy();
+    scope(exit) dst_tmp_array.destroy();
     src_tmp_array.resize(atlas.ConfigData.Size);
     dst_tmp_array.resize(atlas.Fonts.Size);
     memset(src_tmp_array.Data, 0, cast(size_t)src_tmp_array.size_in_bytes());
@@ -2077,6 +2095,8 @@ bool    ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
     // (We technically don't need to zero-clear buf_rects, but let's do it for the sake of sanity)
     ImVector!stbrp_rect buf_rects;
     ImVector!stbtt_packedchar buf_packedchars;
+    scope(exit) buf_rects.destroy();
+    scope(exit) buf_packedchars.destroy();
     buf_rects.resize(total_glyphs_count);
     buf_packedchars.resize(total_glyphs_count);
     memset(buf_rects.Data, 0, cast(size_t)buf_rects.size_in_bytes());
@@ -2272,7 +2292,7 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, void* stbrp_context_opa
     IM_ASSERT(user_rects.Size >= 1); // We expect at least the default custom rects to be registered, else something went wrong.
 
     ImVector!stbrp_rect pack_rects;
-    scope(exit) {pack_rects.destroy();}
+    scope(exit) pack_rects.destroy();
     pack_rects.resize(user_rects.Size);
     memset(pack_rects.Data, 0, cast(size_t)pack_rects.size_in_bytes());
     for (int i = 0; i < user_rects.Size; i++)

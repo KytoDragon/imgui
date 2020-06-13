@@ -124,17 +124,8 @@ namespace ImGui
 // D_IMGUI: Additional compile time options
 //-----------------------------------------------------------------------------
 
-//---- System compiletime enums (for static ifs)
-version (Windows) {
-    enum D_IMGUI_Windows = true;
-} else {
-    enum D_IMGUI_Windows = false;
-}
-version (OSX) {
-    enum D_IMGUI_Apple = true;
-} else {
-    enum D_IMGUI_Apple = false;
-}
+//---- Import for your own ImGui widgets
+// public import your_app.imgui_extensions;
 
 //---- Don't use \r\n on windows
 enum D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS = false;

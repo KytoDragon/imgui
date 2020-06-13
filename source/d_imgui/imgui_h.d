@@ -74,6 +74,18 @@ import d_imgui.imgui_widgets;
 nothrow:
 @nogc:
 
+// D_IMGUI: System compile-time enums (for static ifs)
+version (Windows) {
+    enum D_IMGUI_Windows = true;
+} else {
+    enum D_IMGUI_Windows = false;
+}
+version (OSX) {
+    enum D_IMGUI_Apple = true;
+} else {
+    enum D_IMGUI_Apple = false;
+}
+
 // Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals. Work in progress versions typically starts at XYY99 then bounce up to XYY00, XYY01 etc. when release tagging happens)
 enum IMGUI_VERSION              = "1.76";
@@ -2036,6 +2048,10 @@ struct ImGuiTextFilter
         }
     }
 
+    void destroy() {
+        Filters.destroy();
+    }
+
     bool      Draw(string label = "Filter (inc,-exc)", float width = 0.0f)  // Helper calling InputText+Build
     {
         if (width != 0.0f)
@@ -2254,6 +2270,10 @@ struct ImGuiStorage
     // - Set***() functions find pair, insertion on demand if missing.
     // - Sorted insertion is costly, paid once. A typical frame shouldn't need to insert any new pair.
     void                Clear() { Data.clear(); }
+
+    void destroy() {
+        Data.destroy();
+    }
 
     int       GetInt(ImGuiID key, int default_val = 0) const
     {
@@ -2598,6 +2618,11 @@ struct ImDrawChannel
 {
     ImVector!ImDrawCmd         _CmdBuffer;
     ImVector!ImDrawIdx         _IdxBuffer;
+
+    void destroy() {
+        _CmdBuffer.destroy();
+        _IdxBuffer.destroy();
+    }
 }
 
 // Split/Merge functions are used to split the draw list into different layers which can be drawn into out of order.
@@ -3709,6 +3734,7 @@ struct ImDrawData
     void  DeIndexAllBuffers()                    // Helper to convert all buffers from indexed to non-indexed, in case you cannot render indexed. Note: this is slow and most likely a waste of resources. Always prefer indexed rendering!
     {
         ImVector!ImDrawVert new_vtx_buffer;
+        scope(exit) new_vtx_buffer.destroy();
         TotalVtxCount = TotalIdxCount = 0;
         for (int i = 0; i < CmdListsCount; i++)
         {
@@ -3823,6 +3849,7 @@ struct ImFontGlyphRangesBuilder
     
     @disable this();
     this(bool dummy)              { Clear(); }
+    void destroy() { UsedChars.destroy(); }
     pragma(inline, true) void     Clear()                 { int size_in_bytes = (IM_UNICODE_CODEPOINT_MAX + 1) / 8; UsedChars.resize(size_in_bytes / cast(int)(ImU32).sizeof); memset(UsedChars.Data, 0, cast(size_t)size_in_bytes); }
     pragma(inline, true) bool     GetBit(size_t n) const  { int off = cast(int)(n >> 5); ImU32 mask = 1u << (n & 31); return (UsedChars[off] & mask) != 0; }  // Get bit n in the array
     pragma(inline, true) void     SetBit(size_t n)        { int off = cast(int)(n >> 5); ImU32 mask = 1u << (n & 31); UsedChars[off] |= mask; }               // Set bit n in the array

@@ -1638,8 +1638,8 @@ ImFileHandle ImFileOpen(string filename, string mode)
         const int filename_wsize = MultiByteToWideChar(CP_UTF8, 0, filename.ptr, cast(int)filename.length, NULL, 0);
         const int mode_wsize = MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, NULL, 0);
         ImVector!ImWchar buf;
+        scope (exit) buf.destroy();
         buf.resize(filename_wsize + mode_wsize + 1 + 1);
-        scope (exit) {buf.destroy();}
         MultiByteToWideChar(CP_UTF8, 0, filename.ptr, cast(int)filename.length, cast(wchar*)&buf[0], filename_wsize);
         MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, cast(wchar*)&buf[filename_wsize + 1], mode_wsize);
         buf[filename_wsize] = 0;
@@ -10216,6 +10216,7 @@ void ShowMetricsWindow(bool* p_open = NULL)
 
                 // Display individual triangles/vertices. Hover on to get the corresponding triangle highlighted.
                 ImGuiListClipper clipper = ImGuiListClipper(pcmd.ElemCount/3); // Manually coarse clip our print out of individual vertices to save CPU, only items that may be visible.
+                scope(exit) clipper.destroy();
                 while (clipper.Step())
                     for (int prim = clipper.DisplayStart, idx_i = elem_offset + clipper.DisplayStart*3; prim < clipper.DisplayEnd; prim++)
                     {

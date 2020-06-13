@@ -3889,6 +3889,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 apply_new_text = cast(string)state.InitialTextA.asArray();
                 apply_new_text_length = state.InitialTextA.Size;
                 ImVector!ImWchar w_text;
+                scope (exit) w_text.destroy();
                 if (apply_new_text_length > 0)
                 {
                     w_text.resize(ImTextCountCharsFromUtf8(apply_new_text) + 1);
@@ -5832,7 +5833,7 @@ bool ListBox(string label, int* current_item, bool function(void* data, int idx,
     ImGuiContext* g = GImGui;
     bool value_changed = false;
     ImGuiListClipper clipper = ImGuiListClipper(items_count, GetTextLineHeightWithSpacing()); // We know exactly our line height here so we pass it as a minor optimization, but generally you don't need to.
-    scope(exit) {clipper.destroy();}
+    scope(exit) clipper.destroy();
     while (clipper.Step())
         for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
         {
