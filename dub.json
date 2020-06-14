@@ -1,16 +1,15 @@
 {
 	"authors": [
-		"Omar Cornut",
-		"The Dear Imgui Team",
-		"KytoDragon"
+		"Kyto"
 	],
+	"copyright": "Copyright © 2020 KytoDragon, Copyright (c) 2014-2020 Omar Cornut",
 	"name": "d_imgui",
 	"description": "Port of Dear Imgui: Bloat-free Immediate Mode Graphical User interface with minimal dependencies",
 	"homepage": "https://github.com/KytoDragon/imgui/",
 	"license": "MIT",
-    "version": "1.76.0",
+    "version": "1.76.0-beta1",
 	"dflags": ["-preview=intpromote"],
-	"targetType": "executable",
+	"targetType": "sourceLibrary",
 	"libs-windows" : ["Imm32"],
 	"importPaths": [
 		"source/"
@@ -19,6 +18,6 @@
 		"source/"
 	],
 	"dependencies": {
-		"d_snprintf": "~>1.0.0"
+		"d_snprintf": "~>1.0.1"
 	}
 }
