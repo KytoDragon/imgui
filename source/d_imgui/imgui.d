@@ -1629,7 +1629,6 @@ version (CRuntime_Microsoft) {
 
 ImFileHandle ImFileOpen(string filename, string mode)
 {
-    // TODO D_IMGUI: zero terminator
     version (CRuntime_Microsoft) {
         import core.sys.windows.windows : MultiByteToWideChar, CP_UTF8;
 
@@ -3324,6 +3323,9 @@ void* MemAlloc(size_t size)
 pragma(inline, true) void MemFree(T)(T[] t) {
     MemFree(t.ptr);
 }
+pragma(inline, true) void MemFree(const void* ptr) {
+    MemFree(cast(void*)ptr);
+}
 
 void MemFree(void* ptr)
 {
@@ -4262,7 +4264,7 @@ void EndFrame()
     // Don't process EndFrame() multiple times.
     if (g.FrameCountEnded == g.FrameCount)
         return;
-    IM_ASSERT(g.WithinFrameScope && "Forgot to call ImGui::NewFrame()?");
+    IM_ASSERT(g.WithinFrameScope, "Forgot to call ImGui::NewFrame()?");
 
     ErrorCheckEndFrameSanityChecks();
 

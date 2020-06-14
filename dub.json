@@ -10,7 +10,7 @@
 	"license": "MIT",
     "version": "1.76.0",
 	"dflags": ["-preview=intpromote"],
-	"targetType": "sourceLibrary",
+	"targetType": "executable",
 	"libs-windows" : ["Imm32"],
 	"importPaths": [
 		"source/"
@@ -18,9 +18,6 @@
 	"sourcePaths": [
 		"source/"
 	],
-    "excludedSourceFiles": [
-        "source/d_imgui/imgui_demo.d"
-    ],
 	"dependencies": {
 		"d_snprintf": "~>1.0.0"
 	}

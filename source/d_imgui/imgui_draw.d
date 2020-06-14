@@ -3060,7 +3060,7 @@ void ImFont.RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col,
     if (y + line_height < clip_rect.y && !word_wrap_enabled)
         while (y + line_height < clip_rect.y && s < text.length)
         {
-            ptrdiff_t index = indexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
+            ptrdiff_t index = ImIndexOf(text[s..$], '\n');
             s = index >= 0 ? index + s + 1 : text.length;
             y += line_height;
         }
@@ -3073,7 +3073,7 @@ void ImFont.RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col,
         float y_end = y;
         while (y_end < clip_rect.w && s_end < text.length)
         {
-            ptrdiff_t index = indexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
+            ptrdiff_t index = ImIndexOf(text[s_end..$], '\n');
             s_end = index >= 0 ? s_end + index + 1 : text.length;
             y_end += line_height;
         }

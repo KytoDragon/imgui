@@ -59,6 +59,10 @@ immutable float FLT_MAX = float.max;
 immutable float DBL_MAX = double.max;
 immutable int INT_MIN = int.min;
 immutable int INT_MAX = int.max;
+immutable uint UINT_MAX = uint.max;
+immutable long LLONG_MIN = long.min;
+immutable long LLONG_MAX = long.max;
+immutable ulong ULLONG_MAX = ulong.max;
 import d_snprintf.vararg;                 // va_list, va_start, va_end
 // #include <stddef.h>                 // ptrdiff_t, NULL
 enum NULL = null;
@@ -4794,7 +4798,7 @@ struct ImFont
         if (y + line_height < clip_rect.y && !word_wrap_enabled)
             while (y + line_height < clip_rect.y && s < text.length)
             {
-                ptrdiff_t index = ImIndexOf(text[s..$], '\n'); // TODO D_IMGUI replace indexof
+                ptrdiff_t index = ImIndexOf(text[s..$], '\n');
                 s = index >= 0 ? index + s + 1 : text.length;
                 y += line_height;
             }
@@ -4807,7 +4811,7 @@ struct ImFont
             float y_end = y;
             while (y_end < clip_rect.w && s_end < text.length)
             {
-                ptrdiff_t index = ImIndexOf(text[s_end..$], '\n'); // TODO D_IMGUI replace indexof
+                ptrdiff_t index = ImIndexOf(text[s_end..$], '\n');
                 s_end = index >= 0 ? s_end + index + 1 : text.length;
                 y_end += line_height;
             }

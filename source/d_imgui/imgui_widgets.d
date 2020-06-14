@@ -1561,7 +1561,7 @@ void EndCombo()
 // Getter for the old Combo() API: const char*[]
 bool Items_ArrayGetter(void* data, int idx, string* out_text)
 {
-    string[] items = *cast(string[]*)data; // TODO D_IMGUI: Deal with D's void[] handling
+    string[] items = *cast(string[]*)data;
     if (out_text)
         *out_text = items[idx];
     return true;
@@ -1712,9 +1712,14 @@ const (ImGuiDataTypeInfo)* DataTypeGetInfo(ImGuiDataType data_type)
 int DataTypeFormatString(char[] buf, ImGuiDataType data_type, const void* p_data, string format)
 {
     // Signedness doesn't matter when pushing integer arguments
-    if (data_type == ImGuiDataType.S32 || data_type == ImGuiDataType.U32)
+    // D_IMGUI: In D it does matter!
+    if (data_type == ImGuiDataType.S32)
+        return ImFormatString(buf, format, *cast(const ImS32*)p_data);
+    if (data_type == ImGuiDataType.U32)
         return ImFormatString(buf, format, *cast(const ImU32*)p_data);
-    if (data_type == ImGuiDataType.S64 || data_type == ImGuiDataType.U64)
+    if (data_type == ImGuiDataType.S64)
+        return ImFormatString(buf, format, *cast(const ImS64*)p_data);
+    if (data_type == ImGuiDataType.U64)
         return ImFormatString(buf, format, *cast(const ImU64*)p_data);
     if (data_type == ImGuiDataType.Float)
         return ImFormatString(buf, format, *cast(const float*)p_data);
@@ -1911,11 +1916,11 @@ string ImAtoi(TYPE)(string src, TYPE* output)
 
 TYPE RoundScalarWithFormatT(TYPE, SIGNEDTYPE)(string format, ImGuiDataType data_type, TYPE v)
 {
-    size_t fmt_start = ImParseFormatFindStart(format);
-    if (fmt_start + 1 >= format.length || format[fmt_start] != '%' || (fmt_start + 2 <= format.length && format[fmt_start + 1] == '%')) // Don't apply if the value is not visible in the format string
+    format = ImParseFormatTrimDecorations(format);
+    if (1 >= format.length || format[0] != '%' || (2 <= format.length && format[1] == '%')) // Don't apply if the value is not visible in the format string
         return v;
     char[64] v_str;
-    int length = ImFormatString(v_str, format[fmt_start..$], v);
+    int length = ImFormatString(v_str, format, v);
     string p = cast(string)v_str[0..length];
     while (p.length > 0 && p[0] == ' ')
         p = p[1..$];
@@ -4522,6 +4527,11 @@ bool ColorEdit4(string label, ImVec4* col, ImGuiColorEditFlags flags = ImGuiColo
     return ColorEdit4(label, (&col.x)[0..4], flags);
 }
 
+bool ColorEdit3(string label, ImVec4* col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
+{
+    return ColorEdit4(label, (&col.x)[0..3], flags | ImGuiColorEditFlags.NoAlpha);
+}
+
 bool ColorPicker3(string label, float[/*3*/] col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
 {
     float[4] col4 = [ col[0], col[1], col[2], 1.0f ];
@@ -4918,6 +4928,11 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     PopID();
 
     return value_changed;
+}
+
+bool ColorPicker4(string label, ImVec4* col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, const float* ref_col = NULL)
+{
+    return ColorPicker4(label, (&col.x)[0..4], flags, ref_col);
 }
 
 // A little colored square. Return true when clicked.
@@ -5818,9 +5833,9 @@ void ListBoxFooter()
     EndGroup();
 }
 
-bool ListBox(string label, int* current_item, string[] items, int items_count, int height_items = -1)
+bool ListBox(string label, int* current_item, string[] items, int height_items = -1)
 {
-    const bool value_changed = ListBox(label, current_item, &Items_ArrayGetter, &items, items_count, height_items);
+    const bool value_changed = ListBox(label, current_item, &Items_ArrayGetter, &items, cast(int)items.length, height_items);
     return value_changed;
 }
 
@@ -6003,6 +6018,12 @@ static float Plot_ArrayGetter(void* data, int idx)
     return v;
 }
 
+void PlotLines(string label, const float[] values, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
+{
+    ImGuiPlotArrayGetterData data = ImGuiPlotArrayGetterData(values.ptr, stride);
+    PlotEx(ImGuiPlotType.Lines, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values.length * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
+}
+
 void PlotLines(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
 {
     ImGuiPlotArrayGetterData data = ImGuiPlotArrayGetterData(values, stride);
@@ -6012,6 +6033,12 @@ void PlotLines(string label, const float* values, int values_count, int values_o
 void PlotLines(string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0))
 {
     PlotEx(ImGuiPlotType.Lines, label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, graph_size);
+}
+
+void PlotHistogram(string label, const float[] values, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
+{
+    ImGuiPlotArrayGetterData data = ImGuiPlotArrayGetterData(values.ptr, stride);
+    PlotEx(ImGuiPlotType.Histogram, label, &Plot_ArrayGetter, cast(void*)&data, cast(int)(values.length * stride / float.sizeof), values_offset, overlay_text, scale_min, scale_max, graph_size);
 }
 
 void PlotHistogram(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float))
@@ -7025,7 +7052,7 @@ void    EndTabItem()
     ImGuiTabBar* tab_bar = g.CurrentTabBar;
     if (tab_bar == NULL)
     {
-        IM_ASSERT(tab_bar != NULL && "Needs to be called between BeginTabBar() and EndTabBar()!");
+        IM_ASSERT(tab_bar != NULL, "Needs to be called between BeginTabBar() and EndTabBar()!");
         return;
     }
     IM_ASSERT(tab_bar.LastTabItemIdx >= 0);
@@ -7739,7 +7766,7 @@ void EndColumns()
 }
 
 // [2018-03: This is currently the only public API, while we are working on making BeginColumns/EndColumns user-facing]
-void Columns(int columns_count, string id, bool border)
+void Columns(int columns_count = 1, string id = null, bool border = true)
 {
     ImGuiWindow* window = GetCurrentWindow();
     IM_ASSERT(columns_count >= 1);

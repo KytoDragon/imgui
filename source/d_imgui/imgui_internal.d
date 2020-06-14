@@ -187,7 +187,7 @@ static if (!D_IMGUI_USER_DEFINED_RECOVERABLE_ERROR) {
 
 // Misc Macros
 enum IM_PI                           = 3.14159265358979323846f;
-static if (D_IMGUI_Windows && D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS) {
+static if (D_IMGUI_Windows && !D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS) {
     enum IM_NEWLINE                      = "\r\n";   // Play it nice with Windows users (Update: since 2018-05, Notepad finally appears to support Unix-style carriage returns!)
 } else {
     enum IM_NEWLINE                      = "\n";
@@ -375,14 +375,195 @@ static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
     alias ImCeil = ceilf;
     pragma(inline, true) float  ImPow(float x, float y)    { return powf(x, y); }          // DragBehaviorT/SliderBehaviorT uses ImPow with either float/double and need the precision
     pragma(inline, true) double ImPow(double x, double y)  { return pow(x, y); } // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
-    int sscanf(string str, string fmt, ...) {
-        mixin va_start;
 
-        // this function only needs to handle the following formats:
-        // %d, %i, %u, %lld, %llu, %f, %lf, %08X, %02X%02X%02X, %02X%02X%02X%02X
+// D_IMGUI: We use our own code to parse integers and doubles since C's sscanf needs zero termination and D's conv-functions are not @nogc.
+int sscanf(string str, string fmt, ...) {
+    mixin va_start;
 
-        return 0;
+    // separate Pos=%i,%i, Size=%i,%i and Collapsed=%d into individual numbers
+    if (fmt == "Pos=%i,%i") {
+        if (str.length < 7 || str[0..4] != "Pos=") return 0;
+        ptrdiff_t index = ImIndexOf(str, ',');
+        if (index < 5 || index + 1 == str.length) return 0;
+        int result = sscanf(str[4..index], "%i", va_arg!(int*)(va_args));
+        result += sscanf(str[index + 1..$], "%i", va_arg!(int*)(va_args));
+        return result;
+    } else if (fmt == "Size=%i,%i") {
+        if (str.length < 8 || str[0..5] != "Size=") return 0;
+        ptrdiff_t index = ImIndexOf(str, ',');
+        if (index < 6 || index + 1 == str.length) return 0;
+        int result = sscanf(str[5..index], "%i", va_arg!(int*)(va_args));
+        result += sscanf(str[index + 1..$], "%i", va_arg!(int*)(va_args));
+        return result;
+    } else if (fmt == "Collapsed=%d") {
+        if (str.length < 11 || str[0..10] != "Collapsed=") return 0;
+        return sscanf(str[10..$], "%d", va_arg!(int*)(va_args));
     }
+
+    // this function only needs to handle the following formats:
+    // %d, %i, %u, %lld, %llu, %f, %lf, %08X, %02X%02X%02X, %02X%02X%02X%02X
+    if (fmt == "%d" || fmt == "%i" || fmt == "%u") {
+        size_t index;
+        bool negativ;
+        uint value;
+        if (index < str.length && str[index] == '-' && fmt != "%u") {
+            negativ = true;
+            index++;
+        } else if (index < str.length && str[index] == '+') {
+            index++;
+        }
+        if (str.length == index) return 0;
+
+        while (index < str.length) {
+            if (str[index] < '0' || str[index] > '9') return 0;
+            value *= 10;
+            value += str[index] - '0';
+        }
+        if (fmt == "%u") {
+            *va_arg!(uint*)(va_args) = value;
+        } else {
+            int result = value;
+            if (negativ)
+                result = -result;
+            *va_arg!(int*)(va_args) = result;
+        }
+        return 1;
+
+    } else if (fmt == "%lld" || fmt == "%llu") {
+        size_t index;
+        bool negativ;
+        ulong value;
+        if (index < str.length && str[index] == '-' && fmt != "%llu") {
+            negativ = true;
+            index++;
+        } else if (index < str.length && str[index] == '+') {
+            index++;
+        }
+        if (str.length == index) return 0;
+
+        while (index < str.length) {
+            if (str[index] < '0' || str[index] > '9') return 0;
+            value *= 10;
+            value += str[index] - '0';
+        }
+        if (fmt == "%llu") {
+            *va_arg!(ulong*)(va_args) = value;
+        } else {
+            long result = value;
+            if (negativ)
+                result = -result;
+            *va_arg!(long*)(va_args) = result;
+        }
+        return 1;
+
+    } else if (fmt == "%f" || fmt == "%lf") {
+        int sign = 1;
+        size_t i = 0;
+        if (i < str.length && (str[i] == '+' || str[i] == '-')) {
+            if (str[i] == '-') {
+                sign = -1;
+            }
+            str = str[1..$];
+        }
+        bool has_num = false;
+        while (i < str.length && str[i] >= '0' && str[i] <= '9') {
+            has_num = true;
+            i++;
+        }
+        string i_part = str[0..i];
+        if (i < str.length && str[i] == '.') {
+            i++;
+        }
+        str = str[i..$];
+        i = 0;
+        while (i < str.length && str[i] >= '0' && str[i] <= '9') {
+            has_num = true;
+            i++;
+        }
+        if (!has_num) {
+            return 0;
+        }
+        string f_part = str[0..i];
+        str = str[i..$];
+        i = 0;
+        
+        int exp = 0;
+        if (i < str.length && (str[i] == 'e' || str[i] == 'E')) {
+            i++;
+            int esign = 1;
+            if (i < str.length && (str[i] == '+' || str[i] == '-')) {
+                if (str[i] == '-') {
+                    esign = -1;
+                }
+                i++;
+            }
+            bool has_exp;
+            while (i < str.length && str[i] >= '0' && str[i] <= '9') {
+                has_exp = true;
+                exp = 10 * exp + (str[i] - '0');
+                i++;
+            }
+            if (!has_exp) {
+                return 0;
+            }
+            exp *= esign;
+            str = str[i..$];
+            i = 0;
+        }
+        if (i != str.length) {
+            return 0;
+        }
+
+        double result = 0;
+        foreach (char c ; i_part) {
+            result = 10 * result + (c - '0');
+        }
+        double fract_pow = 1;
+        foreach (char c ; f_part) {
+            fract_pow /= 10;
+            result = result + fract_pow * (c - '0');
+        }
+        if (exp != 0) {
+            result *= ImPow(10.0, cast(double)exp);
+        }
+        result *= sign;
+
+        if (fmt == "%f") {
+            *va_arg!(float*)(va_args) = cast(float)result;
+        } else {
+            *va_arg!(double*)(va_args) = result;
+        }
+        return 1;
+
+    } else if (fmt == "%08X" || fmt == "%02X%02X%02X" || fmt == "%02X%02X%02X%02X") {
+        if (fmt.length != 12 && str.length != 8) return 0;
+        if (fmt.length == 12 && str.length != 6) return 0;
+        uint value;
+        foreach (char c; str) {
+            value = value << 4;
+            if (c >= 'A' && c <= 'F')
+                value += c - 'A';
+            else if (c >= '0' && c <= '9')
+                value += c - '0';
+            else
+                return 0;
+        }
+        if (fmt == "%08X") {
+            *va_arg!(uint*)(va_args) = value;
+            return 1;
+        } else {
+            for (int i = 0; i < fmt.length / 4; i++) {
+                *va_arg!(uint*)(va_args) = (value & 0xFF);
+                value = value >> 8;
+            }
+            return cast(int)fmt.length / 4;
+        }
+    } else {
+        IM_ASSERT(false, "Unknown number format");
+    }
+
+    return 0;
+}
 
 // - ImMin/ImMax/ImClamp/ImLerp/ImSwap are used by widgets which support variety of types: signed/unsigned int/long long float/double
 // (Exceptionally using templates here but we could also redefine them for those types)
@@ -1565,7 +1746,7 @@ struct ImGuiContext
         ScrollbarClickDeltaToGrabCenter = 0.0f;
         TooltipOverrideCount = 0;
 
-        PlatformImePos = PlatformImeLastPos = ImVec2(FLT_MAX, FLT_MAX); // TODO D_IMGUI: This was broken in older D compilers. Is this fixed now?
+        PlatformImePos = PlatformImeLastPos = ImVec2(FLT_MAX, FLT_MAX);
 
         SettingsLoaded = false;
         SettingsDirtyTimer = 0.0f;
