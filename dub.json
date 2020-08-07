@@ -7,7 +7,7 @@
 	"description": "Port of Dear Imgui: Bloat-free Immediate Mode Graphical User interface with minimal dependencies",
 	"homepage": "https://github.com/KytoDragon/imgui/",
 	"license": "MIT",
-    "version": "1.76.0-beta1",
+    "version": "1.76.0-beta2",
 	"dflags": ["-preview=intpromote"],
 	"targetType": "sourceLibrary",
 	"libs-windows" : ["Imm32"],

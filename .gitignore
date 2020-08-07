@@ -53,3 +53,6 @@ examples/example_sdl_opengl3/example_sdl_opengl3
 
 ## VS Code settings
 /.vscode
+
+## imvonfig file used für testing
+/source/d_imgui/imconfig.d
