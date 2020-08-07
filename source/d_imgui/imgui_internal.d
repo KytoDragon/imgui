@@ -418,6 +418,7 @@ int sscanf(string str, string fmt, ...) {
             if (str[index] < '0' || str[index] > '9') return 0;
             value *= 10;
             value += str[index] - '0';
+			index++;
         }
         if (fmt == "%u") {
             *va_arg!(uint*)(va_args) = value;
@@ -445,6 +446,7 @@ int sscanf(string str, string fmt, ...) {
             if (str[index] < '0' || str[index] > '9') return 0;
             value *= 10;
             value += str[index] - '0';
+			index++;
         }
         if (fmt == "%llu") {
             *va_arg!(ulong*)(va_args) = value;
