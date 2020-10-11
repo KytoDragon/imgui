@@ -47,3 +47,12 @@ examples/example_glut_opengl2/example_glut_opengl2
 examples/example_null/example_null
 examples/example_sdl_opengl2/example_sdl_opengl2
 examples/example_sdl_opengl3/example_sdl_opengl3
+
+## Dub build directory
+/.dub
+
+## VS Code settings
+/.vscode
+
+## imconfig file used for testing
+/source/d_imgui/imconfig.d
