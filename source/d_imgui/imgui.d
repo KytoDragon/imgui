@@ -1,6 +1,6 @@
-module d_imgui.imgui;
 // dear imgui, v1.78
 // (main code and documentation)
+module d_imgui.imgui;
 
 // Help:
 // - Read FAQ at http://dearimgui.org/faq
@@ -1581,7 +1581,15 @@ version (CRuntime_Microsoft) {
     buf[filename_wsize + mode_wsize] = 0;
     return _wfopen(cast(const wchar*)&buf[0], cast(const wchar*)&buf[filename_wsize + 1]);
 } else {
-    return fopen(filename, mode);
+    // D_IMGUI: Append a zero to each string
+    ImVector!char buf;
+    scope (exit) buf.destroy();
+    buf.resize(cast(int)(filename.length + mode.length + 1 + 1));
+    memcpy(&buf[0], filename.ptr, filename.length);
+    buf[cast(int)filename.length] = '\0';
+    memcpy(&buf[cast(int)filename.length + 1], mode.ptr, mode.length);
+    buf[cast(int)(filename.length + 1 + mode.length)] = '\0';
+    return fopen(&buf[0], &buf[cast(int)filename.length + 1]);
 }
 }
 

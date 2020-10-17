@@ -1,6 +1,6 @@
-module d_imgui.imgui_widgets;
 // dear imgui, v1.78
 // (widgets code)
+module d_imgui.imgui_widgets;
 
 /*
 
@@ -1711,7 +1711,7 @@ string PatchFormatStringFloatToInt(string fmt)
     if (fmt_end > fmt_start && fmt[fmt_end-1] == 'f')
     {
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-        if (fmt_start == 0 && fmt_end = fmt.length)
+        if (fmt_start == 0 && fmt_end == fmt.length)
             return "%d";
         ImGuiContext* g = GImGui;
         int length = ImFormatString(g.TempBuffer, "%.*s%%d%s", cast(int)(fmt_start), fmt, fmt[fmt_end..$]); // Honor leading and trailing decorations, but lose alignment/precision.
@@ -2374,7 +2374,7 @@ bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v
     return value_changed;
 }
 
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 
 // Obsolete versions with power parameter. See https://github.com/ocornut/imgui/issues/3361 for details.
 bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, string format, float power)
@@ -2999,7 +2999,7 @@ bool VSliderInt(string label, const ImVec2/*&*/ size, int* v, int v_min, int v_m
     return VSliderScalar(label, size, ImGuiDataType.S32, v, &v_min, &v_max, format, flags);
 }
 
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 
 // Obsolete versions with power parameter. See https://github.com/ocornut/imgui/issues/3361 for details.
 bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format, float power)

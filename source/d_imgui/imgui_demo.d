@@ -1,6 +1,6 @@
-module d_imgui.imgui_demo;
 // dear imgui, v1.78
 // (demo code)
+module d_imgui.imgui_demo;
 
 // Help:
 // - Read FAQ at http://dearimgui.org/faq

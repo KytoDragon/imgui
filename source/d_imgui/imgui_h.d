@@ -1,6 +1,6 @@
-module d_imgui.imgui_h;
 // dear imgui, v1.78
 // (headers)
+module d_imgui.imgui_h;
 
 // Help:
 // - Read FAQ at http://dearimgui.org/faq
@@ -1657,14 +1657,9 @@ struct ImGuiStyle
 
     @disable this();
     this(bool dummy)
-    {
-        (cast(ImGuiStyle_Wrapper*)&this).__ctor(dummy);
-    }
-
+    { (cast(ImGuiStyle_Wrapper*)&this).__ctor(dummy); }
     void ScaleAllSizes(float scale_factor)
-    {
-        (cast(ImGuiStyle_Wrapper*)&this).ScaleAllSizes(scale_factor);
-    }
+    { (cast(ImGuiStyle_Wrapper*)&this).ScaleAllSizes(scale_factor); }
 }
 
 //-----------------------------------------------------------------------------
@@ -1759,24 +1754,13 @@ struct ImGuiIO
 
     // Functions
     void  AddInputCharacter(uint c)          // Queue new character input
-    {
-        (cast(ImGuiIO_Wrapper*)&this).AddInputCharacter(c);
-    }
-
+    { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacter(c); }
     void  AddInputCharacterUTF16(ImWchar16 c)        // Queue new character input from an UTF-16 character, it can be a surrogate
-    {
-        (cast(ImGuiIO_Wrapper*)&this).AddInputCharacterUTF16(c);
-    }
-
+    { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacterUTF16(c); }
     void  AddInputCharactersUTF8(string utf8_chars)    // Queue new characters input from an UTF-8 string
-    {
-        (cast(ImGuiIO_Wrapper*)&this).AddInputCharactersUTF8(utf8_chars);
-    }
-    
+    { (cast(ImGuiIO_Wrapper*)&this).AddInputCharactersUTF8(utf8_chars); }
     void  ClearInputCharacters()                     // Clear the text input buffer manually
-    {
-        (cast(ImGuiIO_Wrapper*)&this).ClearInputCharacters();
-    }
+    { (cast(ImGuiIO_Wrapper*)&this).ClearInputCharacters(); }
 
     //------------------------------------------------------------------
     // Output - Updated by NewFrame() or EndFrame()/Render()
@@ -1826,9 +1810,7 @@ struct ImGuiIO
 
     @disable this();
     this(bool dummy)
-    {
-        (cast(ImGuiIO_Wrapper*)&this).__ctor(dummy);
-    }
+    { (cast(ImGuiIO_Wrapper*)&this).__ctor(dummy); }
     
     void destroy() {
         InputQueueCharacters.destroy();
@@ -1872,19 +1854,11 @@ struct ImGuiInputTextCallbackData
     // Helper functions for text manipulation.
     // Use those function to benefit from the CallbackResize behaviors. Calling those function reset the selection.
     this(bool dummy)
-    {
-        (cast(ImGuiInputTextCallbackData_Wrapper*)&this).__ctor(dummy);
-    }
-
+    { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).__ctor(dummy); }
     void      DeleteChars(int pos, int bytes_count)
-    {
-        (cast(ImGuiInputTextCallbackData_Wrapper*)&this).DeleteChars(pos, bytes_count);
-    }
-
+    { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).DeleteChars(pos, bytes_count); }
     void      InsertChars(int pos, string new_text)
-    {
-        (cast(ImGuiInputTextCallbackData_Wrapper*)&this).InsertChars(pos, new_text);
-    }
+    { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).InsertChars(pos, new_text); }
     bool                HasSelection() const { return SelectionStart != SelectionEnd; }
 }
 
@@ -2002,32 +1976,19 @@ struct ImGuiTextFilter
     @nogc:
 
     this(string default_filter)
-    {
-        (cast(ImGuiTextFilter_Wrapper*)&this).__ctor(default_filter);
-    }
+    { (cast(ImGuiTextFilter_Wrapper*)&this).__ctor(default_filter); }
+    bool      Draw(string label = "Filter (inc,-exc)", float width = 0.0f)  // Helper calling InputText+Build
+    { return (cast(ImGuiTextFilter_Wrapper*)&this).Draw(label, width); }
+    bool      PassFilter(string text) const
+    { return (cast(ImGuiTextFilter_Wrapper*)&this).PassFilter(text); }
+    void      Build()
+    { (cast(ImGuiTextFilter_Wrapper*)&this).Build(); }
+    void                Clear()          { InputBuf[0] = 0; Build(); }
+    bool                IsActive() const { return !Filters.empty(); }
 
     void destroy() {
         Filters.destroy();
     }
-
-    bool      Draw(string label = "Filter (inc,-exc)", float width = 0.0f)  // Helper calling InputText+Build
-    {
-        return (cast(ImGuiTextFilter_Wrapper*)&this).Draw(label, width);
-    }
-
-    bool      PassFilter(string text) const
-    {
-        return (cast(ImGuiTextFilter_Wrapper*)&this).PassFilter(text);
-    }
-
-
-    void      Build()
-    {
-        (cast(ImGuiTextFilter_Wrapper*)&this).Build();
-    }
-
-    void                Clear()          { InputBuf[0] = 0; Build(); }
-    bool                IsActive() const { return !Filters.empty(); }
 
     // [Internal]
     struct ImGuiTextRange
@@ -2082,9 +2043,7 @@ struct ImGuiTextBuffer
     }
 
     void      append(string str)
-    {
-        (cast(ImGuiTextBuffer_Wrapper*)&this).append(str);
-    }
+    { (cast(ImGuiTextBuffer_Wrapper*)&this).append(str); }
 
     void      appendf(string fmt, ...)
     {
@@ -2094,9 +2053,7 @@ struct ImGuiTextBuffer
     }
 
     void      appendfv(string fmt, va_list va_args)
-    {
-        (cast(ImGuiTextBuffer_Wrapper*)&this).appendfv(fmt, va_args);
-    }
+    { (cast(ImGuiTextBuffer_Wrapper*)&this).appendfv(fmt, va_args); }
 }
 
 // Helper: Key->Value storage
@@ -2137,80 +2094,42 @@ struct ImGuiStorage
     }
 
     int       GetInt(ImGuiID key, int default_val = 0) const
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetInt(key, default_val);
-    }
-
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetInt(key, default_val); }
     void      SetInt(ImGuiID key, int val)
-    {
-        (cast(ImGuiStorage_Wrapper*)&this).SetInt(key, val);
-    }
-
+    { (cast(ImGuiStorage_Wrapper*)&this).SetInt(key, val); }
     bool      GetBool(ImGuiID key, bool default_val = false) const
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetBool(key, default_val);
-    }
-
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetBool(key, default_val); }
     void      SetBool(ImGuiID key, bool val)
-    {
-        (cast(ImGuiStorage_Wrapper*)&this).SetBool(key, val);
-    }
-
+    { (cast(ImGuiStorage_Wrapper*)&this).SetBool(key, val); }
     float     GetFloat(ImGuiID key, float default_val = 0.0f) const
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetFloat(key, default_val);
-    }
-
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetFloat(key, default_val); }
     void      SetFloat(ImGuiID key, float val)
-    {
-        (cast(ImGuiStorage_Wrapper*)&this).SetFloat(key, val);
-    }
-
+    { (cast(ImGuiStorage_Wrapper*)&this).SetFloat(key, val); }
     void*     GetVoidPtr(ImGuiID key) // default_val is NULL
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetVoidPtr(key);
-    }
-
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetVoidPtr(key); }
     void      SetVoidPtr(ImGuiID key, void* val)
-    {
-        (cast(ImGuiStorage_Wrapper*)&this).SetVoidPtr(key, val);
-    }
+    { (cast(ImGuiStorage_Wrapper*)&this).SetVoidPtr(key, val); }
 
     // - Get***Ref() functions finds pair, insert on demand if missing, return pointer. Useful if you intend to do Get+Set.
     // - References are only valid until a new value is added to the storage. Calling a Set***() function or a Get***Ref() function invalidates the pointer.
     // - A typical use case where this is convenient for quick hacking (e.g. add storage during a live Edit&Continue session if you can't modify existing struct)
     //      float* pvar = ImGui::GetFloatRef(key); ImGui::SliderFloat("var", pvar, 0, 100.0f); some_var += *pvar;
     int*      GetIntRef(ImGuiID key, int default_val = 0)
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetIntRef(key, default_val);
-    }
-
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetIntRef(key, default_val); }
     bool*     GetBoolRef(ImGuiID key, bool default_val = false)
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetBoolRef(key, default_val);
-    }
-
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetBoolRef(key, default_val); }
     float*    GetFloatRef(ImGuiID key, float default_val = 0.0f)
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetFloatRef(key, default_val);
-    }
-
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetFloatRef(key, default_val); }
     void**    GetVoidPtrRef(ImGuiID key, void* default_val = NULL)
-    {
-        return (cast(ImGuiStorage_Wrapper*)&this).GetVoidPtrRef(key, default_val);
-    }
+    { return (cast(ImGuiStorage_Wrapper*)&this).GetVoidPtrRef(key, default_val); }
 
     // Use on your own storage if you know only integer are being stored (open/close all tree nodes)
     void      SetAllInt(int v)
-    {
-        (cast(ImGuiStorage_Wrapper*)&this).SetAllInt(v);
-    }
+    { (cast(ImGuiStorage_Wrapper*)&this).SetAllInt(v); }
 
     // For quicker full rebuild of a storage (instead of an incremental one), you may add all your contents and then sort once.
     void      BuildSortByKey()
-    {
-        (cast(ImGuiStorage_Wrapper*)&this).BuildSortByKey();
-    }
+    { (cast(ImGuiStorage_Wrapper*)&this).BuildSortByKey(); }
 }
 
 // Helper: Manually clip large list of items.
@@ -2246,19 +2165,11 @@ struct ImGuiListClipper
     void destroy()                                                 { IM_ASSERT(ItemsCount == -1); }      // Assert if user forgot to call End() or Step() until false.
 
     bool Step()                                              // Call until it returns false. The DisplayStart/DisplayEnd fields will be set and you can process/draw those items.
-    {
-        return (cast(ImGuiListClipper_Wrapper*)&this).Step();
-    }
-
+    { return (cast(ImGuiListClipper_Wrapper*)&this).Step(); }
     void Begin(int count, float items_height = -1.0f)  // Automatically called by constructor if you passed 'items_count' or by Step() in Step 1.
-    {
-        (cast(ImGuiListClipper_Wrapper*)&this).Begin(count, items_height);
-    }
-
+    { (cast(ImGuiListClipper_Wrapper*)&this).Begin(count, items_height); }
     void End()                                               // Automatically called on the last call of Step() that returns false.
-    {
-        (cast(ImGuiListClipper_Wrapper*)&this).End();
-    }
+    { (cast(ImGuiListClipper_Wrapper*)&this).End(); }
 }
 
 // Helpers macros to generate 32-bit encoded colors
@@ -2401,26 +2312,14 @@ struct ImDrawListSplitter
     // pragma(inline, true) this()  { Clear(); }
     pragma(inline, true) void destroy() { ClearFreeMemory(); }
     pragma(inline, true) void                 Clear() { _Current = 0; _Count = 1; } // Do not clear Channels[] so our allocations are reused next frame
-    
     void              ClearFreeMemory()
-    {
-        (cast(ImDrawListSplitter_Wrapper*)&this).ClearFreeMemory();
-    }
-
+    { (cast(ImDrawListSplitter_Wrapper*)&this).ClearFreeMemory(); }
     void              Split(ImDrawList* draw_list, int channels_count)
-    {
-        (cast(ImDrawListSplitter_Wrapper*)&this).Split(draw_list, channels_count);
-    }
-
+    { (cast(ImDrawListSplitter_Wrapper*)&this).Split(draw_list, channels_count); }
     void              Merge(ImDrawList* draw_list)
-    {
-        (cast(ImDrawListSplitter_Wrapper*)&this).Merge(draw_list);
-    }
-
+    { (cast(ImDrawListSplitter_Wrapper*)&this).Merge(draw_list); }
     void              SetCurrentChannel(ImDrawList* draw_list, int idx)
-    {
-        (cast(ImDrawListSplitter_Wrapper*)&this).SetCurrentChannel(draw_list, idx);
-    }
+    { (cast(ImDrawListSplitter_Wrapper*)&this).SetCurrentChannel(draw_list, idx); }
 }
 
 enum ImDrawCornerFlags : int
@@ -2482,32 +2381,16 @@ struct ImDrawList
     // If you want to create ImDrawList instances, pass them ImGui::GetDrawListSharedData() or create and use your own ImDrawListSharedData (so you can use ImDrawList without ImGui)
     this(const ImDrawListSharedData* shared_data) { _Data = shared_data; _OwnerName = NULL; Flags = ImDrawListFlags.None; _VtxCurrentIdx = 0; _VtxWritePtr = NULL; _IdxWritePtr = NULL; _OwnerName = NULL; }
     void destroy() { _ClearFreeMemory(); }
-
     void  PushClipRect(ImVec2 cr_min, ImVec2 cr_max, bool intersect_with_current_clip_rect = false)  // Render-level scissoring. This is passed down to your render function but not used for CPU-side coarse clipping. Prefer using higher-level ImGui::PushClipRect() to affect logic (hit-testing and widget culling)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PushClipRect(cr_min, cr_max, intersect_with_current_clip_rect);
-    }
-
+    { (cast(ImDrawList_Wrapper*)&this).PushClipRect(cr_min, cr_max, intersect_with_current_clip_rect); }
     void  PushClipRectFullScreen()
-    {
-        (cast(ImDrawList_Wrapper*)&this).PushClipRectFullScreen();
-    }
-
+    { (cast(ImDrawList_Wrapper*)&this).PushClipRectFullScreen(); }
     void  PopClipRect()
-    {
-        (cast(ImDrawList_Wrapper*)&this).PopClipRect();
-    }
-
+    { (cast(ImDrawList_Wrapper*)&this).PopClipRect(); }
     void  PushTextureID(ImTextureID texture_id)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PushTextureID(texture_id);
-    }
-
+    { (cast(ImDrawList_Wrapper*)&this).PushTextureID(texture_id); }
     void  PopTextureID()
-    {
-        (cast(ImDrawList_Wrapper*)&this).PopTextureID();
-    }
-
+    { (cast(ImDrawList_Wrapper*)&this).PopTextureID(); }
     pragma(inline, true) ImVec2   GetClipRectMin() const { const ImVec4/*&*/ cr = _ClipRectStack.back(); return ImVec2(cr.x, cr.y); }
     pragma(inline, true) ImVec2   GetClipRectMax() const { const ImVec4/*&*/ cr = _ClipRectStack.back(); return ImVec2(cr.z, cr.w); }
 
@@ -2518,111 +2401,50 @@ struct ImDrawList
     //   In future versions we will use textures to provide cheaper and higher-quality circles.
     //   Use AddNgon() and AddNgonFilled() functions if you need to guaranteed a specific number of sides.
     void  AddLine(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, ImU32 col, float thickness = 1.0f)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddLine(p1, p2, col, thickness);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddLine(p1, p2, col, thickness); }
     void  AddRect(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col, float rounding = 0.0f, ImDrawCornerFlags rounding_corners_flags = ImDrawCornerFlags.All, float thickness = 1.0f)   // a: upper-left, b: lower-right (== upper-left + size), rounding_corners_flags: 4 bits corresponding to which corner to round
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddRect(p_min, p_max, col, rounding, rounding_corners_flags, thickness);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddRect(p_min, p_max, col, rounding, rounding_corners_flags, thickness); }
     void  AddRectFilled(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col, float rounding = 0.0f, ImDrawCornerFlags rounding_corners_flags = ImDrawCornerFlags.All)                     // a: upper-left, b: lower-right (== upper-left + size)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddRectFilled(p_min, p_max, col, rounding, rounding_corners_flags);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddRectFilled(p_min, p_max, col, rounding, rounding_corners_flags); }
     void  AddRectFilledMultiColor(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddRectFilledMultiColor(p_min, p_max, col_upr_left, col_upr_right, col_bot_right, col_bot_left);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddRectFilledMultiColor(p_min, p_max, col_upr_left, col_upr_right, col_bot_right, col_bot_left); }
     void  AddQuad(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, ImU32 col, float thickness = 1.0f)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddQuad(p1, p2, p3, p4, col, thickness);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddQuad(p1, p2, p3, p4, col, thickness); }
     void  AddQuadFilled(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, ImU32 col)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddQuadFilled(p1, p2, p3, p4, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddQuadFilled(p1, p2, p3, p4, col); }
     void  AddTriangle(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, ImU32 col, float thickness = 1.0f)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddTriangle(p1, p2, p3, col, thickness);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddTriangle(p1, p2, p3, col, thickness); }
     void  AddTriangleFilled(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, ImU32 col)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddTriangleFilled(p1, p2, p3, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddTriangleFilled(p1, p2, p3, col); }
     void  AddCircle(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments = 0, float thickness = 1.0f)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddCircle(center, radius, col, num_segments, thickness);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddCircle(center, radius, col, num_segments, thickness); }
     void  AddCircleFilled(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments = 0)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddCircleFilled(center, radius, col, num_segments);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddCircleFilled(center, radius, col, num_segments); }
     void  AddNgon(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments, float thickness = 1.0f)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddNgon(center, radius, col, num_segments, thickness);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddNgon(center, radius, col, num_segments, thickness); }
     void  AddNgonFilled(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddNgonFilled(center, radius, col, num_segments);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddNgonFilled(center, radius, col, num_segments); }
     void  AddText(const ImVec2/*&*/ pos, ImU32 col, string text)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddText(pos, col, text);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddText(pos, col, text); }
     void  AddText(const (ImFont)* font, float font_size, const ImVec2/*&*/ pos, ImU32 col, string text, float wrap_width = 0.0f, const ImVec4* cpu_fine_clip_rect = NULL)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddText(font, font_size, pos, col, text, wrap_width, cpu_fine_clip_rect);
-    }
-    
-    pragma(inline, true) void IM_NORMALIZE2F_OVER_ZERO(ref float VX, ref float VY) { float d2 = VX*VX + VY*VY; if (d2 > 0.0f) { float inv_len = 1.0f / ImSqrt(d2); VX *= inv_len; VY *= inv_len; } }
-    pragma(inline, true) void IM_FIXNORMAL2F(ref float VX, ref float VY) { float d2 = VX*VX + VY*VY; if (d2 < 0.5f) d2 = 0.5f; float inv_lensq = 1.0f / d2; VX *= inv_lensq; VY *= inv_lensq; }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddText(font, font_size, pos, col, text, wrap_width, cpu_fine_clip_rect); }
     void  AddPolyline(const ImVec2* points, int points_count, ImU32 col, bool closed, float thickness)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddPolyline(points, points_count, col, closed, thickness);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddPolyline(points, points_count, col, closed, thickness); }
     void  AddConvexPolyFilled(const ImVec2* points, int points_count, ImU32 col) // Note: Anti-aliased filling requires points to be in clockwise order.
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddConvexPolyFilled(points, points_count, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddConvexPolyFilled(points, points_count, col); }
     void  AddBezierCurve(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, ImU32 col, float thickness, int num_segments = 0)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddBezierCurve(p1, p2, p3, p4, col, thickness, num_segments);
-    }
+    { (cast(ImDrawList_Wrapper*)&this).AddBezierCurve(p1, p2, p3, p4, col, thickness, num_segments); }
 
     // Image primitives
     // - Read FAQ to understand what ImTextureID is.
     // - "p_min" and "p_max" represent the upper-left and lower-right corners of the rectangle.
     // - "uv_min" and "uv_max" represent the normalized texture coordinates to use for those corners. Using (0,0)->(1,1) texture coordinates will generally display the entire texture.
     void  AddImage(ImTextureID user_texture_id, const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, const ImVec2/*&*/ uv_min = ImVec2(0, 0), const ImVec2/*&*/ uv_max = ImVec2(1, 1), ImU32 col = IM_COL32_WHITE)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddImage(user_texture_id, p_min, p_max, uv_min, uv_max, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddImage(user_texture_id, p_min, p_max, uv_min, uv_max, col); }
     void  AddImageQuad(ImTextureID user_texture_id, const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, const ImVec2/*&*/ uv1 = ImVec2(0, 0), const ImVec2/*&*/ uv2 = ImVec2(1, 0), const ImVec2/*&*/ uv3 = ImVec2(1, 1), const ImVec2/*&*/ uv4 = ImVec2(0, 1), ImU32 col = IM_COL32_WHITE)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddImageQuad(user_texture_id, p1, p2, p3, p4, uv1, uv2, uv3, uv4, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddImageQuad(user_texture_id, p1, p2, p3, p4, uv1, uv2, uv3, uv4, col); }
     void  AddImageRounded(ImTextureID user_texture_id, const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, const ImVec2/*&*/ uv_min, const ImVec2/*&*/ uv_max, ImU32 col, float rounding, ImDrawCornerFlags rounding_corners = ImDrawCornerFlags.All)
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddImageRounded(user_texture_id, p_min, p_max, uv_min, uv_max, col, rounding, rounding_corners);
-    }
+    { (cast(ImDrawList_Wrapper*)&this).AddImageRounded(user_texture_id, p_min, p_max, uv_min, uv_max, col, rounding, rounding_corners); }
 
     // Stateful path API, add points then finish with PathFillConvex() or PathStroke()
     pragma(inline, true)    void  PathClear()                                                 { _Path.Size = 0; }
@@ -2630,45 +2452,22 @@ struct ImDrawList
     pragma(inline, true)    void  PathLineToMergeDuplicate(const ImVec2/*&*/ pos)                 { if (_Path.Size == 0 || memcmp(&_Path.Data[_Path.Size - 1], &pos, 8) != 0) _Path.push_back(pos); }
     pragma(inline, true)    void  PathFillConvex(ImU32 col)                                   { AddConvexPolyFilled(_Path.Data, _Path.Size, col); _Path.Size = 0; }  // Note: Anti-aliased filling requires points to be in clockwise order.
     pragma(inline, true)    void  PathStroke(ImU32 col, bool closed, float thickness = 1.0f)  { AddPolyline(_Path.Data, _Path.Size, col, closed, thickness); _Path.Size = 0; }
-    
     void  PathArcTo(const ImVec2/*&*/ center, float radius, float a_min, float a_max, int num_segments = 10)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PathArcTo(center, radius, a_min, a_max, num_segments);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PathArcTo(center, radius, a_min, a_max, num_segments); }
     void  PathArcToFast(const ImVec2/*&*/ center, float radius, int a_min_of_12, int a_max_of_12)                                            // Use precomputed angles for a 12 steps circle
-    {
-        (cast(ImDrawList_Wrapper*)&this).PathArcToFast(center, radius, a_min_of_12, a_max_of_12);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PathArcToFast(center, radius, a_min_of_12, a_max_of_12); }
     void  PathBezierCurveTo(const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, int num_segments = 0)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PathBezierCurveTo(p2, p3, p4, num_segments);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PathBezierCurveTo(p2, p3, p4, num_segments); }
     void  PathRect(const ImVec2/*&*/ a, const ImVec2/*&*/ b, float rounding = 0.0f, ImDrawCornerFlags rounding_corners = ImDrawCornerFlags.All)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PathRect(a, b, rounding, rounding_corners);
-    }
+    { (cast(ImDrawList_Wrapper*)&this).PathRect(a, b, rounding, rounding_corners); }
 
     // Advanced
     void  AddCallback(ImDrawCallback callback, void* callback_data)  // Your rendering function must check for 'UserCallback' in ImDrawCmd and call the function instead of rendering triangles.
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddCallback(callback, callback_data);
-    }
-    
-    private pragma(inline, true) ImVec4 GetCurrentClipRect() { return (_ClipRectStack.Size ? _ClipRectStack.Data[_ClipRectStack.Size-1]  : _Data.ClipRectFullscreen); }
-    private pragma(inline, true) ImTextureID GetCurrentTextureId() { return (_TextureIdStack.Size ? _TextureIdStack.Data[_TextureIdStack.Size-1] : cast(ImTextureID)NULL); }
-
+    { (cast(ImDrawList_Wrapper*)&this).AddCallback(callback, callback_data); }
     void  AddDrawCmd()                                               // This is useful if you need to forcefully create a new draw call (to allow for dependent rendering / blending). Otherwise primitives are merged into the same draw-call as much as possible
-    {
-        (cast(ImDrawList_Wrapper*)&this).AddDrawCmd();
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).AddDrawCmd(); }
     ImDrawList* CloneOutput() const                                  // Create a clone of the CmdBuffer/IdxBuffer/VtxBuffer.
-    {
-        return (cast(const ImDrawList_Wrapper*)&this).CloneOutput();
-    }
+    { return (cast(const ImDrawList_Wrapper*)&this).CloneOutput(); }
 
     // Advanced: Channels
     // - Use to split render into layers. By switching channels to can render out-of-order (e.g. submit FG primitives before BG primitives)
@@ -2684,64 +2483,32 @@ struct ImDrawList
     // - We render triangles (three vertices)
     // - All primitives needs to be reserved via PrimReserve() beforehand.
     void  PrimReserve(int idx_count, int vtx_count)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PrimReserve(idx_count, vtx_count);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PrimReserve(idx_count, vtx_count); }
     void  PrimUnreserve(int idx_count, int vtx_count)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PrimUnreserve(idx_count, vtx_count);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PrimUnreserve(idx_count, vtx_count); }
     void  PrimRect(const ImVec2/*&*/ a, const ImVec2/*&*/ c, ImU32 col)      // Axis aligned rectangle (composed of two triangles)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PrimRect(a, c, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PrimRect(a, c, col); }
     void  PrimRectUV(const ImVec2/*&*/ a, const ImVec2/**/ c, const ImVec2/*&*/ uv_a, const ImVec2/*&*/ uv_c, ImU32 col)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PrimRectUV(a, c, uv_a, uv_c, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PrimRectUV(a, c, uv_a, uv_c, col); }
     void  PrimQuadUV(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ c, const ImVec2/*&*/ d, const ImVec2/*&*/ uv_a, const ImVec2/*&*/ uv_b, const ImVec2/*&*/ uv_c, const ImVec2/*&*/ uv_d, ImU32 col)
-    {
-        (cast(ImDrawList_Wrapper*)&this).PrimQuadUV(a, b, c, d, uv_a, uv_b, uv_c, uv_d, col);
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this).PrimQuadUV(a, b, c, d, uv_a, uv_b, uv_c, uv_d, col); }
     pragma(inline, true)    void  PrimWriteVtx(const ImVec2/*&*/ pos, const ImVec2/*&*/ uv, ImU32 col){ _VtxWritePtr.pos = pos; _VtxWritePtr.uv = uv; _VtxWritePtr.col = col; _VtxWritePtr++; _VtxCurrentIdx++; }
     pragma(inline, true)    void  PrimWriteIdx(ImDrawIdx idx)                                 { *_IdxWritePtr = idx; _IdxWritePtr++; }
     pragma(inline, true)    void  PrimVtx(const ImVec2/*&*/ pos, const ImVec2/*&*/ uv, ImU32 col)     { PrimWriteIdx(cast(ImDrawIdx)_VtxCurrentIdx); PrimWriteVtx(pos, uv, col); }
 
     // [Internal helpers]
     void  _ResetForNewFrame()
-    {
-        (cast(ImDrawList_Wrapper*)&this)._ResetForNewFrame();
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this)._ResetForNewFrame(); }
     void  _ClearFreeMemory()
-    {
-        (cast(ImDrawList_Wrapper*)&this)._ClearFreeMemory();
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this)._ClearFreeMemory(); }
     void  _PopUnusedDrawCmd()
-    {
-        (cast(ImDrawList_Wrapper*)&this)._PopUnusedDrawCmd();
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this)._PopUnusedDrawCmd(); }
     void  _OnChangedClipRect()
-    {
-        (cast(ImDrawList_Wrapper*)&this)._OnChangedClipRect();
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this)._OnChangedClipRect(); }
     void  _OnChangedTextureID()
-    {
-        (cast(ImDrawList_Wrapper*)&this)._OnChangedTextureID();
-    }
-    
+    { (cast(ImDrawList_Wrapper*)&this)._OnChangedTextureID(); }
     void  _OnChangedVtxOffset()
-    {
-        (cast(ImDrawList_Wrapper*)&this)._OnChangedVtxOffset();
-    }
+    { (cast(ImDrawList_Wrapper*)&this)._OnChangedVtxOffset(); }
 }
 
 // All draw data to render a Dear ImGui frame
@@ -2762,19 +2529,13 @@ struct ImDrawData
     ImVec2          FramebufferScale;       // Amount of pixels for each unit of DisplaySize. Based on io.DisplayFramebufferScale. Generally (1,1) on normal display, (2,2) on OSX with Retina display.
 
     // Functions
-    // this()    { Valid = false; Clear(); }
+    this(bool dummy)    { Valid = false; Clear(); }
     void destroy()   { Clear(); }
     void Clear()    { Valid = false; CmdLists = NULL; CmdListsCount = TotalVtxCount = TotalIdxCount = 0; DisplayPos = DisplaySize = FramebufferScale = ImVec2(0.0f, 0.0f); } // The ImDrawList are owned by ImGuiContext!
-    
     void  DeIndexAllBuffers()                    // Helper to convert all buffers from indexed to non-indexed, in case you cannot render indexed. Note: this is slow and most likely a waste of resources. Always prefer indexed rendering!
-    {
-        (cast(ImDrawData_Wrapper*)&this).DeIndexAllBuffers();
-    }
-    
+    { (cast(ImDrawData_Wrapper*)&this).DeIndexAllBuffers(); }
     void  ScaleClipRects(const ImVec2/*&*/ fb_scale) // Helper to scale the ClipRect field of each ImDrawCmd. Use if your final output buffer is at a different scale than Dear ImGui expects, or if there is a difference between your window resolution and framebuffer resolution.
-    {
-        (cast(ImDrawData_Wrapper*)&this).ScaleClipRects(fb_scale);
-    }
+    { (cast(ImDrawData_Wrapper*)&this).ScaleClipRects(fb_scale); }
 }
 
 //-----------------------------------------------------------------------------
@@ -2810,9 +2571,7 @@ struct ImFontConfig
 
     @disable this();
     this(bool dummy)
-    {
-        (cast(ImFontConfig_Wrapper*)&this).__ctor(dummy);
-    }
+    { (cast(ImFontConfig_Wrapper*)&this).__ctor(dummy); }
 }
 
 // Hold rendering data for one glyph.
@@ -2849,21 +2608,12 @@ struct ImFontGlyphRangesBuilder
     pragma(inline, true) bool     GetBit(size_t n) const  { int off = cast(int)(n >> 5); ImU32 mask = 1u << (n & 31); return (UsedChars[off] & mask) != 0; }  // Get bit n in the array
     pragma(inline, true) void     SetBit(size_t n)        { int off = cast(int)(n >> 5); ImU32 mask = 1u << (n & 31); UsedChars[off] |= mask; }               // Set bit n in the array
     pragma(inline, true) void     AddChar(ImWchar c)      { SetBit(c); }                      // Add character
-    
     void  AddText(string text)     // Add string (each character of the UTF-8 string are added)
-    {
-        (cast(ImFontGlyphRangesBuilder_Wrapper*)&this).AddText(text);
-    }
-    
+    { (cast(ImFontGlyphRangesBuilder_Wrapper*)&this).AddText(text); }
     void  AddRanges(const (ImWchar)* ranges)                           // Add ranges, e.g. builder.AddRanges(ImFontAtlas::GetGlyphRangesDefault()) to force add all of ASCII/Latin+Ext
-    {
-        (cast(ImFontGlyphRangesBuilder_Wrapper*)&this).AddRanges(ranges);
-    }
-    
+    { (cast(ImFontGlyphRangesBuilder_Wrapper*)&this).AddRanges(ranges); }
     void  BuildRanges(ImVector!ImWchar* out_ranges)                 // Output new ranges
-    {
-        (cast(ImFontGlyphRangesBuilder_Wrapper*)&this).BuildRanges(out_ranges);
-    }
+    { (cast(ImFontGlyphRangesBuilder_Wrapper*)&this).BuildRanges(out_ranges); }
 }
 
 // See ImFontAtlas::AddCustomRectXXX functions.
@@ -2916,64 +2666,30 @@ struct ImFontAtlas
     @nogc:
     
     @disable this();
-    this(bool dummy) {
-        (cast(ImFontAtlas_Wrapper*)&this).__ctor(dummy);
-    }
-
+    this(bool dummy)
+    { (cast(ImFontAtlas_Wrapper*)&this).__ctor(dummy); }
     void destroy()
-    {
-        (cast(ImFontAtlas_Wrapper*)&this).destroy();
-    }
-    
+    { (cast(ImFontAtlas_Wrapper*)&this).destroy(); }
     ImFont*           AddFont(const ImFontConfig* font_cfg)
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddFont(font_cfg);
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddFont(font_cfg); }
     ImFont*           AddFontDefault(const ImFontConfig* font_cfg_template = NULL)
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddFontDefault(font_cfg_template);
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddFontDefault(font_cfg_template); }
     ImFont*           AddFontFromFileTTF(string filename, float size_pixels, const ImFontConfig* font_cfg_template = NULL, const ImWchar* glyph_ranges = NULL)
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromFileTTF(filename, size_pixels, font_cfg_template, glyph_ranges);
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromFileTTF(filename, size_pixels, font_cfg_template, glyph_ranges); }
     ImFont*           AddFontFromMemoryTTF(ubyte[] ttf_data, float size_pixels, const ImFontConfig* font_cfg_template = NULL, const ImWchar* glyph_ranges = NULL) // Note: Transfer ownership of 'ttf_data' to ImFontAtlas! Will be deleted after destruction of the atlas. Set font_cfg->FontDataOwnedByAtlas=false to keep ownership of your data and it won't be freed.
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromMemoryTTF(ttf_data, size_pixels, font_cfg_template, glyph_ranges);
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromMemoryTTF(ttf_data, size_pixels, font_cfg_template, glyph_ranges); }
     ImFont*           AddFontFromMemoryCompressedTTF(const ubyte[] compressed_ttf_data, float size_pixels, const ImFontConfig* font_cfg_template = NULL, const ImWchar* glyph_ranges = NULL) // 'compressed_font_data' still owned by caller. Compress with binary_to_compressed_c.cpp.
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromMemoryCompressedTTF(compressed_ttf_data, size_pixels, font_cfg_template, glyph_ranges);
-    }
-
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromMemoryCompressedTTF(compressed_ttf_data, size_pixels, font_cfg_template, glyph_ranges); }
     ImFont*           AddFontFromMemoryCompressedBase85TTF(string compressed_ttf_data_base85, float size_pixels, const ImFontConfig* font_cfg = NULL, const ImWchar* glyph_ranges = NULL)              // 'compressed_font_data_base85' still owned by caller. Compress with binary_to_compressed_c.cpp with -base85 parameter.
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromMemoryCompressedBase85TTF(compressed_ttf_data_base85, size_pixels, font_cfg, glyph_ranges);
-    }
-
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddFontFromMemoryCompressedBase85TTF(compressed_ttf_data_base85, size_pixels, font_cfg, glyph_ranges); }
     void              ClearInputData()           // Clear input data (all ImFontConfig structures including sizes, TTF data, glyph ranges, etc.) = all the data used to build the texture and fonts.
-    {
-        (cast(ImFontAtlas_Wrapper*)&this).ClearInputData();
-    }
-    
+    { (cast(ImFontAtlas_Wrapper*)&this).ClearInputData(); }
     void              ClearTexData()             // Clear output texture data (CPU side). Saves RAM once the texture has been copied to graphics memory.
-    {
-        (cast(ImFontAtlas_Wrapper*)&this).ClearTexData();
-    }
-    
+    { (cast(ImFontAtlas_Wrapper*)&this).ClearTexData(); }
     void              ClearFonts()               // Clear output font data (glyphs storage, UV coordinates).
-    {
-        (cast(ImFontAtlas_Wrapper*)&this).ClearFonts();
-    }
-    
+    { (cast(ImFontAtlas_Wrapper*)&this).ClearFonts(); }
     void              Clear()                    // Clear all input and output.
-    {
-        (cast(ImFontAtlas_Wrapper*)&this).Clear();
-    }
+    { (cast(ImFontAtlas_Wrapper*)&this).Clear(); }
 
     // Build atlas, retrieve pixel data.
     // User is in charge of copying the pixels into graphics memory (e.g. create a texture with your engine). Then store your texture handle with SetTexID().
@@ -2981,20 +2697,11 @@ struct ImFontAtlas
     // Building in RGBA32 format is provided for convenience and compatibility, but note that unless you manually manipulate or copy color data into
     // the texture (e.g. when using the AddCustomRect*** api), then the RGB pixels emitted will always be white (~75% of memory/bandwidth waste.
     bool              Build()                    // Build pixels data. This is called automatically for you by the GetTexData*** functions.
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).Build();
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).Build(); }
     void              GetTexDataAsAlpha8(ubyte[]* out_pixels, int* out_width, int* out_height, int* out_bytes_per_pixel = NULL)  // 1 byte per-pixel
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).GetTexDataAsAlpha8(out_pixels, out_width, out_height, out_bytes_per_pixel);
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).GetTexDataAsAlpha8(out_pixels, out_width, out_height, out_bytes_per_pixel); }
     void              GetTexDataAsRGBA32(ubyte[]* out_pixels, int* out_width, int* out_height, int* out_bytes_per_pixel = NULL)  // 4 bytes-per-pixel
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).GetTexDataAsRGBA32(out_pixels, out_width, out_height, out_bytes_per_pixel);
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).GetTexDataAsRGBA32(out_pixels, out_width, out_height, out_bytes_per_pixel); }
     bool                        IsBuilt() const             { return Fonts.Size > 0 && (TexPixelsAlpha8 != NULL || TexPixelsRGBA32 != NULL); }
     void                        SetTexID(ImTextureID id)    { TexID = id; }
 
@@ -3006,44 +2713,21 @@ struct ImFontAtlas
     // NB: Make sure that your string are UTF-8 and NOT in your local code page. In C++11, you can create UTF-8 string literal using the u8"Hello world" syntax. See FAQ for details.
     // NB: Consider using ImFontGlyphRangesBuilder to build glyph ranges from textual data.
     const (ImWchar)*    GetGlyphRangesDefault()                // Basic Latin, Extended Latin
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesDefault();
-    }
-
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesDefault(); }
     const (ImWchar)*    GetGlyphRangesKorean()                 // Default + Korean characters
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesKorean();
-    }
-
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesKorean(); }
     const (ImWchar)*    GetGlyphRangesJapanese()               // Default + Hiragana, Katakana, Half-Width, Selection of 1946 Ideographs
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesJapanese();
-    }
-
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesJapanese(); }
     const (ImWchar)*    GetGlyphRangesChineseFull()            // Default + Half-Width + Japanese Hiragana/Katakana + full set of about 21000 CJK Unified Ideographs
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesChineseFull();
-    }
-
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesChineseFull(); }
     const (ImWchar)*    GetGlyphRangesChineseSimplifiedCommon()// Default + Half-Width + Japanese Hiragana/Katakana + set of 2500 CJK Unified Ideographs for common simplified Chinese
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesChineseSimplifiedCommon();
-    }
-
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesChineseSimplifiedCommon(); }
     const (ImWchar)*    GetGlyphRangesCyrillic()               // Default + about 400 Cyrillic characters
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesCyrillic();
-    }
-
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesCyrillic(); }
     const (ImWchar)*    GetGlyphRangesThai()                   // Default + Thai characters
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesThai();
-    }
-
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesThai(); }
     const (ImWchar)*    GetGlyphRangesVietnamese()             // Default + Vietnamese characters
-    {
-        return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesVietnamese();
-    }
+    { return (cast(ImFontAtlas_Wrapper2*)&this).GetGlyphRangesVietnamese(); }
 
     //-------------------------------------------
     // [BETA] Custom Rectangles/Glyphs API
@@ -3056,27 +2740,16 @@ struct ImFontAtlas
     // Read docs/FONTS.md for more details about using colorful icons.
     // Note: this API may be redesigned later in order to support multi-monitor varying DPI settings.
     int               AddCustomRectRegular(int width, int height)
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddCustomRectRegular(width, height);
-    }
-    
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddCustomRectRegular(width, height); }
     int               AddCustomRectFontGlyph(ImFont* font, ImWchar id, int width, int height, float advance_x, const ImVec2/*&*/ offset = ImVec2(0,0))
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).AddCustomRectFontGlyph(font, id, width, height, advance_x, offset);
-    }
-
+    { return (cast(ImFontAtlas_Wrapper*)&this).AddCustomRectFontGlyph(font, id, width, height, advance_x, offset); }
     ImFontAtlasCustomRect* GetCustomRectByIndex(int index) { IM_ASSERT(index >= 0); return &CustomRects[index]; }
 
     // [Internal]
     void              CalcCustomRectUV(const ImFontAtlasCustomRect* rect, ImVec2* out_uv_min, ImVec2* out_uv_max) const
-    {
-        (cast(ImFontAtlas_Wrapper*)&this).CalcCustomRectUV(rect, out_uv_min, out_uv_max);
-    }
-    
+    { (cast(ImFontAtlas_Wrapper*)&this).CalcCustomRectUV(rect, out_uv_min, out_uv_max); }
     bool              GetMouseCursorTexData(ImGuiMouseCursor cursor_type, ImVec2* out_offset, ImVec2* out_size, ImVec2[2] out_uv_border, ImVec2[2] out_uv_fill)
-    {
-        return (cast(ImFontAtlas_Wrapper*)&this).GetMouseCursorTexData(cursor_type, out_offset, out_size, out_uv_border, out_uv_fill);
-    }
+    { return (cast(ImFontAtlas_Wrapper*)&this).GetMouseCursorTexData(cursor_type, out_offset, out_size, out_uv_border, out_uv_fill); }
 
     //-------------------------------------------
     // Members
@@ -3144,25 +2817,13 @@ struct ImFont
     // Methods
     @disable this();
     this(bool dummy)
-    {
-        (cast(ImFont_Wrapper*)&this).__ctor(dummy);
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).__ctor(dummy); }
     void destroy()
-    {
-        (cast(ImFont_Wrapper*)&this).destroy();
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).destroy(); }
     const (ImFontGlyph)* FindGlyph(ImWchar c) const
-    {
-        return (cast(const ImFont_Wrapper*)&this).FindGlyph(c);
-    }
-    
+    { return (cast(const ImFont_Wrapper*)&this).FindGlyph(c); }
     const (ImFontGlyph)* FindGlyphNoFallback(ImWchar c) const
-    {
-        return (cast(const ImFont_Wrapper*)&this).FindGlyphNoFallback(c);
-    }
-    
+    { return (cast(const ImFont_Wrapper*)&this).FindGlyphNoFallback(c); }
     float                       GetCharAdvance(ImWchar c) const     { return (cast(int)c < IndexAdvanceX.Size) ? IndexAdvanceX[cast(int)c] : FallbackAdvanceX; }
     bool                        IsLoaded() const                    { return ContainerAtlas != NULL; }
     string                 GetDebugName() const                { return ConfigData ? ImCstring(ConfigData.Name) : "<unknown>"; }
@@ -3170,65 +2831,31 @@ struct ImFont
     // 'max_width' stops rendering after a certain width (could be turned into a 2d size). FLT_MAX to disable.
     // 'wrap_width' enable automatic word-wrapping across multiple lines to fit into given width. 0.0f to disable.
     ImVec2            CalcTextSizeA(float size, float max_width, float wrap_width, string text, string* remaining = NULL) const // utf8
-    {
-        return (cast(const ImFont_Wrapper*)&this).CalcTextSizeA(size, max_width, wrap_width, text, remaining);
-    }
-    
+    { return (cast(const ImFont_Wrapper*)&this).CalcTextSizeA(size, max_width, wrap_width, text, remaining); }
     size_t       CalcWordWrapPositionA(float scale, string text, float wrap_width) const
-    {
-        return (cast(const ImFont_Wrapper*)&this).CalcWordWrapPositionA(scale, text, wrap_width);
-    }
-    
+    { return (cast(const ImFont_Wrapper*)&this).CalcWordWrapPositionA(scale, text, wrap_width); }
     void              RenderChar(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, ImWchar c) const
-    {
-        (cast(const ImFont_Wrapper*)&this).RenderChar(draw_list, size, pos, col, c);
-    }
-
+    { (cast(const ImFont_Wrapper*)&this).RenderChar(draw_list, size, pos, col, c); }
     void              RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4/*&*/ clip_rect, string text, float wrap_width = 0.0f, bool cpu_fine_clip = false) const
-    {
-        (cast(const ImFont_Wrapper*)&this).RenderText(draw_list, size, pos, col, clip_rect, text, wrap_width, cpu_fine_clip);
-    }
+    { (cast(const ImFont_Wrapper*)&this).RenderText(draw_list, size, pos, col, clip_rect, text, wrap_width, cpu_fine_clip); }
 
     // [Internal] Don't use!
     void              BuildLookupTable()
-    {
-        (cast(ImFont_Wrapper*)&this).BuildLookupTable();
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).BuildLookupTable(); }
     void              ClearOutputData()
-    {
-        (cast(ImFont_Wrapper*)&this).ClearOutputData();
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).ClearOutputData(); }
     void              GrowIndex(int new_size)
-    {
-        (cast(ImFont_Wrapper*)&this).GrowIndex(new_size);
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).GrowIndex(new_size); }
     void              AddGlyph(ImFontConfig* src_cfg, ImWchar codepoint, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float advance_x)
-    {
-        (cast(ImFont_Wrapper*)&this).AddGlyph(src_cfg, codepoint, x0, y0, x1, y1, u0, v0, u1, v1, advance_x);
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).AddGlyph(src_cfg, codepoint, x0, y0, x1, y1, u0, v0, u1, v1, advance_x); }
     void              AddRemapChar(ImWchar dst, ImWchar src, bool overwrite_dst = true) // Makes 'dst' character/glyph points to 'src' character/glyph. Currently needs to be called AFTER fonts have been built.
-    {
-        (cast(ImFont_Wrapper*)&this).AddRemapChar(dst, src, overwrite_dst);
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).AddRemapChar(dst, src, overwrite_dst); }
     void              SetGlyphVisible(ImWchar c, bool visible)
-    {
-        (cast(ImFont_Wrapper*)&this).SetGlyphVisible(c, visible);
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).SetGlyphVisible(c, visible); }
     void              SetFallbackChar(ImWchar c)
-    {
-        (cast(ImFont_Wrapper*)&this).SetFallbackChar(c);
-    }
-    
+    { (cast(ImFont_Wrapper*)&this).SetFallbackChar(c); }
     bool              IsGlyphRangeUnused(uint c_begin, uint c_last)
-    {
-        return (cast(ImFont_Wrapper*)&this).IsGlyphRangeUnused(c_begin, c_last);
-    }
+    { return (cast(ImFont_Wrapper*)&this).IsGlyphRangeUnused(c_begin, c_last); }
 }
 
 // #if defined(__clang__)

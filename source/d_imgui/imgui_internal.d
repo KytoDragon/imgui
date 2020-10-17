@@ -1,6 +1,6 @@
-module d_imgui.imgui_internal;
 // dear imgui, v1.78
 // (internal structures/api)
+module d_imgui.imgui_internal;
 
 // You may use this file to debug, understand or extend ImGui features but we don't provide any guarantee of forward compatibility!
 // Set:
@@ -863,13 +863,9 @@ struct ImDrawListSharedData
 
     @disable this();
     this(bool dummy)
-    {
-        (cast(ImDrawListSharedData_Wrapper*)&this).__ctor(dummy);
-    }
+    { (cast(ImDrawListSharedData_Wrapper*)&this).__ctor(dummy); }
     void SetCircleSegmentMaxError(float max_error)
-    {
-        (cast(ImDrawListSharedData_Wrapper*)&this).SetCircleSegmentMaxError(max_error);
-    }
+    { (cast(ImDrawListSharedData_Wrapper*)&this).SetCircleSegmentMaxError(max_error); }
 }
 
 struct ImDrawDataBuilder
@@ -882,9 +878,7 @@ struct ImDrawDataBuilder
     void Clear()            { for (int n = 0; n < IM_ARRAYSIZE(Layers); n++) Layers[n].resize(0); }
     void ClearFreeMemory()  { for (int n = 0; n < IM_ARRAYSIZE(Layers); n++) Layers[n].clear(); }
     void FlattenIntoSingleLayer()
-    {
-        (cast(ImDrawDataBuilder_Wrapper*)&this).FlattenIntoSingleLayer();
-    }
+    { (cast(ImDrawDataBuilder_Wrapper*)&this).FlattenIntoSingleLayer(); }
 }
 
 //-----------------------------------------------------------------------------
@@ -1180,21 +1174,12 @@ struct ImGuiMenuColumns
     float[3]       Pos = 0, NextWidths = 0;
 
     this(bool dummy)
-    {
-        (cast(ImGuiMenuColumns_Wrapper*)&this).__ctor(dummy);
-    }
-
+    { (cast(ImGuiMenuColumns_Wrapper*)&this).__ctor(dummy); }
     void        Update(int count, float spacing, bool clear) { (cast(ImGuiMenuColumns_Wrapper*)&this).Update(count, spacing, clear); }
-
     float       DeclColumns(float w0, float w1, float w2)
-    {
-        return (cast(ImGuiMenuColumns_Wrapper*)&this).DeclColumns(w0, w1, w2);
-    }
-
+    { return (cast(ImGuiMenuColumns_Wrapper*)&this).DeclColumns(w0, w1, w2); }
     float       CalcExtraSpace(float avail_w) const
-    {
-        return (cast(ImGuiMenuColumns_Wrapper*)&this).CalcExtraSpace(avail_w);
-    }
+    { return (cast(ImGuiMenuColumns_Wrapper*)&this).CalcExtraSpace(avail_w); }
 }
 
 // Internal state of the currently focused/edited text input box
@@ -1227,9 +1212,7 @@ struct ImGuiInputTextState
     int         GetUndoAvailCount() const   { return Stb.undostate.undo_point; }
     int         GetRedoAvailCount() const   { return STB_TEXTEDIT_UNDOSTATECOUNT - Stb.undostate.redo_point; }
     void        OnKeyPressed(int key)      // Cannot be inline because we call in code in stb_textedit.h implementation
-    {
-        (cast(ImGuiInputTextState_Wrapper*)&this).OnKeyPressed(key);
-    }
+    { (cast(ImGuiInputTextState_Wrapper*)&this).OnKeyPressed(key); }
 
     // Cursor & Selection
     void        CursorAnimReset()           { CursorAnim = -0.30f; }                                   // After a user-input the cursor stays on for a while without blinking
@@ -1253,8 +1236,7 @@ struct ImGuiPopupData
     ImVec2              OpenPopupPos;   // Set on OpenPopup(), preferred popup position (typically == OpenMousePos when using mouse)
     ImVec2              OpenMousePos;   // Set on OpenPopup(), copy of mouse position at the time of opening popup
 
-    // @disable this();
-    // this(bool dummy) { PopupId = 0; Window = SourceWindow = NULL; OpenFrameCount = -1; OpenParentId = 0; }
+    this(bool dummy) { PopupId = 0; Window = SourceWindow = NULL; OpenFrameCount = -1; OpenParentId = 0; }
 }
 
 struct ImGuiNavMoveResult
@@ -1270,7 +1252,7 @@ struct ImGuiNavMoveResult
     float           DistAxial = FLT_MAX;
     ImRect          RectRel;            // Best candidate bounding box in window relative space
 
-    // this() { Clear(); }
+    this(bool dummy) { Clear(); }
     void Clear()         { Window = NULL; ID = FocusScopeId = 0; DistBox = DistCenter = DistAxial = FLT_MAX; RectRel = ImRect(); }
 }
 
@@ -1309,7 +1291,7 @@ struct ImGuiNextWindowData
     float                       BgAlphaVal = 0;             // Override background alpha
     ImVec2                      MenuBarOffsetMinVal;    // *Always on* This is not exposed publicly, so we don't clear it.
 
-    // this()       { memset(&this, 0, sizeof(this)); }
+    this(bool dummy)       { memset(&this, 0, sizeof(this)); }
     pragma(inline, true) void ClearFlags()    { Flags = ImGuiNextWindowDataFlags.None; }
 }
 
@@ -1331,7 +1313,7 @@ struct ImGuiNextItemData
     ImGuiCond                   OpenCond;
     bool                        OpenVal;        // Set by SetNextItemOpen()
 
-    // this()         { memset(&this, 0, sizeof(this)); }
+    this(bool dummy)         { memset(&this, 0, sizeof(this)); }
     pragma(inline, true) void ClearFlags()    { Flags = ImGuiNextItemDataFlags.None; } // Also cleared manually by ItemAdd()!
 }
 
@@ -2106,46 +2088,22 @@ struct ImGuiWindow
         DC = ImGuiWindowTempData(false);
         (cast(ImGuiWindow_Wrapper*)&this).__ctor(context, name);
     }
-
     void destroy()
-    {
-        (cast(ImGuiWindow_Wrapper*)&this).destroy();
-    }
-
+    { (cast(ImGuiWindow_Wrapper*)&this).destroy(); }
     ImGuiID     GetID(string str)
-    {
-        return (cast(ImGuiWindow_Wrapper*)&this).GetID(str);
-    }
-
+    { return (cast(ImGuiWindow_Wrapper*)&this).GetID(str); }
     ImGuiID     GetID(const void* ptr)
-    {
-        return (cast(ImGuiWindow_Wrapper*)&this).GetID(ptr);
-    }
-
+    { return (cast(ImGuiWindow_Wrapper*)&this).GetID(ptr); }
     ImGuiID     GetID(int n)
-    {
-        return (cast(ImGuiWindow_Wrapper*)&this).GetID(n);
-    }
-
+    { return (cast(ImGuiWindow_Wrapper*)&this).GetID(n); }
     ImGuiID     GetIDNoKeepAlive(string str)
-    {
-        return (cast(ImGuiWindow_Wrapper*)&this).GetIDNoKeepAlive(str);
-    }
-
+    { return (cast(ImGuiWindow_Wrapper*)&this).GetIDNoKeepAlive(str); }
     ImGuiID     GetIDNoKeepAlive(const void* ptr)
-    {
-        return (cast(ImGuiWindow_Wrapper*)&this).GetIDNoKeepAlive(ptr);
-    }
-
+    { return (cast(ImGuiWindow_Wrapper*)&this).GetIDNoKeepAlive(ptr); }
     ImGuiID     GetIDNoKeepAlive(int n)
-    {
-        return (cast(ImGuiWindow_Wrapper*)&this).GetIDNoKeepAlive(n);
-    }
-
+    { return (cast(ImGuiWindow_Wrapper*)&this).GetIDNoKeepAlive(n); }
     ImGuiID     GetIDFromRectangle(const ImRect/*&*/ r_abs)
-    {
-        return (cast(ImGuiWindow_Wrapper*)&this).GetIDFromRectangle(r_abs);
-    }
+    { return (cast(ImGuiWindow_Wrapper*)&this).GetIDFromRectangle(r_abs); }
 
     // We don't use g.FontSize because the window may be != g.CurrentWidow.
     ImRect      Rect() const            { return ImRect(Pos.x, Pos.y, Pos.x + Size.x, Pos.y + Size.y); }
@@ -2246,19 +2204,16 @@ struct ImGuiTabBar
 
     @disable this();
     this(bool dummy)
-    {
-        (cast(ImGuiTabBar_Wrapper*)&this).__ctor(dummy);
-    }
-
-    void destroy() {
-        Tabs.destroy();
-    }
-
+    { (cast(ImGuiTabBar_Wrapper*)&this).__ctor(dummy); }
     int                 GetTabOrder(const ImGuiTabItem* tab) const  { return Tabs.index_from_ptr(tab); }
     string         GetTabName(const ImGuiTabItem* tab) const
     {
         IM_ASSERT(tab.NameOffset != -1 && cast(int)tab.NameOffset < TabsNames.Buf.Size);
         return ImCstring(TabsNames.Buf.Data + tab.NameOffset);
+    }
+    
+    void destroy() {
+        Tabs.destroy();
     }
 }
 
