@@ -1,5 +1,5 @@
 module d_imgui.imgui_h;
-// dear imgui, v1.77
+// dear imgui, v1.78
 // (headers)
 
 // Help:
@@ -92,8 +92,8 @@ version (OSX) {
 
 // Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals. Work in progress versions typically starts at XYY99 then bounce up to XYY00, XYY01 etc. when release tagging happens)
-enum IMGUI_VERSION              = "1.77";
-enum IMGUI_VERSION_NUM          = 17700;
+enum IMGUI_VERSION              = "1.78";
+enum IMGUI_VERSION_NUM          = 17800;
 pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndDataLayout(IMGUI_VERSION, sizeof!(ImGuiIO), sizeof!(ImGuiStyle), sizeof!(ImVec2), sizeof!(ImVec4), sizeof!(ImDrawVert), sizeof!(ImDrawIdx));}
 
 pragma(inline, true) int sizeof(T)() {return cast(int)T.sizeof;}
@@ -201,8 +201,9 @@ typedef int ImGuiMouseCursor;       // -> enum ImGuiMouseCursor_     // Enum: A 
 typedef int ImGuiStyleVar;          // -> enum ImGuiStyleVar_        // Enum: A variable identifier for styling
 typedef int ImDrawCornerFlags;      // -> enum ImDrawCornerFlags_    // Flags: for ImDrawList::AddRect(), AddRectFilled() etc.
 typedef int ImDrawListFlags;        // -> enum ImDrawListFlags_      // Flags: for ImDrawList
-typedef int ImFontAtlasFlags;       // -> enum ImFontAtlasFlags_     // Flags: for ImFontAtlas
+typedef int ImFontAtlasFlags;       // -> enum ImFontAtlasFlags_     // Flags: for ImFontAtlas build
 typedef int ImGuiBackendFlags;      // -> enum ImGuiBackendFlags_    // Flags: for io.BackendFlags
+typedef int ImGuiButtonFlags;       // -> enum ImGuiButtonFlags_     // Flags: for InvisibleButton()
 typedef int ImGuiColorEditFlags;    // -> enum ImGuiColorEditFlags_  // Flags: for ColorEdit4(), ColorPicker4() etc.
 typedef int ImGuiConfigFlags;       // -> enum ImGuiConfigFlags_     // Flags: for io.ConfigFlags
 typedef int ImGuiComboFlags;        // -> enum ImGuiComboFlags_      // Flags: for BeginCombo()
@@ -213,6 +214,7 @@ typedef int ImGuiInputTextFlags;    // -> enum ImGuiInputTextFlags_  // Flags: f
 typedef int ImGuiKeyModFlags;       // -> enum ImGuiKeyModFlags_     // Flags: for io.KeyMods (Ctrl/Shift/Alt/Super)
 typedef int ImGuiPopupFlags;        // -> enum ImGuiPopupFlags_      // Flags: for OpenPopup*(), BeginPopupContext*(), IsPopupOpen()
 typedef int ImGuiSelectableFlags;   // -> enum ImGuiSelectableFlags_ // Flags: for Selectable()
+typedef int ImGuiSliderFlags;       // -> enum ImGuiSliderFlags_     // Flags: for DragFloat(), DragInt(), SliderFloat(), SliderInt() etc.
 typedef int ImGuiTabBarFlags;       // -> enum ImGuiTabBarFlags_     // Flags: for BeginTabBar()
 typedef int ImGuiTabItemFlags;      // -> enum ImGuiTabItemFlags_    // Flags: for BeginTabItem()
 typedef int ImGuiTreeNodeFlags;     // -> enum ImGuiTreeNodeFlags_   // Flags: for TreeNode(), TreeNodeEx(), CollapsingHeader()
@@ -442,8 +444,8 @@ namespace ImGui
     // Windows Scrolling
     IMGUI_API float         GetScrollX();                                                   // get scrolling amount [0..GetScrollMaxX()]
     IMGUI_API float         GetScrollY();                                                   // get scrolling amount [0..GetScrollMaxY()]
-    IMGUI_API float         GetScrollMaxX();                                                // get maximum scrolling amount ~~ ContentSize.X - WindowSize.X
-    IMGUI_API float         GetScrollMaxY();                                                // get maximum scrolling amount ~~ ContentSize.Y - WindowSize.Y
+    IMGUI_API float         GetScrollMaxX();                                                // get maximum scrolling amount ~~ ContentSize.x - WindowSize.x
+    IMGUI_API float         GetScrollMaxY();                                                // get maximum scrolling amount ~~ ContentSize.y - WindowSize.y
     IMGUI_API void          SetScrollX(float scroll_x);                                     // set scrolling amount [0..GetScrollMaxX()]
     IMGUI_API void          SetScrollY(float scroll_y);                                     // set scrolling amount [0..GetScrollMaxY()]
     IMGUI_API void          SetScrollHereX(float center_x_ratio = 0.5f);                    // adjust scrolling amount to make current cursor position visible. center_x_ratio=0.0: left, 0.5: center, 1.0: right. When using to make a "default/current item" visible, consider using SetItemDefaultFocus() instead.
@@ -547,7 +549,7 @@ namespace ImGui
     // - You may also use one of the many IsItemXXX functions (e.g. IsItemActive, IsItemHovered, etc.) to query widget state.
     IMGUI_API bool          Button(const char* label, const ImVec2& size = ImVec2(0, 0));   // button
     IMGUI_API bool          SmallButton(const char* label);                                 // button with FramePadding=(0,0) to easily embed within text
-    IMGUI_API bool          InvisibleButton(const char* str_id, const ImVec2& size);        // button behavior without the visuals, frequently useful to build custom behaviors using the public api (along with IsItemActive, IsItemHovered, etc.)
+    IMGUI_API bool          InvisibleButton(const char* str_id, const ImVec2& size, ImGuiButtonFlags flags = 0); // flexible button behavior without the visuals, frequently useful to build custom behaviors using the public api (along with IsItemActive, IsItemHovered, etc.)
     IMGUI_API bool          ArrowButton(const char* str_id, ImGuiDir dir);                  // square button with an arrow shape
     IMGUI_API void          Image(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1,1), const ImVec4& tint_col = ImVec4(1,1,1,1), const ImVec4& border_col = ImVec4(0,0,0,0));
     IMGUI_API bool          ImageButton(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0),  const ImVec2& uv1 = ImVec2(1,1), int frame_padding = -1, const ImVec4& bg_col = ImVec4(0,0,0,0), const ImVec4& tint_col = ImVec4(1,1,1,1));    // <0 frame_padding uses default frame padding settings. 0 for no padding
@@ -556,7 +558,7 @@ namespace ImGui
     IMGUI_API bool          RadioButton(const char* label, bool active);                    // use with e.g. if (RadioButton("one", my_value==1)) { my_value = 1; }
     IMGUI_API bool          RadioButton(const char* label, int* v, int v_button);           // shortcut to handle the above pattern when value is an integer
     IMGUI_API void          ProgressBar(float fraction, const ImVec2& size_arg = ImVec2(-1, 0), const char* overlay = NULL);
-    IMGUI_API void          Bullet();                                                       // draw a small circle and keep the cursor on the same line. advance cursor x position by GetTreeNodeToLabelSpacing(), same distance that TreeNode() uses
+    IMGUI_API void          Bullet();                                                       // draw a small circle + keep the cursor on the same line. advance cursor x position by GetTreeNodeToLabelSpacing(), same distance that TreeNode() uses
 
     // Widgets: Combo Box
     // - The BeginCombo()/EndCombo() api allows you to manage your contents and selection state however you want it, by creating e.g. Selectable() items.
@@ -567,44 +569,50 @@ namespace ImGui
     IMGUI_API bool          Combo(const char* label, int* current_item, const char* items_separated_by_zeros, int popup_max_height_in_items = -1);      // Separate items with \0 within a string, end item-list with \0\0. e.g. "One\0Two\0Three\0"
     IMGUI_API bool          Combo(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int popup_max_height_in_items = -1);
 
-    // Widgets: Drags
+    // Widgets: Drag Sliders
     // - CTRL+Click on any drag box to turn them into an input box. Manually input values aren't clamped and can go off-bounds.
     // - For all the Float2/Float3/Float4/Int2/Int3/Int4 versions of every functions, note that a 'float v[X]' function argument is the same as 'float* v', the array syntax is just a way to document the number of elements that are expected to be accessible. You can pass address of your first element out of a contiguous set, e.g. &myvector.x
     // - Adjust format string to decorate the value with a prefix, a suffix, or adapt the editing and display precision e.g. "%.3f" -> 1.234; "%5.2f secs" -> 01.23 secs; "Biscuit: %.0f" -> Biscuit: 1; etc.
+    // - Format string may also be set to NULL or use the default format ("%f" or "%d").
     // - Speed are per-pixel of mouse movement (v_speed=0.2f: mouse needs to move by 5 pixels to increase value by 1). For gamepad/keyboard navigation, minimum speed is Max(v_speed, minimum_step_at_given_precision).
     // - Use v_min < v_max to clamp edits to given limits. Note that CTRL+Click manual input can override those limits.
     // - Use v_max = FLT_MAX / INT_MAX etc to avoid clamping to a maximum, same with v_min = -FLT_MAX / INT_MIN to avoid clamping to a minimum.
-    // - Use v_min > v_max to lock edits.
-    IMGUI_API bool          DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);     // If v_min >= v_max we have no bound
-    IMGUI_API bool          DragFloat2(const char* label, float v[2], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
-    IMGUI_API bool          DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
-    IMGUI_API bool          DragFloat4(const char* label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
-    IMGUI_API bool          DragFloatRange2(const char* label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", const char* format_max = NULL, float power = 1.0f);
-    IMGUI_API bool          DragInt(const char* label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");                                       // If v_min >= v_max we have no bound
-    IMGUI_API bool          DragInt2(const char* label, int v[2], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
-    IMGUI_API bool          DragInt3(const char* label, int v[3], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
-    IMGUI_API bool          DragInt4(const char* label, int v[4], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
-    IMGUI_API bool          DragIntRange2(const char* label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", const char* format_max = NULL);
-    IMGUI_API bool          DragScalar(const char* label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, float power = 1.0f);
-    IMGUI_API bool          DragScalarN(const char* label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, float power = 1.0f);
+    // - We use the same sets of flags for DragXXX() and SliderXXX() functions as the features are the same and it makes it easier to swap them.
+    // - Legacy: Pre-1.78 there are DragXXX() function signatures that takes a final `float power=1.0f' argument instead of the `ImGuiSliderFlags flags=0' argument.
+    //   If you get a warning converting a float to ImGuiSliderFlags, read https://github.com/ocornut/imgui/issues/3361
+    IMGUI_API bool          DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);     // If v_min >= v_max we have no bound
+    IMGUI_API bool          DragFloat2(const char* label, float v[2], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragFloat4(const char* label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragFloatRange2(const char* label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", const char* format_max = NULL, ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragInt(const char* label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);  // If v_min >= v_max we have no bound
+    IMGUI_API bool          DragInt2(const char* label, int v[2], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragInt3(const char* label, int v[3], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragInt4(const char* label, int v[4], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragIntRange2(const char* label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", const char* format_max = NULL, ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragScalar(const char* label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          DragScalarN(const char* label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
 
-    // Widgets: Sliders
+    // Widgets: Regular Sliders
     // - CTRL+Click on any slider to turn them into an input box. Manually input values aren't clamped and can go off-bounds.
     // - Adjust format string to decorate the value with a prefix, a suffix, or adapt the editing and display precision e.g. "%.3f" -> 1.234; "%5.2f secs" -> 01.23 secs; "Biscuit: %.0f" -> Biscuit: 1; etc.
-    IMGUI_API bool          SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);     // adjust format to decorate the value with a prefix or a suffix for in-slider labels or unit display. Use power!=1.0 for power curve sliders
-    IMGUI_API bool          SliderFloat2(const char* label, float v[2], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-    IMGUI_API bool          SliderFloat3(const char* label, float v[3], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-    IMGUI_API bool          SliderFloat4(const char* label, float v[4], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-    IMGUI_API bool          SliderAngle(const char* label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f, const char* format = "%.0f deg");
-    IMGUI_API bool          SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d");
-    IMGUI_API bool          SliderInt2(const char* label, int v[2], int v_min, int v_max, const char* format = "%d");
-    IMGUI_API bool          SliderInt3(const char* label, int v[3], int v_min, int v_max, const char* format = "%d");
-    IMGUI_API bool          SliderInt4(const char* label, int v[4], int v_min, int v_max, const char* format = "%d");
-    IMGUI_API bool          SliderScalar(const char* label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, const char* format = NULL, float power = 1.0f);
-    IMGUI_API bool          SliderScalarN(const char* label, ImGuiDataType data_type, void* p_data, int components, const void* p_min, const void* p_max, const char* format = NULL, float power = 1.0f);
-    IMGUI_API bool          VSliderFloat(const char* label, const ImVec2& size, float* v, float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-    IMGUI_API bool          VSliderInt(const char* label, const ImVec2& size, int* v, int v_min, int v_max, const char* format = "%d");
-    IMGUI_API bool          VSliderScalar(const char* label, const ImVec2& size, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, const char* format = NULL, float power = 1.0f);
+    // - Format string may also be set to NULL or use the default format ("%f" or "%d").
+    // - Legacy: Pre-1.78 there are SliderXXX() function signatures that takes a final `float power=1.0f' argument instead of the `ImGuiSliderFlags flags=0' argument.
+    //   If you get a warning converting a float to ImGuiSliderFlags, read https://github.com/ocornut/imgui/issues/3361
+    IMGUI_API bool          SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);     // adjust format to decorate the value with a prefix or a suffix for in-slider labels or unit display.
+    IMGUI_API bool          SliderFloat2(const char* label, float v[2], float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderFloat3(const char* label, float v[3], float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderFloat4(const char* label, float v[4], float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderAngle(const char* label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f, const char* format = "%.0f deg", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderInt2(const char* label, int v[2], int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderInt3(const char* label, int v[3], int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderInt4(const char* label, int v[4], int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderScalar(const char* label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, const char* format = NULL, ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          SliderScalarN(const char* label, ImGuiDataType data_type, void* p_data, int components, const void* p_min, const void* p_max, const char* format = NULL, ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          VSliderFloat(const char* label, const ImVec2& size, float* v, float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          VSliderInt(const char* label, const ImVec2& size, int* v, int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
+    IMGUI_API bool          VSliderScalar(const char* label, const ImVec2& size, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, const char* format = NULL, ImGuiSliderFlags flags = 0);
 
     // Widgets: Input with Keyboard
     // - If you want to use InputText() with std::string or any custom dynamic string type, see misc/cpp/imgui_stdlib.h and comments in imgui_demo.cpp.
@@ -834,7 +842,7 @@ namespace ImGui
     IMGUI_API void          ColorConvertHSVtoRGB(float h, float s, float v, float& out_r, float& out_g, float& out_b);
 
     // Inputs Utilities: Keyboard
-    // - For 'int user_key_index' you can use your own indices/enums according to how your backend/engine stored them in io.KeysDown[].
+    // - For 'int user_key_index' you can use your own indices/enums according to how your back-end/engine stored them in io.KeysDown[].
     // - We don't know the meaning of those value. You can use GetKeyIndex() to map a ImGuiKey_ value into the user index.
     IMGUI_API int           GetKeyIndex(ImGuiKey imgui_key);                                    // map ImGuiKey_* values into user's key index. == io.KeyMap[key]
     IMGUI_API bool          IsKeyDown(int user_key_index);                                      // is key being held. == io.KeysDown[user_key_index].
@@ -850,7 +858,7 @@ namespace ImGui
     IMGUI_API bool          IsMouseDown(ImGuiMouseButton button);                               // is mouse button held?
     IMGUI_API bool          IsMouseClicked(ImGuiMouseButton button, bool repeat = false);       // did mouse button clicked? (went from !Down to Down)
     IMGUI_API bool          IsMouseReleased(ImGuiMouseButton button);                           // did mouse button released? (went from Down to !Down)
-    IMGUI_API bool          IsMouseDoubleClicked(ImGuiMouseButton button);                      // did mouse button double-clicked? a double-click returns false in IsMouseClicked(). uses io.MouseDoubleClickTime.
+    IMGUI_API bool          IsMouseDoubleClicked(ImGuiMouseButton button);                      // did mouse button double-clicked? (note that a double-click will also report IsMouseClicked() == true)
     IMGUI_API bool          IsMouseHoveringRect(const ImVec2& r_min, const ImVec2& r_max, bool clip = true);// is mouse hovering given bounding rect (in screen space). clipped by current clipping settings, but disregarding of other consideration of focus/window ordering/popup-block.
     IMGUI_API bool          IsMousePosValid(const ImVec2* mouse_pos = NULL);                    // by convention we use (-FLT_MAX,-FLT_MAX) to denote that there is no mouse available
     IMGUI_API bool          IsAnyMouseDown();                                                   // is any mouse button held?
@@ -992,6 +1000,7 @@ enum ImGuiTreeNodeFlags : int
 //   small flags values as a mouse button index, so we encode the mouse button in the first few bits of the flags.
 //   It is therefore guaranteed to be legal to pass a mouse button index in ImGuiPopupFlags.
 // - For the same reason, we exceptionally default the ImGuiPopupFlags argument of BeginPopupContextXXX functions to 1 instead of 0.
+// - Multiple buttons currently cannot be combined/or-ed in those functions (we could allow it later).
 enum ImGuiPopupFlags : int
 {
     None                    = 0,
@@ -1358,6 +1367,38 @@ static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     deprecated enum ImGuiStyleVar_Count_ = ImGuiStyleVar.COUNT;                    // [renamed in 1.60]
 }
 
+// Flags for InvisibleButton() [extended in imgui_internal.h]
+enum ImGuiButtonFlags : int
+{
+    None                   = 0,
+    MouseButtonLeft        = 1 << 0,   // React on left mouse button (default)
+    MouseButtonRight       = 1 << 1,   // React on right mouse button
+    MouseButtonMiddle      = 1 << 2,   // React on center mouse button
+
+    // [Internal]
+    MouseButtonMask_       = MouseButtonLeft | MouseButtonRight | MouseButtonMiddle,
+    MouseButtonDefault_    = MouseButtonLeft,
+    
+    PressedOnClick         = 1 << 4,   // return true on click (mouse down event)
+    PressedOnClickRelease  = 1 << 5,   // [Default] return true on click + release on same item <-- this is what the majority of Button are using
+    PressedOnClickReleaseAnywhere = 1 << 6, // return true on click + release even if the release event is not done while hovering the item
+    PressedOnRelease       = 1 << 7,   // return true on release (default requires click+release)
+    PressedOnDoubleClick   = 1 << 8,   // return true on double-click (default requires click+release)
+    PressedOnDragDropHold  = 1 << 9,   // return true when held into while we are drag and dropping another item (used by e.g. tree nodes, collapsing headers)
+    Repeat                 = 1 << 10,  // hold to repeat
+    FlattenChildren        = 1 << 11,  // allow interactions even if a child window is overlapping
+    AllowItemOverlap       = 1 << 12,  // require previous frame HoveredId to either match id or be null before being usable, use along with SetItemAllowOverlap()
+    DontClosePopups        = 1 << 13,  // disable automatically closing parent popup on press // [UNUSED]
+    Disabled               = 1 << 14,  // disable interactions
+    AlignTextBaseLine      = 1 << 15,  // vertically align button to match text baseline - ButtonEx() only // FIXME: Should be removed and handled by SmallButton(), not possible currently because of DC.CursorPosPrevLine
+    NoKeyModifiers         = 1 << 16,  // disable mouse interaction if a key modifier is held
+    NoHoldingActiveId      = 1 << 17,  // don't set ActiveId while holding the mouse (PressedOnClick only)
+    NoNavFocus             = 1 << 18,  // don't override navigation focus when activated
+    NoHoveredOnFocus       = 1 << 19,  // don't report as hovered when nav focus is on this item
+    PressedOnMask_         = PressedOnClick | PressedOnClickRelease | PressedOnClickReleaseAnywhere | PressedOnRelease | PressedOnDoubleClick | PressedOnDragDropHold,
+    PressedOnDefault_      = PressedOnClickRelease
+}
+
 // Flags for ColorEdit3() / ColorEdit4() / ColorPicker3() / ColorPicker4() / ColorButton()
 enum ImGuiColorEditFlags : int
 {
@@ -1390,19 +1431,36 @@ enum ImGuiColorEditFlags : int
 
     // Defaults Options. You can set application defaults using SetColorEditOptions(). The intent is that you probably don't want to
     // override them in most of your calls. Let the user choose via the option menu and/or call SetColorEditOptions() once during startup.
-    _OptionsDefault = Uint8|DisplayRGB|InputRGB|PickerHueBar,
+    _OptionsDefault = Uint8 | DisplayRGB | InputRGB | PickerHueBar,
 
     // [Internal] Masks
-    _DisplayMask    = DisplayRGB|DisplayHSV|DisplayHex,
-    _DataTypeMask   = Uint8|Float,
-    _PickerMask     = PickerHueWheel|PickerHueBar,
-    _InputMask      = InputRGB|InputHSV
+    _DisplayMask    = DisplayRGB | DisplayHSV | DisplayHex,
+    _DataTypeMask   = Uint8 | Float,
+    _PickerMask     = PickerHueWheel | PickerHueBar,
+    _InputMask      = InputRGB | InputHSV
 }
+
 // Obsolete names (will be removed)
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     deprecated enum ImGuiColorEditFlags_RGB = ImGuiColorEditFlags.DisplayRGB;
     deprecated enum ImGuiColorEditFlags_HSV = ImGuiColorEditFlags.DisplayHSV;
     deprecated enum ImGuiColorEditFlags_HEX = ImGuiColorEditFlags.DisplayHex;  // [renamed in 1.69]
+}
+
+// Flags for DragFloat(), DragInt(), SliderFloat(), SliderInt() etc.
+// We use the same sets of flags for DragXXX() and SliderXXX() functions as the features are the same and it makes it easier to swap them.
+enum ImGuiSliderFlags : int
+{
+    None                   = 0,
+    ClampOnInput           = 1 << 4,       // Clamp value to min/max bounds when input manually with CTRL+Click. By default CTRL+Click allows going out of bounds.
+    Logarithmic            = 1 << 5,       // Make the widget logarithmic (linear otherwise). Consider using ImGuiSliderFlags_NoRoundToFormat with this if using a format-string with small amount of digits.
+    NoRoundToFormat        = 1 << 6,       // Disable rounding underlying value to match precision of the display format string (e.g. %.3f values are rounded to those 3 digits)
+    NoInput                = 1 << 7,       // Disable CTRL+Click or Enter key allowing to input text directly into the widget
+    InvalidMask_           = 0x7000000F    // [Internal] We treat using those bits as being potentially a 'float power' argument from the previous API that has got miscast to this enum, and will trigger an assert if needed.
+
+    , // [internal]
+    Vertical               = 1 << 20,  // Should this slider be orientated vertically?
+    ReadOnly               = 1 << 21
 }
 
 // Identify a mouse button.
@@ -1454,12 +1512,12 @@ enum ImGuiCond : int
 // Helpers: Memory allocations macros
 // IM_MALLOC(), IM_FREE(), IM_NEW(), IM_PLACEMENT_NEW(), IM_DELETE()
 // We call C++ constructor on own allocated memory via the placement "new(ptr) Type()" syntax.
-// Defining a custom placement new() with a dummy parameter allows us to bypass including <new> which on some platforms complains when user has disabled exceptions.
+// Defining a custom placement new() with a custom parameter allows us to bypass including <new> which on some platforms complains when user has disabled exceptions.
 //-----------------------------------------------------------------------------
 
-// struct ImNewDummy {}
-// inline void* operator new(size_t, ImNewDummy, void* ptr) { return ptr; }
-// inline void  operator delete(void*, ImNewDummy, void*)   {} // This is only required so we can use the symmetrical new()
+// struct ImNewWrapper {}
+// inline void* operator new(size_t, ImNewWrapper, void* ptr) { return ptr; }
+// inline void  operator delete(void*, ImNewWrapper, void*)   {} // This is only required so we can use the symmetrical new()
 pragma(inline) T[] IM_ALLOC(T)(size_t amount) {
     return (cast(T*)MemAlloc(amount * sizeof!(T)))[0..amount];
 }
@@ -1523,7 +1581,7 @@ struct ImVector(T)
     pragma(inline, true) ref inout (T)     back() inout                        { IM_ASSERT(Size > 0); return Data[Size - 1]; }
     pragma(inline, true) void         swap(ImVector!T* rhs)              { int rhs_size = rhs.Size; rhs.Size = Size; Size = rhs_size; int rhs_cap = rhs.Capacity; rhs.Capacity = Capacity; Capacity = rhs_cap; T* rhs_data = rhs.Data; rhs.Data = Data; Data = rhs_data; }
 
-    pragma(inline, true) int          _grow_capacity(int sz) const        { int new_capacity = Capacity ? (Capacity + Capacity/2) : 8; return new_capacity > sz ? new_capacity : sz; }
+    pragma(inline, true) int          _grow_capacity(int sz) const        { int new_capacity = Capacity ? (Capacity + Capacity / 2) : 8; return new_capacity > sz ? new_capacity : sz; }
     pragma(inline, true) void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
     pragma(inline, true) void         resize(int new_size, const T/*&*/ v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
     pragma(inline, true) void         shrink(int new_size)                { IM_ASSERT(new_size <= Size); Size = new_size; } // Resize a vector to a smaller size, guaranteed not to cause a reallocation
@@ -1533,12 +1591,13 @@ struct ImVector(T)
     pragma(inline, true) void         push_back(const T/*&*/ v)               { if (Size == Capacity) reserve(_grow_capacity(Size + 1)); memcpy(&Data[Size], &v, sizeof(v)); Size++; }
     pragma(inline, true) void         pop_back()                          { IM_ASSERT(Size > 0); Size--; }
     pragma(inline, true) void         push_front(const T/*&*/ v)              { if (Size == 0) push_back(v); else insert(Data, v); }
-    pragma(inline, true) T*           erase(const T* it)                  { IM_ASSERT(it >= Data && it < Data+Size); const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + 1, (cast(size_t)Size - cast(size_t)off - 1) * sizeof!(T)); Size--; return Data + off; }
-    pragma(inline, true) T*           erase(const T* it, const T* it_last){ IM_ASSERT(it >= Data && it < Data+Size && it_last > it && it_last <= Data+Size); const ptrdiff_t count = it_last - it; const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + count, (cast(size_t)Size - cast(size_t)off - count) * sizeof!(T)); Size -= cast(int)count; return Data + off; }
-    pragma(inline, true) T*           erase_unsorted(const T* it)         { IM_ASSERT(it >= Data && it < Data+Size);  const ptrdiff_t off = it - Data; if (it < Data+Size-1) memcpy(Data + off, Data + Size - 1, sizeof!(T)); Size--; return Data + off; }
-    pragma(inline, true) T*           insert(const T* it, const T/*&*/ v)     { IM_ASSERT(it >= Data && it <= Data+Size); const ptrdiff_t off = it - Data; if (Size == Capacity) reserve(_grow_capacity(Size + 1)); if (off < cast(int)Size) memmove(Data + off + 1, Data + off, (cast(size_t)Size - cast(size_t)off) * sizeof!(T)); memcpy(&Data[off], &v, sizeof(v)); Size++; return Data + off; }
+    pragma(inline, true) T*           erase(const T* it)                  { IM_ASSERT(it >= Data && it < Data + Size); const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + 1, (cast(size_t)Size - cast(size_t)off - 1) * sizeof!(T)); Size--; return Data + off; }
+    pragma(inline, true) T*           erase(const T* it, const T* it_last){ IM_ASSERT(it >= Data && it < Data + Size && it_last > it && it_last <= Data + Size); const ptrdiff_t count = it_last - it; const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + count, (cast(size_t)Size - cast(size_t)off - count) * sizeof!(T)); Size -= cast(int)count; return Data + off; }
+    pragma(inline, true) T*           erase_unsorted(const T* it)         { IM_ASSERT(it >= Data && it < Data + Size);  const ptrdiff_t off = it - Data; if (it < Data + Size - 1) memcpy(Data + off, Data + Size - 1, sizeof!(T)); Size--; return Data + off; }
+    pragma(inline, true) T*           insert(const T* it, const T/*&*/ v)     { IM_ASSERT(it >= Data && it <= Data + Size); const ptrdiff_t off = it - Data; if (Size == Capacity) reserve(_grow_capacity(Size + 1)); if (off < cast(int)Size) memmove(Data + off + 1, Data + off, (cast(size_t)Size - cast(size_t)off) * sizeof!(T)); memcpy(&Data[off], &v, sizeof(v)); Size++; return Data + off; }
     pragma(inline, true) bool         contains(const T/*&*/ v) const          { const (T)* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data++ == v) return true; return false; }
     pragma(inline, true) inout (T)*     find(const T/*&*/ v) inout              { inout (T)* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data == v) break; else ++data; return data; }
+
     pragma(inline, true) bool         find_erase(const T/*&*/ v)              { const T* it = find(v); if (it < Data + Size) { erase(it); return true; } return false; }
     pragma(inline, true) bool         find_erase_unsorted(const T/*&*/ v)     { const T* it = find(v); if (it < Data + Size) { erase_unsorted(it); return true; } return false; }
     pragma(inline, true) int          index_from_ptr(const T* it) const   { IM_ASSERT(it >= Data && it < Data + Size); const ptrdiff_t off = it - Data; return cast(int)off; }
@@ -1579,17 +1638,19 @@ struct ImGuiStyle
     float       ScrollbarRounding;          // Radius of grab corners for scrollbar.
     float       GrabMinSize;                // Minimum width/height of a grab box for slider/scrollbar.
     float       GrabRounding;               // Radius of grabs corners rounding. Set to 0.0f to have rectangular slider grabs.
+    float       LogSliderDeadzone;          // The size in pixels of the dead-zone around zero on logarithmic sliders that cross zero.
     float       TabRounding;                // Radius of upper corners of a tab. Set to 0.0f to have rectangular tabs.
     float       TabBorderSize;              // Thickness of border around tabs.
     float       TabMinWidthForUnselectedCloseButton; // Minimum width for close button to appears on an unselected tab when hovered. Set to 0.0f to always show when hovering, set to FLT_MAX to never show close button unless selected.
     ImGuiDir    ColorButtonPosition;        // Side of the color button in the ColorEdit4 widget (left/right). Defaults to ImGuiDir_Right.
     ImVec2      ButtonTextAlign;            // Alignment of button text when button is larger than text. Defaults to (0.5f, 0.5f) (centered).
     ImVec2      SelectableTextAlign;        // Alignment of selectable text. Defaults to (0.0f, 0.0f) (top-left aligned). It's generally important to keep this left-aligned if you want to lay multiple items on a same line.
-    ImVec2      DisplayWindowPadding;       // Window position are clamped to be visible within the display area by at least this amount. Only applies to regular windows.
+    ImVec2      DisplayWindowPadding;       // Window position are clamped to be visible within the display area or monitors by at least this amount. Only applies to regular windows.
     ImVec2      DisplaySafeAreaPadding;     // If you cannot see the edges of your screen (e.g. on a TV) increase the safe area padding. Apply to popups/tooltips as well regular windows. NB: Prefer configuring your TV sets correctly!
     float       MouseCursorScale;           // Scale software rendered mouse cursor (when io.MouseDrawCursor is enabled). May be removed later.
-    bool        AntiAliasedLines;           // Enable anti-aliasing on lines/borders. Disable if you are really tight on CPU/GPU.
-    bool        AntiAliasedFill;            // Enable anti-aliasing on filled shapes (rounded rectangles, circles, etc.)
+    bool        AntiAliasedLines;           // Enable anti-aliased lines/borders. Disable if you are really tight on CPU/GPU. Latched at the beginning of the frame (copied to ImDrawList).
+    bool        AntiAliasedLinesUseTex;     // Enable anti-aliased lines/borders using textures where possible. Require back-end to render with bilinear filtering. Latched at the beginning of the frame (copied to ImDrawList).
+    bool        AntiAliasedFill;            // Enable anti-aliased edges around filled shapes (rounded rectangles, circles, etc.). Disable if you are really tight on CPU/GPU. Latched at the beginning of the frame (copied to ImDrawList).
     float       CurveTessellationTol;       // Tessellation tolerance when using PathBezierCurveTo() without a specific number of segments. Decrease for highly tessellated curves (higher quality, more polygons), increase to reduce quality.
     float       CircleSegmentMaxError;      // Maximum error (in pixels) allowed when using AddCircle()/AddCircleFilled() or drawing rounded corner rectangles with no explicit segment count specified. Decrease for higher quality but more geometry.
     ImVec4[ImGuiCol.COUNT]      Colors;
@@ -1851,7 +1912,7 @@ struct ImGuiPayload
     ImGuiID         SourceId;           // Source item id
     ImGuiID         SourceParentId;     // Source parent id (if available)
     int             DataFrameCount;     // Data timestamp
-    char[32]            DataType = 0;     // Data type tag (short user-supplied string, 32 characters max)
+    char[32]            DataType = 0;   // Data type tag (short user-supplied string, 32 characters max)
     bool            Preview;            // Set when AcceptDragDropPayload() was called and mouse has been hovering the target item (nb: handle overlapping drag targets)
     bool            Delivery;           // Set when AcceptDragDropPayload() was called and mouse button is released over the target item.
     size_t          DataTypeLength;
@@ -1871,6 +1932,20 @@ struct ImGuiPayload
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 // namespace ImGui
 // {
+    // OBSOLETED in 1.78 (from August 2020)
+    // Old drag/sliders functions that took a 'float power = 1.0' argument instead of flags
+    //deprecated bool      DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, string format, float power);
+    //deprecated bool      DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min, const void* p_max, string format, float power);
+    //deprecated pragma(inline, true) bool  DragFloat(string label, float* v, float v_speed, float v_min, float v_max, string format, float power)    { return DragScalar(label, ImGuiDataType.Float, v, v_speed, &v_min, &v_max, format, power); }
+    deprecated pragma(inline, true) bool  DragFloat2(string label, float[/*2*/] v, float v_speed, float v_min, float v_max, string format, float power) { return DragScalarN(label, ImGuiDataType.Float, v.ptr, 2, v_speed, &v_min, &v_max, format, power); }
+    deprecated pragma(inline, true) bool  DragFloat3(string label, float[/*3*/] v, float v_speed, float v_min, float v_max, string format, float power) { return DragScalarN(label, ImGuiDataType.Float, v.ptr, 3, v_speed, &v_min, &v_max, format, power); }
+    deprecated pragma(inline, true) bool  DragFloat4(string label, float[/*4*/] v, float v_speed, float v_min, float v_max, string format, float power) { return DragScalarN(label, ImGuiDataType.Float, v.ptr, 4, v_speed, &v_min, &v_max, format, power); }
+    //deprecated bool      SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format, float power);
+    //deprecated bool      SliderScalarN(string label, ImGuiDataType data_type, void* p_data, int components, const void* p_min, const void* p_max, string format, float power);
+    //deprecated pragma(inline, true) bool  SliderFloat(string label, float* v, float v_min, float v_max, string format, float power)                 { return SliderScalar(label, ImGuiDataType.Float, v, &v_min, &v_max, format, power); }
+    deprecated pragma(inline, true) bool  SliderFloat2(string label, float[/*2*/] v, float v_min, float v_max, string format, float power)              { return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 2, &v_min, &v_max, format, power); }
+    deprecated pragma(inline, true) bool  SliderFloat3(string label, float[/*3*/] v, float v_min, float v_max, string format, float power)              { return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 3, &v_min, &v_max, format, power); }
+    deprecated pragma(inline, true) bool  SliderFloat4(string label, float[/*4*/] v, float v_min, float v_max, string format, float power)              { return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 4, &v_min, &v_max, format, power); }
     // OBSOLETED in 1.77 (from June 2020)
     deprecated pragma(inline, true) bool  OpenPopupOnItemClick(string str_id = NULL, ImGuiMouseButton mb = ImGuiMouseButton.Right)          { return OpenPopupContextItem(str_id, cast(ImGuiPopupFlags)mb); } // Passing a mouse button to ImGuiPopupFlags is legal
     //deprecated pragma(inline, true) bool  BeginPopupContextWindow(string str_id, ImGuiMouseButton mb, bool over_items) { return BeginPopupContextWindow(str_id, cast(ImGuiPopupFlags)mb | (over_items ? ImGuiPopupFlags.None : ImGuiPopupFlags.NoOpenOverItems)); }
@@ -2149,7 +2224,7 @@ struct ImGuiStorage
 //             ImGui::Text("line number %d", i);
 // - Step 0: the clipper let you process the first element, regardless of it being visible or not, so we can measure the element height (step skipped if we passed a known height as second arg to constructor).
 // - Step 1: the clipper infer height from first element, calculate the actual range of elements to display, and position the cursor before the first element.
-// - (Step 2: dummy step only required if an explicit items_height was passed to constructor or Begin() and user call Step(). Does nothing and switch to Step 3.)
+// - (Step 2: empty step only required if an explicit items_height was passed to constructor or Begin() and user call Step(). Does nothing and switch to Step 3.)
 // - Step 3: the clipper validate that we have reached the expected Y position (corresponding to element DisplayEnd), advance the cursor to the end of the list and then returns 'false' to end the loop.
 struct ImGuiListClipper
 {
@@ -2220,8 +2295,8 @@ struct ImColor
     ImVec4              Value;
 
     // ImColor()                                                       { Value.x = Value.y = Value.z = Value.w = 0.0f; }
-    this(int r, int g, int b, int a = 255)                       { float sc = 1.0f/255.0f; Value.x = cast(float)r * sc; Value.y = cast(float)g * sc; Value.z = cast(float)b * sc; Value.w = cast(float)a * sc; }
-    this(ImU32 rgba)                                             { float sc = 1.0f/255.0f; Value.x = cast(float)((rgba>>IM_COL32_R_SHIFT)&0xFF) * sc; Value.y = cast(float)((rgba>>IM_COL32_G_SHIFT)&0xFF) * sc; Value.z = cast(float)((rgba>>IM_COL32_B_SHIFT)&0xFF) * sc; Value.w = cast(float)((rgba>>IM_COL32_A_SHIFT)&0xFF) * sc; }
+    this(int r, int g, int b, int a = 255)                       { float sc = 1.0f / 255.0f; Value.x = cast(float)r * sc; Value.y = cast(float)g * sc; Value.z = cast(float)b * sc; Value.w = cast(float)a * sc; }
+    this(ImU32 rgba)                                             { float sc = 1.0f / 255.0f; Value.x = cast(float)((rgba >> IM_COL32_R_SHIFT) & 0xFF) * sc; Value.y = cast(float)((rgba >> IM_COL32_G_SHIFT) & 0xFF) * sc; Value.z = cast(float)((rgba >> IM_COL32_B_SHIFT) & 0xFF) * sc; Value.w = cast(float)((rgba >> IM_COL32_A_SHIFT) & 0xFF) * sc; }
     this(float r, float g, float b, float a = 1.0f)              { Value.x = r; Value.y = g; Value.z = b; Value.w = a; }
     this(const ImVec4/*&*/ col)                                      { Value = col; }
     pragma(inline, true) ImU32 opCast(T:ImU32)() const                                   { return ColorConvertFloat4ToU32(Value); }
@@ -2229,13 +2304,18 @@ struct ImColor
 
     // FIXME-OBSOLETE: May need to obsolete/cleanup those helpers.
     pragma(inline, true) void    SetHSV(float h, float s, float v, float a = 1.0f){ ColorConvertHSVtoRGB(h, s, v, Value.x, Value.y, Value.z); Value.w = a; }
-    static ImColor HSV(float h, float s, float v, float a = 1.0f)   { float r,g,b; ColorConvertHSVtoRGB(h, s, v, r, g, b); return ImColor(r,g,b,a); }
+    static ImColor HSV(float h, float s, float v, float a = 1.0f)   { float r, g, b; ColorConvertHSVtoRGB(h, s, v, r, g, b); return ImColor(r, g, b, a); }
 }
 
 //-----------------------------------------------------------------------------
 // Draw List API (ImDrawCmd, ImDrawIdx, ImDrawVert, ImDrawChannel, ImDrawListSplitter, ImDrawListFlags, ImDrawList, ImDrawData)
 // Hold a series of drawing commands. The user provides a renderer for ImDrawData which essentially contains an array of ImDrawList.
 //-----------------------------------------------------------------------------
+
+// The maximum line width to bake anti-aliased textures for. Build atlas with ImFontAtlasFlags_NoBakedLines to disable baking.
+//#ifndef IM_DRAWLIST_TEX_LINES_WIDTH_MAX
+enum IM_DRAWLIST_TEX_LINES_WIDTH_MAX     = (63);
+//#endif
 
 // ImDrawCallback: Draw callbacks for advanced uses [configurable type: override in imconfig.h]
 // NB: You most likely do NOT need to use draw callbacks just to create your own widget or customized UI rendering,
@@ -2357,12 +2437,15 @@ enum ImDrawCornerFlags : int
     All       = 0xF     // In your function calls you may use ~0 (= all bits sets) instead of ImDrawCornerFlags_All, as a convenience
 }
 
+// Flags for ImDrawList. Those are set automatically by ImGui:: functions from ImGuiIO settings, and generally not manipulated directly.
+// It is however possible to temporarily alter flags between calls to ImDrawList:: functions.
 enum ImDrawListFlags : int
 {
-    None             = 0,
-    AntiAliasedLines = 1 << 0,  // Lines are anti-aliased (*2 the number of triangles for 1.0f wide line, otherwise *3 the number of triangles)
-    AntiAliasedFill  = 1 << 1,  // Filled shapes have anti-aliased edges (*2 the number of vertices)
-    AllowVtxOffset   = 1 << 2   // Can emit 'VtxOffset > 0' to allow large meshes. Set when 'ImGuiBackendFlags_RendererHasVtxOffset' is enabled.
+    None                    = 0,
+    AntiAliasedLines        = 1 << 0,  // Enable anti-aliased lines/borders (*2 the number of triangles for 1.0f wide line or lines thin enough to be drawn using textures, otherwise *3 the number of triangles)
+    AntiAliasedLinesUseTex  = 1 << 1,  // Enable anti-aliased lines/borders using textures when possible. Require back-end to render with bilinear filtering.
+    AntiAliasedFill         = 1 << 2,  // Enable anti-aliased edge around filled shapes (rounded rectangles, circles).
+    AllowVtxOffset          = 1 << 3   // Can emit 'VtxOffset > 0' to allow large meshes. Set when 'ImGuiBackendFlags_RendererHasVtxOffset' is enabled.
 }
 
 // Draw command list
@@ -2431,6 +2514,7 @@ struct ImDrawList
     // Primitives
     // - For rectangular primitives, "p_min" and "p_max" represent the upper-left and lower-right corners.
     // - For circle primitives, use "num_segments == 0" to automatically calculate tessellation (preferred).
+    //   In older versions (until Dear ImGui 1.77) the AddCircle functions defaulted to num_segments == 12.
     //   In future versions we will use textures to provide cheaper and higher-quality circles.
     //   Use AddNgon() and AddNgonFilled() functions if you need to guaranteed a specific number of sides.
     void  AddLine(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, ImU32 col, float thickness = 1.0f)
@@ -2473,12 +2557,12 @@ struct ImDrawList
         (cast(ImDrawList_Wrapper*)&this).AddTriangleFilled(p1, p2, p3, col);
     }
     
-    void  AddCircle(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments = 12, float thickness = 1.0f)
+    void  AddCircle(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments = 0, float thickness = 1.0f)
     {
         (cast(ImDrawList_Wrapper*)&this).AddCircle(center, radius, col, num_segments, thickness);
     }
     
-    void  AddCircleFilled(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments = 12)
+    void  AddCircleFilled(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments = 0)
     {
         (cast(ImDrawList_Wrapper*)&this).AddCircleFilled(center, radius, col, num_segments);
     }
@@ -2543,7 +2627,7 @@ struct ImDrawList
     // Stateful path API, add points then finish with PathFillConvex() or PathStroke()
     pragma(inline, true)    void  PathClear()                                                 { _Path.Size = 0; }
     pragma(inline, true)    void  PathLineTo(const ImVec2/*&*/ pos)                               { _Path.push_back(pos); }
-    pragma(inline, true)    void  PathLineToMergeDuplicate(const ImVec2/*&*/ pos)                 { if (_Path.Size == 0 || memcmp(&_Path.Data[_Path.Size-1], &pos, 8) != 0) _Path.push_back(pos); }
+    pragma(inline, true)    void  PathLineToMergeDuplicate(const ImVec2/*&*/ pos)                 { if (_Path.Size == 0 || memcmp(&_Path.Data[_Path.Size - 1], &pos, 8) != 0) _Path.push_back(pos); }
     pragma(inline, true)    void  PathFillConvex(ImU32 col)                                   { AddConvexPolyFilled(_Path.Data, _Path.Size, col); _Path.Size = 0; }  // Note: Anti-aliased filling requires points to be in clockwise order.
     pragma(inline, true)    void  PathStroke(ImU32 col, bool closed, float thickness = 1.0f)  { AddPolyline(_Path.Data, _Path.Size, col, closed, thickness); _Path.Size = 0; }
     
@@ -2800,11 +2884,13 @@ struct ImFontAtlasCustomRect
     bool IsPacked() const           { return X != 0xFFFF; }
 }
 
+// Flags for ImFontAtlas build
 enum ImFontAtlasFlags : int
 {
     None               = 0,
     NoPowerOfTwoHeight = 1 << 0,   // Don't round the height to next power of two
-    NoMouseCursors     = 1 << 1    // Don't build software mouse cursors into the atlas
+    NoMouseCursors     = 1 << 1,   // Don't build software mouse cursors into the atlas (save a little texture memory)
+    NoBakedLines       = 1 << 2    // Don't build thick line textures into the atlas (save a little texture memory). The AntiAliasedLinesUseTex features uses them, otherwise they will be rendered using polygons (more expensive for CPU/GPU).
 }
 
 // Load and rasterize multiple TTF/OTF fonts into a same texture. The font atlas will build a single texture holding:
@@ -2968,6 +3054,7 @@ struct ImFontAtlas
     // You can also request your rectangles to be mapped as font glyph (given a font + Unicode point),
     // so you can render e.g. custom colorful icons and use them as regular glyphs.
     // Read docs/FONTS.md for more details about using colorful icons.
+    // Note: this API may be redesigned later in order to support multi-monitor varying DPI settings.
     int               AddCustomRectRegular(int width, int height)
     {
         return (cast(ImFontAtlas_Wrapper*)&this).AddCustomRectRegular(width, height);
@@ -2978,7 +3065,7 @@ struct ImFontAtlas
         return (cast(ImFontAtlas_Wrapper*)&this).AddCustomRectFontGlyph(font, id, width, height, advance_x, offset);
     }
 
-    const (ImFontAtlasCustomRect)* GetCustomRectByIndex(int index) const { if (index < 0) return NULL; return &CustomRects[index]; }
+    ImFontAtlasCustomRect* GetCustomRectByIndex(int index) { IM_ASSERT(index >= 0); return &CustomRects[index]; }
 
     // [Internal]
     void              CalcCustomRectUV(const ImFontAtlasCustomRect* rect, ImVec2* out_uv_min, ImVec2* out_uv_max) const
@@ -3011,13 +3098,17 @@ struct ImFontAtlas
     ImVec2                      TexUvWhitePixel;    // Texture coordinates to a white pixel
     ImVector!(ImFont*)           Fonts;              // Hold all the fonts returned by AddFont*. Fonts[0] is the default font upon calling ImGui::NewFrame(), use ImGui::PushFont()/PopFont() to change the current font.
     ImVector!ImFontAtlasCustomRect CustomRects;    // Rectangles for packing custom texture data into the atlas.
-    ImVector!ImFontConfig      ConfigData;         // Internal data
-    int[1]                         CustomRectIds;   // Identifiers of custom texture rectangle used by ImFontAtlas/ImDrawList
+    ImVector!ImFontConfig      ConfigData;         // Configuration data
+    ImVec4[IM_DRAWLIST_TEX_LINES_WIDTH_MAX + 1]                      TexUvLines;  // UVs for baked anti-aliased lines
 
-    static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-        alias CustomRect    = ImFontAtlasCustomRect;         // OBSOLETED in 1.72+
-        alias GlyphRangesBuilder = ImFontGlyphRangesBuilder; // OBSOLETED in 1.67+
-    }
+    // [Internal] Packing data
+    int                         PackIdMouseCursors; // Custom texture rectangle ID for white pixel and mouse cursors
+    int                         PackIdLines;        // Custom texture rectangle ID for baked anti-aliased lines
+
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    alias CustomRect    = ImFontAtlasCustomRect;         // OBSOLETED in 1.72+
+    alias GlyphRangesBuilder = ImFontGlyphRangesBuilder; // OBSOLETED in 1.67+
+}
 }
 
 // Font runtime data and rendering
@@ -3114,9 +3205,9 @@ struct ImFont
         (cast(ImFont_Wrapper*)&this).GrowIndex(new_size);
     }
     
-    void              AddGlyph(ImWchar codepoint, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float advance_x)
+    void              AddGlyph(ImFontConfig* src_cfg, ImWchar codepoint, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float advance_x)
     {
-        (cast(ImFont_Wrapper*)&this).AddGlyph(codepoint, x0, y0, x1, y1, u0, v0, u1, v1, advance_x);
+        (cast(ImFont_Wrapper*)&this).AddGlyph(src_cfg, codepoint, x0, y0, x1, y1, u0, v0, u1, v1, advance_x);
     }
     
     void              AddRemapChar(ImWchar dst, ImWchar src, bool overwrite_dst = true) // Makes 'dst' character/glyph points to 'src' character/glyph. Currently needs to be called AFTER fonts have been built.

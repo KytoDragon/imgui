@@ -1,5 +1,5 @@
 module d_imgui.imgui_widgets;
-// dear imgui, v1.77
+// dear imgui, v1.78
 // (widgets code)
 
 /*
@@ -166,7 +166,7 @@ void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
         // - We use memchr(), pay attention that well optimized versions of those str/mem functions are much faster than a casually written loop.
         size_t line = 0;
         const float line_height = GetTextLineHeight();
-        ImVec2 text_size = ImVec2(0,0);
+        ImVec2 text_size = ImVec2(0, 0);
 
         // Lines to skip (can't skip when logging text)
         ImVec2 pos = text_pos;
@@ -336,15 +336,15 @@ void LabelTextV(string label, string fmt, va_list args)
     const float w = CalcItemWidth();
 
     const ImVec2 label_size = CalcTextSize(label, true);
-    const ImRect value_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y*2));
-    const ImRect total_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w + (label_size.x > 0.0f ? style.ItemInnerSpacing.x : 0.0f), style.FramePadding.y*2) + label_size);
+    const ImRect value_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2));
+    const ImRect total_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w + (label_size.x > 0.0f ? style.ItemInnerSpacing.x : 0.0f), style.FramePadding.y * 2) + label_size);
     ItemSize(total_bb, style.FramePadding.y);
     if (!ItemAdd(total_bb, 0))
         return;
 
     // Render
     int value_text_end = ImFormatStringV(g.TempBuffer, fmt, args);
-    RenderTextClipped(value_bb.Min, value_bb.Max, cast(string)g.TempBuffer[0..value_text_end], NULL, ImVec2(0.0f,0.5f));
+    RenderTextClipped(value_bb.Min, value_bb.Max, cast(string)g.TempBuffer[0..value_text_end], NULL, ImVec2(0.0f, 0.5f));
     if (label_size.x > 0.0f)
         RenderText(ImVec2(value_bb.Max.x + style.ItemInnerSpacing.x, value_bb.Min.y + style.FramePadding.y), label);
 }
@@ -378,7 +378,7 @@ void BulletTextV(string fmt, va_list args)
 
     // Render
     ImU32 text_col = GetColorU32(ImGuiCol.Text);
-    RenderBullet(window.DrawList, bb.Min + ImVec2(style.FramePadding.x + g.FontSize*0.5f, g.FontSize*0.5f), text_col);
+    RenderBullet(window.DrawList, bb.Min + ImVec2(style.FramePadding.x + g.FontSize * 0.5f, g.FontSize * 0.5f), text_col);
     RenderText(bb.Min + ImVec2(g.FontSize + style.FramePadding.x * 2, 0.0f), cast(string)g.TempBuffer[0..text_end], false);
 }
 
@@ -596,6 +596,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
         }
     }
 
+    // Process while held
     bool held = false;
     if (g.ActiveId == id)
     {
@@ -616,6 +617,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
                 bool release_anywhere = (flags & ImGuiButtonFlags.PressedOnClickReleaseAnywhere) != 0;
                 if ((release_in || release_anywhere) && !g.DragDropActive)
                 {
+                    // Report as pressed when releasing the mouse (this is the most common path)
                     bool is_double_click_release = (flags & ImGuiButtonFlags.PressedOnDoubleClick) && g.IO.MouseDownWasDoubleClick[mouse_button];
                     bool is_repeating_already = (flags & ImGuiButtonFlags.Repeat) && g.IO.MouseDownDurationPrev[mouse_button] >= g.IO.KeyRepeatDelay; // Repeat mode trumps <on release>
                     if (!is_double_click_release && !is_repeating_already)
@@ -628,6 +630,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
         }
         else if (g.ActiveIdSource == ImGuiInputSource.Nav)
         {
+            // When activated using Nav, we hold on the ActiveID until activation button is released
             if (g.NavActivateDownId != id)
                 ClearActiveID();
         }
@@ -699,7 +702,7 @@ bool SmallButton(string label)
 
 // Tip: use ImGui::PushID()/PopID() to push indices or pointers in the ID stack.
 // Then you can keep 'str_id' empty or the same for all your buttons (instead of creating a string based on a non-string id)
-bool InvisibleButton(string str_id, const ImVec2/*&*/ size_arg)
+bool InvisibleButton(string str_id, const ImVec2/*&*/ size_arg, ImGuiButtonFlags flags = ImGuiButtonFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -716,7 +719,7 @@ bool InvisibleButton(string str_id, const ImVec2/*&*/ size_arg)
         return false;
 
     bool hovered, held;
-    bool pressed = ButtonBehavior(bb, id, &hovered, &held);
+    bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
 
     return pressed;
 }
@@ -782,8 +785,8 @@ bool CloseButton(ImGuiID id, const ImVec2/*&*/ pos)//, float size)
     float cross_extent = g.FontSize * 0.5f * 0.7071f - 1.0f;
     ImU32 cross_col = GetColorU32(ImGuiCol.Text);
     center -= ImVec2(0.5f, 0.5f);
-    window.DrawList.AddLine(center + ImVec2(+cross_extent,+cross_extent), center + ImVec2(-cross_extent,-cross_extent), cross_col, 1.0f);
-    window.DrawList.AddLine(center + ImVec2(+cross_extent,-cross_extent), center + ImVec2(-cross_extent,+cross_extent), cross_col, 1.0f);
+    window.DrawList.AddLine(center + ImVec2(+cross_extent, +cross_extent), center + ImVec2(-cross_extent, -cross_extent), cross_col, 1.0f);
+    window.DrawList.AddLine(center + ImVec2(+cross_extent, -cross_extent), center + ImVec2(-cross_extent, +cross_extent), cross_col, 1.0f);
 
     return pressed;
 }
@@ -1068,7 +1071,7 @@ bool Checkbox(string label, bool* v)
     else if (*v)
     {
         const float pad = ImMax(1.0f, IM_FLOOR(square_sz / 6.0f));
-        RenderCheckMark(window.DrawList, check_bb.Min + ImVec2(pad, pad), check_col, square_sz - pad*2.0f);
+        RenderCheckMark(window.DrawList, check_bb.Min + ImVec2(pad, pad), check_col, square_sz - pad * 2.0f);
     }
 
     if (g.LogEnabled)
@@ -1134,7 +1137,7 @@ bool RadioButton(string label, bool active)
 
     if (style.FrameBorderSize > 0.0f)
     {
-        window.DrawList.AddCircle(center + ImVec2(1,1), radius, GetColorU32(ImGuiCol.BorderShadow), 16, style.FrameBorderSize);
+        window.DrawList.AddCircle(center + ImVec2(1, 1), radius, GetColorU32(ImGuiCol.BorderShadow), 16, style.FrameBorderSize);
         window.DrawList.AddCircle(center, radius, GetColorU32(ImGuiCol.Border), 16, style.FrameBorderSize);
     }
 
@@ -1167,7 +1170,7 @@ void ProgressBar(float fraction, const ImVec2/*&*/ size_arg = ImVec2(-1, 0), str
     const ImGuiStyle* style = &g.Style;
 
     ImVec2 pos = window.DC.CursorPos;
-    ImVec2 size = CalcItemSize(size_arg, CalcItemWidth(), g.FontSize + style.FramePadding.y*2.0f);
+    ImVec2 size = CalcItemSize(size_arg, CalcItemWidth(), g.FontSize + style.FramePadding.y * 2.0f);
     ImRect bb = ImRect(pos, pos + size);
     ItemSize(size, style.FramePadding.y);
     if (!ItemAdd(bb, 0))
@@ -1184,13 +1187,13 @@ void ProgressBar(float fraction, const ImVec2/*&*/ size_arg = ImVec2(-1, 0), str
     char[32] overlay_buf;
     if (!overlay)
     {
-        int index = ImFormatString(overlay_buf, "%.0f%%", fraction*100+0.01f);
+        int index = ImFormatString(overlay_buf, "%.0f%%", fraction * 100 + 0.01f);
         overlay = cast(string)overlay_buf[0..index];
     }
 
     ImVec2 overlay_size = CalcTextSize(overlay);
     if (overlay_size.x > 0.0f)
-        RenderTextClipped(ImVec2(ImClamp(fill_br.x + style.ItemSpacing.x, bb.Min.x, bb.Max.x - overlay_size.x - style.ItemInnerSpacing.x), bb.Min.y), bb.Max, overlay, &overlay_size, ImVec2(0.0f,0.5f), &bb);
+        RenderTextClipped(ImVec2(ImClamp(fill_br.x + style.ItemSpacing.x, bb.Min.x, bb.Max.x - overlay_size.x - style.ItemInnerSpacing.x), bb.Min.y), bb.Max, overlay, &overlay_size, ImVec2(0.0f, 0.5f), &bb);
 }
 
 void Bullet()
@@ -1201,18 +1204,18 @@ void Bullet()
 
     ImGuiContext* g = GImGui;
     const ImGuiStyle* style = &g.Style;
-    const float line_height = ImMax(ImMin(window.DC.CurrLineSize.y, g.FontSize + g.Style.FramePadding.y*2), g.FontSize);
+    const float line_height = ImMax(ImMin(window.DC.CurrLineSize.y, g.FontSize + g.Style.FramePadding.y * 2), g.FontSize);
     const ImRect bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(g.FontSize, line_height));
     ItemSize(bb);
     if (!ItemAdd(bb, 0))
     {
-        SameLine(0, style.FramePadding.x*2);
+        SameLine(0, style.FramePadding.x * 2);
         return;
     }
 
     // Render and stay on same line
     ImU32 text_col = GetColorU32(ImGuiCol.Text);
-    RenderBullet(window.DrawList, bb.Min + ImVec2(style.FramePadding.x + g.FontSize*0.5f, line_height*0.5f), text_col);
+    RenderBullet(window.DrawList, bb.Min + ImVec2(style.FramePadding.x + g.FontSize * 0.5f, line_height * 0.5f), text_col);
     SameLine(0, style.FramePadding.x * 2.0f);
 }
 
@@ -1483,7 +1486,7 @@ bool BeginCombo(string label, string preview_value, ImGuiComboFlags flags = ImGu
     const ImVec2 label_size = CalcTextSize(label, true);
     const float expected_w = CalcItemWidth();
     const float w = (flags & ImGuiComboFlags.NoPreview) ? arrow_size : expected_w;
-    const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y*2.0f));
+    const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
     const ImRect total_bb = ImRect(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f));
     ItemSize(total_bb, style.FramePadding.y);
     if (!ItemAdd(total_bb, id, &frame_bb))
@@ -1508,7 +1511,7 @@ bool BeginCombo(string label, string preview_value, ImGuiComboFlags flags = ImGu
     }
     RenderFrameBorder(frame_bb.Min, frame_bb.Max, style.FrameRounding);
     if (preview_value != NULL && !(flags & ImGuiComboFlags.NoPreview))
-        RenderTextClipped(frame_bb.Min + style.FramePadding, ImVec2(value_x2, frame_bb.Max.y), preview_value, NULL, ImVec2(0.0f,0.0f));
+        RenderTextClipped(frame_bb.Min + style.FramePadding, ImVec2(value_x2, frame_bb.Max.y), preview_value, NULL, ImVec2(0.0f, 0.0f));
     if (label_size.x > 0)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
 
@@ -1708,7 +1711,7 @@ string PatchFormatStringFloatToInt(string fmt)
     if (fmt_end > fmt_start && fmt[fmt_end-1] == 'f')
     {
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-        if (fmt_start == 0 && fmt[fmt_end] == 0)
+        if (fmt_start == 0 && fmt_end = fmt.length)
             return "%d";
         ImGuiContext* g = GImGui;
         int length = ImFormatString(g.TempBuffer, "%.*s%%d%s", cast(int)(fmt_start), fmt, fmt[fmt_end..$]); // Honor leading and trailing decorations, but lose alignment/precision.
@@ -1908,10 +1911,11 @@ bool DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType
     return memcmp(&data_backup, p_data, type_info.Size) != 0;
 }
 
-bool ClampBehaviorT(T)(T* v, T v_min, T v_max)
+bool ClampBehaviorT(T)(T* v, const T* v_min, const T* v_max)
 {
-    if (*v < v_min) { *v = v_min; return true; }
-    if (*v > v_max) { *v = v_max; return true; }
+    // Clamp, both sides are optional
+    if (v_min && *v < *v_min) { *v = *v_min; return true; }
+    if (v_max && *v > *v_max) { *v = *v_max; return true; }
     return false;
 }
 
@@ -1919,16 +1923,16 @@ bool DataTypeClamp(ImGuiDataType data_type, void* p_data, const void* p_min, con
 {
     switch (data_type)
     {
-    case ImGuiDataType.S8:     return ClampBehaviorT!(ImS8  )(cast(ImS8*  )p_data, *cast(const ImS8*  )p_min, *cast(const ImS8*  )p_max);
-    case ImGuiDataType.U8:     return ClampBehaviorT!(ImU8  )(cast(ImU8*  )p_data, *cast(const ImU8*  )p_min, *cast(const ImU8*  )p_max);
-    case ImGuiDataType.S16:    return ClampBehaviorT!(ImS16 )(cast(ImS16* )p_data, *cast(const ImS16* )p_min, *cast(const ImS16* )p_max);
-    case ImGuiDataType.U16:    return ClampBehaviorT!(ImU16 )(cast(ImU16* )p_data, *cast(const ImU16* )p_min, *cast(const ImU16* )p_max);
-    case ImGuiDataType.S32:    return ClampBehaviorT!(ImS32 )(cast(ImS32* )p_data, *cast(const ImS32* )p_min, *cast(const ImS32* )p_max);
-    case ImGuiDataType.U32:    return ClampBehaviorT!(ImU32 )(cast(ImU32* )p_data, *cast(const ImU32* )p_min, *cast(const ImU32* )p_max);
-    case ImGuiDataType.S64:    return ClampBehaviorT!(ImS64 )(cast(ImS64* )p_data, *cast(const ImS64* )p_min, *cast(const ImS64* )p_max);
-    case ImGuiDataType.U64:    return ClampBehaviorT!(ImU64 )(cast(ImU64* )p_data, *cast(const ImU64* )p_min, *cast(const ImU64* )p_max);
-    case ImGuiDataType.Float:  return ClampBehaviorT!(float )(cast(float* )p_data, *cast(const float* )p_min, *cast(const float* )p_max);
-    case ImGuiDataType.Double: return ClampBehaviorT!(double)(cast(double*)p_data, *cast(const double*)p_min, *cast(const double*)p_max);
+    case ImGuiDataType.S8:     return ClampBehaviorT!(ImS8  )(cast(ImS8*  )p_data, cast(const ImS8*  )p_min, cast(const ImS8*  )p_max);
+    case ImGuiDataType.U8:     return ClampBehaviorT!(ImU8  )(cast(ImU8*  )p_data, cast(const ImU8*  )p_min, cast(const ImU8*  )p_max);
+    case ImGuiDataType.S16:    return ClampBehaviorT!(ImS16 )(cast(ImS16* )p_data, cast(const ImS16* )p_min, cast(const ImS16* )p_max);
+    case ImGuiDataType.U16:    return ClampBehaviorT!(ImU16 )(cast(ImU16* )p_data, cast(const ImU16* )p_min, cast(const ImU16* )p_max);
+    case ImGuiDataType.S32:    return ClampBehaviorT!(ImS32 )(cast(ImS32* )p_data, cast(const ImS32* )p_min, cast(const ImS32* )p_max);
+    case ImGuiDataType.U32:    return ClampBehaviorT!(ImU32 )(cast(ImU32* )p_data, cast(const ImU32* )p_min, cast(const ImU32* )p_max);
+    case ImGuiDataType.S64:    return ClampBehaviorT!(ImS64 )(cast(ImS64* )p_data, cast(const ImS64* )p_min, cast(const ImS64* )p_max);
+    case ImGuiDataType.U64:    return ClampBehaviorT!(ImU64 )(cast(ImU64* )p_data, cast(const ImU64* )p_min, cast(const ImU64* )p_max);
+    case ImGuiDataType.Float:  return ClampBehaviorT!(float )(cast(float* )p_data, cast(const float* )p_min, cast(const float* )p_max);
+    case ImGuiDataType.Double: return ClampBehaviorT!(double)(cast(double*)p_data, cast(const double*)p_min, cast(const double*)p_max);
     case ImGuiDataType.COUNT:  break;
     default: break;
     }
@@ -1994,16 +1998,13 @@ TYPE RoundScalarWithFormatT(TYPE, SIGNEDTYPE)(string format, ImGuiDataType data_
 //-------------------------------------------------------------------------
 
 // This is called by DragBehavior() when the widget is active (held by mouse or being manipulated with Nav controls)
-bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v, float v_speed, TYPE v_min, TYPE v_max, string format, float power, ImGuiDragFlags flags)
+bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v, float v_speed, TYPE v_min, TYPE v_max, string format, ImGuiSliderFlags flags)
 {
     ImGuiContext* g = GImGui;
-    const ImGuiAxis axis = (flags & ImGuiDragFlags.Vertical) ? ImGuiAxis.Y : ImGuiAxis.X;
+    const ImGuiAxis axis = (flags & ImGuiSliderFlags.Vertical) ? ImGuiAxis.Y : ImGuiAxis.X;
     const bool is_decimal = (data_type == ImGuiDataType.Float) || (data_type == ImGuiDataType.Double);
     const bool is_clamped = (v_min < v_max);
-    const bool is_power = (power != 1.0f && is_decimal && is_clamped && (v_max - v_min < FLT_MAX));
-    const bool is_locked = (v_min > v_max);
-    if (is_locked)
-        return false;
+    const bool is_logarithmic = (flags & ImGuiSliderFlags.Logarithmic) && is_decimal;
 
     // Default tweak speed
     if (v_speed == 0.0f && is_clamped && (v_max - v_min < FLT_MAX))
@@ -2011,7 +2012,7 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
 
     // Inputs accumulates into g.DragCurrentAccum, which is flushed into the current value as soon as it makes a difference with our precision settings
     float adjust_delta = 0.0f;
-    if (g.ActiveIdSource == ImGuiInputSource.Mouse && IsMousePosValid() && g.IO.MouseDragMaxDistanceSqr[0] > 1.0f*1.0f)
+    if (g.ActiveIdSource == ImGuiInputSource.Mouse && IsMousePosValid() && g.IO.MouseDragMaxDistanceSqr[0] > 1.0f * 1.0f)
     {
         adjust_delta = g.IO.MouseDelta[axis];
         if (g.IO.KeyAlt)
@@ -2031,12 +2032,15 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
     if (axis == ImGuiAxis.Y)
         adjust_delta = -adjust_delta;
 
+    // For logarithmic use our range is effectively 0..1 so scale the delta into that range
+    if (is_logarithmic && (v_max - v_min < FLT_MAX) && ((v_max - v_min) > 0.000001f)) // Epsilon to avoid /0
+        adjust_delta /= cast(float)(v_max - v_min);
+
     // Clear current value on activation
     // Avoid altering values and clamping when we are _already_ past the limits and heading in the same direction, so e.g. if range is 0..255, current value is 300 and we are pushing to the right side, keep the 300.
     bool is_just_activated = g.ActiveIdIsJustActivated;
     bool is_already_past_limits_and_pushing_outward = is_clamped && ((*v >= v_max && adjust_delta > 0.0f) || (*v <= v_min && adjust_delta < 0.0f));
-    bool is_drag_direction_change_with_power = is_power && ((adjust_delta < 0 && g.DragCurrentAccum > 0) || (adjust_delta > 0 && g.DragCurrentAccum < 0));
-    if (is_just_activated || is_already_past_limits_and_pushing_outward || is_drag_direction_change_with_power)
+    if (is_just_activated || is_already_past_limits_and_pushing_outward)
     {
         g.DragCurrentAccum = 0.0f;
         g.DragCurrentAccumDirty = false;
@@ -2053,13 +2057,19 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
     TYPE v_cur = *v;
     FLOATTYPE v_old_ref_for_accum_remainder = cast(FLOATTYPE)0.0f;
 
-    if (is_power)
+    float logarithmic_zero_epsilon = 0.0f; // Only valid when is_logarithmic is true
+    const float zero_deadzone_halfsize = 0.0f; // Drag widgets have no deadzone (as it doesn't make sense)
+    if (is_logarithmic)
     {
-        // Offset + round to user desired precision, with a curve on the v_min..v_max range to get more precision on one side of the range
-        FLOATTYPE v_old_norm_curved = ImPow(cast(FLOATTYPE)(v_cur - v_min) / cast(FLOATTYPE)(v_max - v_min), cast(FLOATTYPE)1.0f / power);
-        FLOATTYPE v_new_norm_curved = v_old_norm_curved + (g.DragCurrentAccum / (v_max - v_min));
-        v_cur = v_min + cast(SIGNEDTYPE)ImPow(ImSaturate(cast(float)v_new_norm_curved), power) * (v_max - v_min);
-        v_old_ref_for_accum_remainder = v_old_norm_curved;
+        // When using logarithmic sliders, we need to clamp to avoid hitting zero, but our choice of clamp value greatly affects slider precision. We attempt to use the specified precision to estimate a good lower bound.
+        const int decimal_precision = is_decimal ? ImParseFormatPrecision(format, 3) : 1;
+        logarithmic_zero_epsilon = ImPow(0.1f, cast(float)decimal_precision);
+
+        // Convert to parametric space, apply delta, convert back
+        float v_old_parametric = ScaleRatioFromValueT!(TYPE, FLOATTYPE)(data_type, v_cur, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
+        float v_new_parametric = v_old_parametric + g.DragCurrentAccum;
+        v_cur = ScaleValueFromRatioT!(TYPE, FLOATTYPE)(data_type, v_new_parametric, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
+        v_old_ref_for_accum_remainder = v_old_parametric;
     }
     else
     {
@@ -2067,14 +2077,16 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
     }
 
     // Round to user desired precision based on format string
-    v_cur = RoundScalarWithFormatT!(TYPE, SIGNEDTYPE)(format, data_type, v_cur);
+    if (!(flags & ImGuiSliderFlags.NoRoundToFormat))
+        v_cur = RoundScalarWithFormatT!(TYPE, SIGNEDTYPE)(format, data_type, v_cur);
 
     // Preserve remainder after rounding has been applied. This also allow slow tweaking of values.
     g.DragCurrentAccumDirty = false;
-    if (is_power)
+    if (is_logarithmic)
     {
-        FLOATTYPE v_cur_norm_curved = ImPow(cast(FLOATTYPE)(v_cur - v_min) / cast(FLOATTYPE)(v_max - v_min), cast(FLOATTYPE)1.0f / power);
-        g.DragCurrentAccum -= cast(float)(v_cur_norm_curved - v_old_ref_for_accum_remainder);
+        // Convert to parametric space, apply delta, convert back
+        float v_new_parametric = ScaleRatioFromValueT!(TYPE, FLOATTYPE)(data_type, v_cur, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
+        g.DragCurrentAccum -= cast(float)(v_new_parametric - v_old_ref_for_accum_remainder);
     }
     else
     {
@@ -2101,8 +2113,11 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
     return true;
 }
 
-bool DragBehavior(ImGuiID id, ImGuiDataType data_type, void* p_v, float v_speed, const void* p_min, const void* p_max, string format, float power, ImGuiDragFlags flags)
+bool DragBehavior(ImGuiID id, ImGuiDataType data_type, void* p_v, float v_speed, const void* p_min, const void* p_max, string format, ImGuiSliderFlags flags)
 {
+    // Read imgui.cpp "API BREAKING CHANGES" section for 1.78 if you hit this assert.
+    IM_ASSERT((flags == 1 || (flags & ImGuiSliderFlags.InvalidMask_) == 0), "Invalid ImGuiSliderFlags flags! Has the 'float power' argument been mistakenly cast to flags? Call function with ImGuiSliderFlags_Logarithmic flags instead.");
+
     ImGuiContext* g = GImGui;
     if (g.ActiveId == id)
     {
@@ -2113,19 +2128,21 @@ bool DragBehavior(ImGuiID id, ImGuiDataType data_type, void* p_v, float v_speed,
     }
     if (g.ActiveId != id)
         return false;
+    if ((g.CurrentWindow.DC.ItemFlags & ImGuiItemFlags.ReadOnly) || (flags & ImGuiSliderFlags.ReadOnly))
+        return false;
 
     switch (data_type)
     {
-    case ImGuiDataType.S8:     { ImS32 v32 = cast(ImS32)*cast(ImS8*)p_v;  bool r = DragBehaviorT!(ImS32, ImS32, float)(ImGuiDataType.S32, &v32, v_speed, p_min ? *cast(const ImS8*) p_min : IM_S8_MIN,  p_max ? *cast(const ImS8*)p_max  : IM_S8_MAX,  format, power, flags); if (r) *cast(ImS8*)p_v = cast(ImS8)v32; return r; }
-    case ImGuiDataType.U8:     { ImU32 v32 = cast(ImU32)*cast(ImU8*)p_v;  bool r = DragBehaviorT!(ImU32, ImS32, float)(ImGuiDataType.U32, &v32, v_speed, p_min ? *cast(const ImU8*) p_min : IM_U8_MIN,  p_max ? *cast(const ImU8*)p_max  : IM_U8_MAX,  format, power, flags); if (r) *cast(ImU8*)p_v = cast(ImU8)v32; return r; }
-    case ImGuiDataType.S16:    { ImS32 v32 = cast(ImS32)*cast(ImS16*)p_v; bool r = DragBehaviorT!(ImS32, ImS32, float)(ImGuiDataType.S32, &v32, v_speed, p_min ? *cast(const ImS16*)p_min : IM_S16_MIN, p_max ? *cast(const ImS16*)p_max : IM_S16_MAX, format, power, flags); if (r) *cast(ImS16*)p_v = cast(ImS16)v32; return r; }
-    case ImGuiDataType.U16:    { ImU32 v32 = cast(ImU32)*cast(ImU16*)p_v; bool r = DragBehaviorT!(ImU32, ImS32, float)(ImGuiDataType.U32, &v32, v_speed, p_min ? *cast(const ImU16*)p_min : IM_U16_MIN, p_max ? *cast(const ImU16*)p_max : IM_U16_MAX, format, power, flags); if (r) *cast(ImU16*)p_v = cast(ImU16)v32; return r; }
-    case ImGuiDataType.S32:    return DragBehaviorT!(ImS32, ImS32, float )(data_type, cast(ImS32*)p_v,  v_speed, p_min ? *cast(const ImS32* )p_min : IM_S32_MIN, p_max ? *cast(const ImS32* )p_max : IM_S32_MAX, format, power, flags);
-    case ImGuiDataType.U32:    return DragBehaviorT!(ImU32, ImS32, float )(data_type, cast(ImU32*)p_v,  v_speed, p_min ? *cast(const ImU32* )p_min : IM_U32_MIN, p_max ? *cast(const ImU32* )p_max : IM_U32_MAX, format, power, flags);
-    case ImGuiDataType.S64:    return DragBehaviorT!(ImS64, ImS64, double)(data_type, cast(ImS64*)p_v,  v_speed, p_min ? *cast(const ImS64* )p_min : IM_S64_MIN, p_max ? *cast(const ImS64* )p_max : IM_S64_MAX, format, power, flags);
-    case ImGuiDataType.U64:    return DragBehaviorT!(ImU64, ImS64, double)(data_type, cast(ImU64*)p_v,  v_speed, p_min ? *cast(const ImU64* )p_min : IM_U64_MIN, p_max ? *cast(const ImU64* )p_max : IM_U64_MAX, format, power, flags);
-    case ImGuiDataType.Float:  return DragBehaviorT!(float, float, float )(data_type, cast(float*)p_v,  v_speed, p_min ? *cast(const float* )p_min : -FLT_MAX,   p_max ? *cast(const float* )p_max : FLT_MAX,    format, power, flags);
-    case ImGuiDataType.Double: return DragBehaviorT!(double,double,double)(data_type, cast(double*)p_v, v_speed, p_min ? *cast(const double*)p_min : -DBL_MAX,   p_max ? *cast(const double*)p_max : DBL_MAX,    format, power, flags);
+    case ImGuiDataType.S8:     { ImS32 v32 = cast(ImS32)*cast(ImS8*)p_v;  bool r = DragBehaviorT!(ImS32, ImS32, float)(ImGuiDataType.S32, &v32, v_speed, p_min ? *cast(const ImS8*) p_min : IM_S8_MIN,  p_max ? *cast(const ImS8*)p_max  : IM_S8_MAX,  format, flags); if (r) *cast(ImS8*)p_v = cast(ImS8)v32; return r; }
+    case ImGuiDataType.U8:     { ImU32 v32 = cast(ImU32)*cast(ImU8*)p_v;  bool r = DragBehaviorT!(ImU32, ImS32, float)(ImGuiDataType.U32, &v32, v_speed, p_min ? *cast(const ImU8*) p_min : IM_U8_MIN,  p_max ? *cast(const ImU8*)p_max  : IM_U8_MAX,  format, flags); if (r) *cast(ImU8*)p_v = cast(ImU8)v32; return r; }
+    case ImGuiDataType.S16:    { ImS32 v32 = cast(ImS32)*cast(ImS16*)p_v; bool r = DragBehaviorT!(ImS32, ImS32, float)(ImGuiDataType.S32, &v32, v_speed, p_min ? *cast(const ImS16*)p_min : IM_S16_MIN, p_max ? *cast(const ImS16*)p_max : IM_S16_MAX, format, flags); if (r) *cast(ImS16*)p_v = cast(ImS16)v32; return r; }
+    case ImGuiDataType.U16:    { ImU32 v32 = cast(ImU32)*cast(ImU16*)p_v; bool r = DragBehaviorT!(ImU32, ImS32, float)(ImGuiDataType.U32, &v32, v_speed, p_min ? *cast(const ImU16*)p_min : IM_U16_MIN, p_max ? *cast(const ImU16*)p_max : IM_U16_MAX, format, flags); if (r) *cast(ImU16*)p_v = cast(ImU16)v32; return r; }
+    case ImGuiDataType.S32:    return DragBehaviorT!(ImS32, ImS32, float )(data_type, cast(ImS32*)p_v,  v_speed, p_min ? *cast(const ImS32* )p_min : IM_S32_MIN, p_max ? *cast(const ImS32* )p_max : IM_S32_MAX, format, flags);
+    case ImGuiDataType.U32:    return DragBehaviorT!(ImU32, ImS32, float )(data_type, cast(ImU32*)p_v,  v_speed, p_min ? *cast(const ImU32* )p_min : IM_U32_MIN, p_max ? *cast(const ImU32* )p_max : IM_U32_MAX, format, flags);
+    case ImGuiDataType.S64:    return DragBehaviorT!(ImS64, ImS64, double)(data_type, cast(ImS64*)p_v,  v_speed, p_min ? *cast(const ImS64* )p_min : IM_S64_MIN, p_max ? *cast(const ImS64* )p_max : IM_S64_MAX, format, flags);
+    case ImGuiDataType.U64:    return DragBehaviorT!(ImU64, ImS64, double)(data_type, cast(ImU64*)p_v,  v_speed, p_min ? *cast(const ImU64* )p_min : IM_U64_MIN, p_max ? *cast(const ImU64* )p_max : IM_U64_MAX, format, flags);
+    case ImGuiDataType.Float:  return DragBehaviorT!(float, float, float )(data_type, cast(float*)p_v,  v_speed, p_min ? *cast(const float* )p_min : -FLT_MAX,   p_max ? *cast(const float* )p_max : FLT_MAX,    format, flags);
+    case ImGuiDataType.Double: return DragBehaviorT!(double,double,double)(data_type, cast(double*)p_v, v_speed, p_min ? *cast(const double*)p_min : -DBL_MAX,   p_max ? *cast(const double*)p_max : DBL_MAX,    format, flags);
     case ImGuiDataType.COUNT:  break;
     default: break;
     }
@@ -2134,22 +2151,19 @@ bool DragBehavior(ImGuiID id, ImGuiDataType data_type, void* p_v, float v_speed,
 }
 
 // Note: p_data, p_min and p_max are _pointers_ to a memory address holding the data. For a Drag widget, p_min and p_max are optional.
-// Read code of e.g. SliderFloat(), SliderInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
-bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, float power = 1.0f)
+// Read code of e.g. DragFloatFloat(), DragInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
+bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
         return false;
-
-    if (power != 1.0f)
-        IM_ASSERT(p_min != NULL && p_max != NULL); // When using a power curve the drag needs to have known bounds
 
     ImGuiContext* g = GImGui;
     const ImGuiStyle* style = &g.Style;
     const ImGuiID id = window.GetID(label);
     const float w = CalcItemWidth();
     const ImVec2 label_size = CalcTextSize(label, true);
-    const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y*2.0f));
+    const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
     const ImRect total_bb = ImRect(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f));
 
     ItemSize(total_bb, style.FramePadding.y);
@@ -2164,11 +2178,11 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
 
     // Tabbing or CTRL-clicking on Drag turns it into an input box
     const bool hovered = ItemHoverable(frame_bb, id);
-    bool temp_input_is_active = TempInputIsActive(id);
-    bool temp_input_start = false;
+    const bool temp_input_allowed = (flags & ImGuiSliderFlags.NoInput) == 0;
+    bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
     if (!temp_input_is_active)
     {
-        const bool focus_requested = FocusableItemRegister(window, id);
+        const bool focus_requested = temp_input_allowed && FocusableItemRegister(window, id);
         const bool clicked = (hovered && g.IO.MouseClicked[0]);
         const bool double_clicked = (hovered && g.IO.MouseDoubleClicked[0]);
         if (focus_requested || clicked || double_clicked || g.NavActivateId == id || g.NavInputId == id)
@@ -2177,17 +2191,20 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
             SetFocusID(id, window);
             FocusWindow(window);
             g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir.Left) | (1 << ImGuiDir.Right);
-            if (focus_requested || (clicked && g.IO.KeyCtrl) || double_clicked || g.NavInputId == id)
+            if (temp_input_allowed && (focus_requested || (clicked && g.IO.KeyCtrl) || double_clicked || g.NavInputId == id))
             {
-                temp_input_start = true;
+                temp_input_is_active = true;
                 FocusableItemUnregister(window);
             }
         }
     }
 
-    // Our current specs do NOT clamp when using CTRL+Click manual input, but we should eventually add a flag for that..
-    if (temp_input_is_active || temp_input_start)
-        return TempInputScalar(frame_bb, id, label, data_type, p_data, format);// , p_min, p_max);
+    if (temp_input_is_active)
+    {
+        // Only clamp CTRL+Click input when ImGuiSliderFlags_ClampInput is set
+        const bool is_clamp_input = (flags & ImGuiSliderFlags.ClampOnInput) != 0;
+        return TempInputScalar(frame_bb, id, label, data_type, p_data, format, is_clamp_input ? p_min : NULL, is_clamp_input ? p_max : NULL);
+    }
 
     // Draw frame
     const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol.FrameBgActive : g.HoveredId == id ? ImGuiCol.FrameBgHovered : ImGuiCol.FrameBg);
@@ -2195,7 +2212,7 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
     RenderFrame(frame_bb.Min, frame_bb.Max, frame_col, true, style.FrameRounding);
 
     // Drag behavior
-    const bool value_changed = DragBehavior(id, data_type, p_data, v_speed, p_min, p_max, format, power, ImGuiDragFlags.None);
+    const bool value_changed = DragBehavior(id, data_type, p_data, v_speed, p_min, p_max, format, flags);
     if (value_changed)
         MarkItemEdited(id);
 
@@ -2211,7 +2228,7 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
     return value_changed;
 }
 
-bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, float power = 1.0f)
+bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2228,7 +2245,7 @@ bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int compon
         PushID(i);
         if (i > 0)
             SameLine(0, g.Style.ItemInnerSpacing.x);
-        value_changed |= DragScalar("", data_type, p_data, v_speed, p_min, p_max, format, power);
+        value_changed |= DragScalar("", data_type, p_data, v_speed, p_min, p_max, format, flags);
         PopID();
         PopItemWidth();
         p_data = cast(void*)(cast(char*)p_data + type_size);
@@ -2246,32 +2263,33 @@ bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int compon
     return value_changed;
 }
 
-bool DragFloat(string label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
+bool DragFloat(string label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalar(label, ImGuiDataType.Float, v, v_speed, &v_min, &v_max, format, power);
+    return DragScalar(label, ImGuiDataType.Float, v, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragFloat2(string label, float[/*2*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
+bool DragFloat2(string label, float[/*2*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalarN(label, ImGuiDataType.Float, v.ptr, 2, v_speed, &v_min, &v_max, format, power);
+    return DragScalarN(label, ImGuiDataType.Float, v.ptr, 2, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragFloat3(string label, float[/*3*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
+bool DragFloat3(string label, float[/*3*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalarN(label, ImGuiDataType.Float, v.ptr, 3, v_speed, &v_min, &v_max, format, power);
+    return DragScalarN(label, ImGuiDataType.Float, v.ptr, 3, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragFloat4(string label, float[/*4*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
+bool DragFloat4(string label, float[/*4*/] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalarN(label, ImGuiDataType.Float, v.ptr, 4, v_speed, &v_min, &v_max, format, power);
+    return DragScalarN(label, ImGuiDataType.Float, v.ptr, 4, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragFloat2(string label, ImVec2* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", float power = 1.0f)
+bool DragFloat2(string label, ImVec2* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragFloat2(label, (&v.x)[0..2], v_speed, v_min, v_max, format, power);
+    return DragFloat2(label, (&v.x)[0..2], v_speed, v_min, v_max, format, flags);
 }
 
-bool DragFloatRange2(string label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", string format_max = NULL, float power = 1.0f)
+// NB: You likely want to specify the ImGuiSliderFlags_ClampOnInput when using this.
+bool DragFloatRange2(string label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", string format_max = NULL, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2282,10 +2300,17 @@ bool DragFloatRange2(string label, float* v_current_min, float* v_current_max, f
     BeginGroup();
     PushMultiItemsWidths(2, CalcItemWidth());
 
-    bool value_changed = DragFloat("##min", v_current_min, v_speed, (v_min >= v_max) ? -FLT_MAX : v_min, (v_min >= v_max) ? *v_current_max : ImMin(v_max, *v_current_max), format, power);
+    float min_min = (v_min >= v_max) ? -FLT_MAX : v_min;
+    float min_max = (v_min >= v_max) ? *v_current_max : ImMin(v_max, *v_current_max);
+    ImGuiSliderFlags min_flags = flags | ((min_min == min_max) ? ImGuiSliderFlags.ReadOnly : ImGuiSliderFlags.None);
+    bool value_changed = DragScalar("##min", ImGuiDataType.Float, v_current_min, v_speed, &min_min, &min_max, format, min_flags);
     PopItemWidth();
     SameLine(0, g.Style.ItemInnerSpacing.x);
-    value_changed |= DragFloat("##max", v_current_max, v_speed, (v_min >= v_max) ? *v_current_min : ImMax(v_min, *v_current_min), (v_min >= v_max) ? FLT_MAX : v_max, format_max ? format_max : format, power);
+
+    float max_min = (v_min >= v_max) ? *v_current_min : ImMax(v_min, *v_current_min);
+    float max_max = (v_min >= v_max) ? FLT_MAX : v_max;
+    ImGuiSliderFlags max_flags = flags | ((max_min == max_max) ? ImGuiSliderFlags.ReadOnly : ImGuiSliderFlags.None);
+    value_changed |= DragScalar("##max", ImGuiDataType.Float, v_current_max, v_speed, &max_min, &max_max, format_max ? format_max : format, max_flags);
     PopItemWidth();
     SameLine(0, g.Style.ItemInnerSpacing.x);
 
@@ -2296,27 +2321,28 @@ bool DragFloatRange2(string label, float* v_current_min, float* v_current_max, f
 }
 
 // NB: v_speed is float to allow adjusting the drag speed with more precision
-bool DragInt(string label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
+bool DragInt(string label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalar(label, ImGuiDataType.S32, v, v_speed, &v_min, &v_max, format);
+    return DragScalar(label, ImGuiDataType.S32, v, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragInt2(string label, int[/*2*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
+bool DragInt2(string label, int[/*2*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalarN(label, ImGuiDataType.S32, v.ptr, 2, v_speed, &v_min, &v_max, format);
+    return DragScalarN(label, ImGuiDataType.S32, v.ptr, 2, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragInt3(string label, int[/*3*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
+bool DragInt3(string label, int[/*3*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalarN(label, ImGuiDataType.S32, v.ptr, 3, v_speed, &v_min, &v_max, format);
+    return DragScalarN(label, ImGuiDataType.S32, v.ptr, 3, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragInt4(string label, int[/*4*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d")
+bool DragInt4(string label, int[/*4*/] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return DragScalarN(label, ImGuiDataType.S32, v.ptr, 4, v_speed, &v_min, &v_max, format);
+    return DragScalarN(label, ImGuiDataType.S32, v.ptr, 4, v_speed, &v_min, &v_max, format, flags);
 }
 
-bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", string format_max = NULL)
+// NB: You likely want to specify the ImGuiSliderFlags_ClampOnInput when using this.
+bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", string format_max = NULL, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2327,10 +2353,17 @@ bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v
     BeginGroup();
     PushMultiItemsWidths(2, CalcItemWidth());
 
-    bool value_changed = DragInt("##min", v_current_min, v_speed, (v_min >= v_max) ? INT_MIN : v_min, (v_min >= v_max) ? *v_current_max : ImMin(v_max, *v_current_max), format);
+    int min_min = (v_min >= v_max) ? INT_MIN : v_min;
+    int min_max = (v_min >= v_max) ? *v_current_max : ImMin(v_max, *v_current_max);
+    ImGuiSliderFlags min_flags = flags | ((min_min == min_max) ? ImGuiSliderFlags.ReadOnly : ImGuiSliderFlags.None);
+    bool value_changed = DragInt("##min", v_current_min, v_speed, min_min, min_max, format, min_flags);
     PopItemWidth();
     SameLine(0, g.Style.ItemInnerSpacing.x);
-    value_changed |= DragInt("##max", v_current_max, v_speed, (v_min >= v_max) ? *v_current_min : ImMax(v_min, *v_current_min), (v_min >= v_max) ? INT_MAX : v_max, format_max ? format_max : format);
+
+    int max_min = (v_min >= v_max) ? *v_current_min : ImMax(v_min, *v_current_min);
+    int max_max = (v_min >= v_max) ? INT_MAX : v_max;
+    ImGuiSliderFlags max_flags = flags | ((max_min == max_max) ? ImGuiSliderFlags.ReadOnly : ImGuiSliderFlags.None);
+    value_changed |= DragInt("##max", v_current_max, v_speed, max_min, max_max, format_max ? format_max : format, max_flags);
     PopItemWidth();
     SameLine(0, g.Style.ItemInnerSpacing.x);
 
@@ -2341,9 +2374,40 @@ bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v
     return value_changed;
 }
 
+version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+
+// Obsolete versions with power parameter. See https://github.com/ocornut/imgui/issues/3361 for details.
+bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, string format, float power)
+{
+    ImGuiSliderFlags drag_flags = ImGuiSliderFlags.None;
+    if (power != 1.0f)
+    {
+        IM_ASSERT(power == 1.0f,  "Call function with ImGuiSliderFlags_Logarithmic flags instead of using the old 'float power' function!");
+        IM_ASSERT(p_min != NULL && p_max != NULL);  // When using a power curve the drag needs to have known bounds
+        drag_flags |= ImGuiSliderFlags.Logarithmic;   // Fallback for non-asserting paths
+    }
+    return DragScalar(label, data_type, p_data, v_speed, p_min, p_max, format, drag_flags);
+}
+
+bool DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min, const void* p_max, string format, float power)
+{
+    ImGuiSliderFlags drag_flags = ImGuiSliderFlags.None;
+    if (power != 1.0f)
+    {
+        IM_ASSERT(power == 1.0f, "Call function with ImGuiSliderFlags_Logarithmic flags instead of using the old 'float power' function!");
+        IM_ASSERT(p_min != NULL && p_max != NULL);  // When using a power curve the drag needs to have known bounds
+        drag_flags |= ImGuiSliderFlags.Logarithmic;   // Fallback for non-asserting paths
+    }
+    return DragScalarN(label, data_type, p_data, components, v_speed, p_min, p_max, format, drag_flags);
+}
+
+} // IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+
 //-------------------------------------------------------------------------
 // [SECTION] Widgets: SliderScalar, SliderFloat, SliderInt, etc.
 //-------------------------------------------------------------------------
+// - ScaleRatioFromValueT<> [Internal]
+// - ScaleValueFromRatioT<> [Internal]
 // - SliderBehaviorT<>() [Internal]
 // - SliderBehavior() [Internal]
 // - SliderScalar()
@@ -2362,40 +2426,144 @@ bool DragIntRange2(string label, int* v_current_min, int* v_current_max, float v
 // - VSliderInt()
 //-------------------------------------------------------------------------
 
-float SliderCalcRatioFromValueT(TYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE v, TYPE v_min, TYPE v_max, float power, float linear_zero_pos)
+// Convert a value v in the output space of a slider into a parametric position on the slider itself (the logical opposite of ScaleValueFromRatioT)
+float ScaleRatioFromValueT(TYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE v, TYPE v_min, TYPE v_max, bool is_logarithmic, float logarithmic_zero_epsilon, float zero_deadzone_halfsize)
 {
     if (v_min == v_max)
         return 0.0f;
+    IM_UNUSED(data_type);
 
-    const bool is_power = (power != 1.0f) && (data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double);
     const TYPE v_clamped = (v_min < v_max) ? ImClamp(v, v_min, v_max) : ImClamp(v, v_max, v_min);
-    if (is_power)
+    if (is_logarithmic)
     {
-        if (v_clamped < 0.0f)
+        bool flipped = v_max < v_min;
+
+        if (flipped) // Handle the case where the range is backwards
+            ImSwap(v_min, v_max);
+
+        // Fudge min/max to avoid getting close to log(0)
+        FLOATTYPE v_min_fudged = (ImAbs(cast(FLOATTYPE)v_min) < logarithmic_zero_epsilon) ? ((v_min < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_min;
+        FLOATTYPE v_max_fudged = (ImAbs(cast(FLOATTYPE)v_max) < logarithmic_zero_epsilon) ? ((v_max < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_max;
+
+        // Awkward special cases - we need ranges of the form (-100 .. 0) to convert to (-100 .. -epsilon), not (-100 .. epsilon)
+        if ((v_min == 0.0f) && (v_max < 0.0f))
+            v_min_fudged = -logarithmic_zero_epsilon;
+        else if ((v_max == 0.0f) && (v_min < 0.0f))
+            v_max_fudged = -logarithmic_zero_epsilon;
+
+        float result;
+
+        if (v_clamped <= v_min_fudged)
+            result = 0.0f; // Workaround for values that are in-range but below our fudge
+        else if (v_clamped >= v_max_fudged)
+            result = 1.0f; // Workaround for values that are in-range but above our fudge
+        else if ((v_min * v_max) < 0.0f) // Range crosses zero, so split into two portions
         {
-            const float f = 1.0f - cast(float)((v_clamped - v_min) / (ImMin(cast(TYPE)0, v_max) - v_min));
-            return (1.0f - ImPow(f, 1.0f/power)) * linear_zero_pos;
+            float zero_point_center = (-cast(float)v_min) / (cast(float)v_max - cast(float)v_min); // The zero point in parametric space.  There's an argument we should take the logarithmic nature into account when calculating this, but for now this should do (and the most common case of a symmetrical range works fine)
+            float zero_point_snap_L = zero_point_center - zero_deadzone_halfsize;
+            float zero_point_snap_R = zero_point_center + zero_deadzone_halfsize;
+            if (v == 0.0f)
+                result = zero_point_center; // Special case for exactly zero
+            else if (v < 0.0f)
+                result = (1.0f - cast(float)(ImLog(-cast(FLOATTYPE)v_clamped / logarithmic_zero_epsilon) / ImLog(-v_min_fudged / logarithmic_zero_epsilon))) * zero_point_snap_L;
+            else
+                result = zero_point_snap_R + (cast(float)(ImLog(cast(FLOATTYPE)v_clamped / logarithmic_zero_epsilon) / ImLog(v_max_fudged / logarithmic_zero_epsilon)) * (1.0f - zero_point_snap_R));
         }
+        else if ((v_min < 0.0f) || (v_max < 0.0f)) // Entirely negative slider
+            result = 1.0f - cast(float)(ImLog(-cast(FLOATTYPE)v_clamped / -v_max_fudged) / ImLog(-v_min_fudged / -v_max_fudged));
         else
-        {
-            const float f = cast(float)((v_clamped - ImMax(cast(TYPE)0, v_min)) / (v_max - ImMax(cast(TYPE)0, v_min)));
-            return linear_zero_pos + ImPow(f, 1.0f/power) * (1.0f - linear_zero_pos);
-        }
+            result = cast(float)(ImLog(cast(FLOATTYPE)v_clamped / v_min_fudged) / ImLog(v_max_fudged / v_min_fudged));
+
+        return flipped ? (1.0f - result) : result;
     }
 
     // Linear slider
     return cast(float)(cast(FLOATTYPE)(v_clamped - v_min) / cast(FLOATTYPE)(v_max - v_min));
 }
 
-// FIXME: Move some of the code into SliderBehavior(). Current responsibility is larger than what the equivalent DragBehaviorT<> does, we also do some rendering, etc.
-bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGuiID id, ImGuiDataType data_type, TYPE* v, TYPE v_min, TYPE v_max, string format, float power, ImGuiSliderFlags flags, ImRect* out_grab_bb)
+// Convert a parametric position on a slider into a value v in the output space (the logical opposite of ScaleRatioFromValueT)
+TYPE ScaleValueFromRatioT(TYPE, FLOATTYPE)(ImGuiDataType data_type, float t, TYPE v_min, TYPE v_max, bool is_logarithmic, float logarithmic_zero_epsilon, float zero_deadzone_halfsize)
+{
+    if (v_min == v_max)
+        return cast(TYPE)0.0f;
+    const bool is_decimal = (data_type == ImGuiDataType.Float) || (data_type == ImGuiDataType.Double);
+
+    TYPE result;
+    if (is_logarithmic)
+    {
+        // We special-case the extents because otherwise our fudging can lead to "mathematically correct" but non-intuitive behaviors like a fully-left slider not actually reaching the minimum value
+        if (t <= 0.0f)
+            result = v_min;
+        else if (t >= 1.0f)
+            result = v_max;
+        else
+        {
+            bool flipped = v_max < v_min; // Check if range is "backwards"
+
+            // Fudge min/max to avoid getting silly results close to zero
+            FLOATTYPE v_min_fudged = (ImAbs(cast(FLOATTYPE)v_min) < logarithmic_zero_epsilon) ? ((v_min < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_min;
+            FLOATTYPE v_max_fudged = (ImAbs(cast(FLOATTYPE)v_max) < logarithmic_zero_epsilon) ? ((v_max < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_max;
+
+            if (flipped)
+                ImSwap(v_min_fudged, v_max_fudged);
+
+            // Awkward special case - we need ranges of the form (-100 .. 0) to convert to (-100 .. -epsilon), not (-100 .. epsilon)
+            if ((v_max == 0.0f) && (v_min < 0.0f))
+                v_max_fudged = -logarithmic_zero_epsilon;
+
+            float t_with_flip = flipped ? (1.0f - t) : t; // t, but flipped if necessary to account for us flipping the range
+
+            if ((v_min * v_max) < 0.0f) // Range crosses zero, so we have to do this in two parts
+            {
+                float zero_point_center = (-cast(float)ImMin(v_min, v_max)) / ImAbs(cast(float)v_max - cast(float)v_min); // The zero point in parametric space
+                float zero_point_snap_L = zero_point_center - zero_deadzone_halfsize;
+                float zero_point_snap_R = zero_point_center + zero_deadzone_halfsize;
+                if (t_with_flip >= zero_point_snap_L && t_with_flip <= zero_point_snap_R)
+                    result = cast(TYPE)0.0f; // Special case to make getting exactly zero possible (the epsilon prevents it otherwise)
+                else if (t_with_flip < zero_point_center)
+                    result = cast(TYPE)-(logarithmic_zero_epsilon * ImPow(-v_min_fudged / logarithmic_zero_epsilon, cast(FLOATTYPE)(1.0f - (t_with_flip / zero_point_snap_L))));
+                else
+                    result = cast(TYPE)(logarithmic_zero_epsilon * ImPow(v_max_fudged / logarithmic_zero_epsilon, cast(FLOATTYPE)((t_with_flip - zero_point_snap_R) / (1.0f - zero_point_snap_R))));
+            }
+            else if ((v_min < 0.0f) || (v_max < 0.0f)) // Entirely negative slider
+                result = cast(TYPE)-(-v_max_fudged * ImPow(-v_min_fudged / -v_max_fudged, cast(FLOATTYPE)(1.0f - t_with_flip)));
+            else
+                result = cast(TYPE)(v_min_fudged * ImPow(v_max_fudged / v_min_fudged, cast(FLOATTYPE)t_with_flip));
+        }
+    }
+    else
+    {
+        // Linear slider
+        if (is_decimal)
+        {
+            result = ImLerp(v_min, v_max, t);
+        }
+        else
+        {
+            // For integer values we want the clicking position to match the grab box so we round above
+            // This code is carefully tuned to work with large values (e.g. high ranges of U64) while preserving this property..
+            FLOATTYPE v_new_off_f = (v_max - v_min) * t;
+            TYPE v_new_off_floor = cast(TYPE)(v_new_off_f);
+            TYPE v_new_off_round = cast(TYPE)(v_new_off_f + cast(FLOATTYPE)0.5);
+            if (v_new_off_floor < v_new_off_round)
+                result = v_min + v_new_off_round;
+            else
+                result = v_min + v_new_off_floor;
+        }
+    }
+
+    return result;
+}
+
+// FIXME: Move more of the code into SliderBehavior()
+bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGuiID id, ImGuiDataType data_type, TYPE* v, TYPE v_min, TYPE v_max, string format, ImGuiSliderFlags flags, ImRect* out_grab_bb)
 {
     ImGuiContext* g = GImGui;
     const ImGuiStyle* style = &g.Style;
 
     const ImGuiAxis axis = (flags & ImGuiSliderFlags.Vertical) ? ImGuiAxis.Y : ImGuiAxis.X;
     const bool is_decimal = (data_type == ImGuiDataType.Float) || (data_type == ImGuiDataType.Double);
-    const bool is_power = (power != 1.0f) && is_decimal;
+    const bool is_logarithmic = (flags & ImGuiSliderFlags.Logarithmic) && is_decimal;
 
     const float grab_padding = 2.0f;
     const float slider_sz = (bb.Max[axis] - bb.Min[axis]) - grab_padding * 2.0f;
@@ -2408,19 +2576,14 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
     const float slider_usable_pos_min = bb.Min[axis] + grab_padding + grab_sz * 0.5f;
     const float slider_usable_pos_max = bb.Max[axis] - grab_padding - grab_sz * 0.5f;
 
-    // For power curve sliders that cross over sign boundary we want the curve to be symmetric around 0.0f
-    float linear_zero_pos;   // 0.0->1.0f
-    if (is_power && v_min * v_max < 0.0f)
+    float logarithmic_zero_epsilon = 0.0f; // Only valid when is_logarithmic is true
+    float zero_deadzone_halfsize = 0.0f; // Only valid when is_logarithmic is true
+    if (is_logarithmic)
     {
-        // Different sign
-        const FLOATTYPE linear_dist_min_to_0 = ImPow(v_min >= 0 ? cast(FLOATTYPE)v_min : -cast(FLOATTYPE)v_min, cast(FLOATTYPE)1.0f / power);
-        const FLOATTYPE linear_dist_max_to_0 = ImPow(v_max >= 0 ? cast(FLOATTYPE)v_max : -cast(FLOATTYPE)v_max, cast(FLOATTYPE)1.0f / power);
-        linear_zero_pos = cast(float)(linear_dist_min_to_0 / (linear_dist_min_to_0 + linear_dist_max_to_0));
-    }
-    else
-    {
-        // Same sign
-        linear_zero_pos = v_min < 0.0f ? 1.0f : 0.0f;
+        // When using logarithmic sliders, we need to clamp to avoid hitting zero, but our choice of clamp value greatly affects slider precision. We attempt to use the specified precision to estimate a good lower bound.
+        const int decimal_precision = is_decimal ? ImParseFormatPrecision(format, 3) : 1;
+        logarithmic_zero_epsilon = ImPow(0.1f, cast(float)decimal_precision);
+        zero_deadzone_halfsize = (style.LogSliderDeadzone * 0.5f) / ImMax(slider_usable_sz, 1.0f);
     }
 
     // Process interacting with the slider
@@ -2446,87 +2609,80 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
         }
         else if (g.ActiveIdSource == ImGuiInputSource.Nav)
         {
-            const ImVec2 delta2 = GetNavInputAmount2d(ImGuiNavDirSourceFlags.Keyboard | ImGuiNavDirSourceFlags.PadDPad, ImGuiInputReadMode.RepeatFast, 0.0f, 0.0f);
-            float delta = (axis == ImGuiAxis.X) ? delta2.x : -delta2.y;
-            if (g.NavActivatePressedId == id && !g.ActiveIdIsJustActivated)
+            if (g.ActiveIdIsJustActivated)
             {
-                ClearActiveID();
+                g.SliderCurrentAccum = 0.0f; // Reset any stored nav delta upon activation
+                g.SliderCurrentAccumDirty = false;
             }
-            else if (delta != 0.0f)
+
+            const ImVec2 input_delta2 = GetNavInputAmount2d(ImGuiNavDirSourceFlags.Keyboard | ImGuiNavDirSourceFlags.PadDPad, ImGuiInputReadMode.RepeatFast, 0.0f, 0.0f);
+            float input_delta = (axis == ImGuiAxis.X) ? input_delta2.x : -input_delta2.y;
+            if (input_delta != 0.0f)
             {
-                clicked_t = SliderCalcRatioFromValueT!(TYPE,FLOATTYPE)(data_type, *v, v_min, v_max, power, linear_zero_pos);
                 const int decimal_precision = is_decimal ? ImParseFormatPrecision(format, 3) : 0;
-                if ((decimal_precision > 0) || is_power)
+                if (decimal_precision > 0)
                 {
-                    delta /= 100.0f;    // Gamepad/keyboard tweak speeds in % of slider bounds
+                    input_delta /= 100.0f;    // Gamepad/keyboard tweak speeds in % of slider bounds
                     if (IsNavInputDown(ImGuiNavInput.TweakSlow))
-                        delta /= 10.0f;
+                        input_delta /= 10.0f;
                 }
                 else
                 {
                     if ((v_range >= -100.0f && v_range <= 100.0f) || IsNavInputDown(ImGuiNavInput.TweakSlow))
-                        delta = ((delta < 0.0f) ? -1.0f : +1.0f) / cast(float)v_range; // Gamepad/keyboard tweak speeds in integer steps
+                        input_delta = ((input_delta < 0.0f) ? -1.0f : +1.0f) / cast(float)v_range; // Gamepad/keyboard tweak speeds in integer steps
                     else
-                        delta /= 100.0f;
+                        input_delta /= 100.0f;
                 }
                 if (IsNavInputDown(ImGuiNavInput.TweakFast))
-                    delta *= 10.0f;
-                set_new_value = true;
+                    input_delta *= 10.0f;
+
+                g.SliderCurrentAccum += input_delta;
+                g.SliderCurrentAccumDirty = true;
+            }
+
+            float delta = g.SliderCurrentAccum;
+            if (g.NavActivatePressedId == id && !g.ActiveIdIsJustActivated)
+            {
+                ClearActiveID();
+            }
+            else if (g.SliderCurrentAccumDirty)
+            {
+                clicked_t = ScaleRatioFromValueT!(TYPE, FLOATTYPE)(data_type, *v, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
+
                 if ((clicked_t >= 1.0f && delta > 0.0f) || (clicked_t <= 0.0f && delta < 0.0f)) // This is to avoid applying the saturation when already past the limits
+                {
                     set_new_value = false;
+                    g.SliderCurrentAccum = 0.0f; // If pushing up against the limits, don't continue to accumulate
+                }
                 else
+                {
+                    set_new_value = true;
+                    float old_clicked_t = clicked_t;
                     clicked_t = ImSaturate(clicked_t + delta);
+
+                    // Calculate what our "new" clicked_t will be, and thus how far we actually moved the slider, and subtract this from the accumulator
+                    TYPE v_new = ScaleValueFromRatioT!(TYPE, FLOATTYPE)(data_type, clicked_t, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
+                    if (!(flags & ImGuiSliderFlags.NoRoundToFormat))
+                        v_new = RoundScalarWithFormatT!(TYPE, SIGNEDTYPE)(format, data_type, v_new);
+                    float new_clicked_t = ScaleRatioFromValueT!(TYPE, FLOATTYPE)(data_type, v_new, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
+
+                    if (delta > 0)
+                        g.SliderCurrentAccum -= ImMin(new_clicked_t - old_clicked_t, delta);
+                    else
+                        g.SliderCurrentAccum -= ImMax(new_clicked_t - old_clicked_t, delta);
+                }
+
+                g.SliderCurrentAccumDirty = false;
             }
         }
 
         if (set_new_value)
         {
-            TYPE v_new;
-            if (is_power)
-            {
-                // Account for power curve scale on both sides of the zero
-                if (clicked_t < linear_zero_pos)
-                {
-                    // Negative: rescale to the negative range before powering
-                    float a = 1.0f - (clicked_t / linear_zero_pos);
-                    a = ImPow(a, power);
-                    v_new = ImLerp(ImMin(v_max, cast(TYPE)0), v_min, a);
-                }
-                else
-                {
-                    // Positive: rescale to the positive range before powering
-                    float a;
-                    if (ImFabs(linear_zero_pos - 1.0f) > 1.0e-6f)
-                        a = (clicked_t - linear_zero_pos) / (1.0f - linear_zero_pos);
-                    else
-                        a = clicked_t;
-                    a = ImPow(a, power);
-                    v_new = ImLerp(ImMax(v_min, cast(TYPE)0), v_max, a);
-                }
-            }
-            else
-            {
-                // Linear slider
-                if (is_decimal)
-                {
-                    v_new = ImLerp(v_min, v_max, clicked_t);
-                }
-                else
-                {
-                    // For integer values we want the clicking position to match the grab box so we round above
-                    // This code is carefully tuned to work with large values (e.g. high ranges of U64) while preserving this property..
-                    FLOATTYPE v_new_off_f = (v_max - v_min) * clicked_t;
-                    TYPE v_new_off_floor = cast(TYPE)(v_new_off_f);
-                    TYPE v_new_off_round = cast(TYPE)(v_new_off_f + cast(FLOATTYPE)0.5);
-                    if (v_new_off_floor < v_new_off_round)
-                        v_new = v_min + v_new_off_round;
-                    else
-                        v_new = v_min + v_new_off_floor;
-                }
-            }
+            TYPE v_new = ScaleValueFromRatioT!(TYPE, FLOATTYPE)(data_type, clicked_t, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
 
             // Round to user desired precision based on format string
-            v_new = RoundScalarWithFormatT!(TYPE,SIGNEDTYPE)(format, data_type, v_new);
+            if (!(flags & ImGuiSliderFlags.NoRoundToFormat))
+                v_new = RoundScalarWithFormatT!(TYPE, SIGNEDTYPE)(format, data_type, v_new);
 
             // Apply result
             if (*v != v_new)
@@ -2544,7 +2700,7 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
     else
     {
         // Output grab position so it can be displayed by the caller
-        float grab_t = SliderCalcRatioFromValueT!(TYPE, FLOATTYPE)(data_type, *v, v_min, v_max, power, linear_zero_pos);
+        float grab_t = ScaleRatioFromValueT!(TYPE, FLOATTYPE)(data_type, *v, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
         if (axis == ImGuiAxis.Y)
             grab_t = 1.0f - grab_t;
         const float grab_pos = ImLerp(slider_usable_pos_min, slider_usable_pos_max, grab_t);
@@ -2560,32 +2716,39 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
 // For 32-bit and larger types, slider bounds are limited to half the natural type range.
 // So e.g. an integer Slider between INT_MAX-10 and INT_MAX will fail, but an integer Slider between INT_MAX/2-10 and INT_MAX/2 will be ok.
 // It would be possible to lift that limitation with some work but it doesn't seem to be worth it for sliders.
-bool SliderBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiDataType data_type, void* p_v, const void* p_min, const void* p_max, string format, float power, ImGuiSliderFlags flags, ImRect* out_grab_bb)
+bool SliderBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiDataType data_type, void* p_v, const void* p_min, const void* p_max, string format, ImGuiSliderFlags flags, ImRect* out_grab_bb)
 {
+    // Read imgui.cpp "API BREAKING CHANGES" section for 1.78 if you hit this assert.
+    IM_ASSERT((flags == 1 || (flags & ImGuiSliderFlags.InvalidMask_) == 0), "Invalid ImGuiSliderFlags flag!  Has the 'float power' argument been mistakenly cast to flags? Call function with ImGuiSliderFlags_Logarithmic flags instead.");
+
+    ImGuiContext* g = GImGui;
+    if ((g.CurrentWindow.DC.ItemFlags & ImGuiItemFlags.ReadOnly) || (flags & ImGuiSliderFlags.ReadOnly))
+        return false;
+
     switch (data_type)
     {
-    case ImGuiDataType.S8:  { ImS32 v32 = cast(ImS32)*cast(ImS8*)p_v;  bool r = SliderBehaviorT!(ImS32, ImS32, float)(bb, id, ImGuiDataType.S32, &v32, *cast(const ImS8*)p_min,  *cast(const ImS8*)p_max,  format, power, flags, out_grab_bb); if (r) *cast(ImS8*)p_v  = cast(ImS8)v32;  return r; }
-    case ImGuiDataType.U8:  { ImU32 v32 = cast(ImU32)*cast(ImU8*)p_v;  bool r = SliderBehaviorT!(ImU32, ImS32, float)(bb, id, ImGuiDataType.U32, &v32, *cast(const ImU8*)p_min,  *cast(const ImU8*)p_max,  format, power, flags, out_grab_bb); if (r) *cast(ImU8*)p_v  = cast(ImU8)v32;  return r; }
-    case ImGuiDataType.S16: { ImS32 v32 = cast(ImS32)*cast(ImS16*)p_v; bool r = SliderBehaviorT!(ImS32, ImS32, float)(bb, id, ImGuiDataType.S32, &v32, *cast(const ImS16*)p_min, *cast(const ImS16*)p_max, format, power, flags, out_grab_bb); if (r) *cast(ImS16*)p_v = cast(ImS16)v32; return r; }
-    case ImGuiDataType.U16: { ImU32 v32 = cast(ImU32)*cast(ImU16*)p_v; bool r = SliderBehaviorT!(ImU32, ImS32, float)(bb, id, ImGuiDataType.U32, &v32, *cast(const ImU16*)p_min, *cast(const ImU16*)p_max, format, power, flags, out_grab_bb); if (r) *cast(ImU16*)p_v = cast(ImU16)v32; return r; }
+    case ImGuiDataType.S8:  { ImS32 v32 = cast(ImS32)*cast(ImS8*)p_v;  bool r = SliderBehaviorT!(ImS32, ImS32, float)(bb, id, ImGuiDataType.S32, &v32, *cast(const ImS8*)p_min,  *cast(const ImS8*)p_max,  format, flags, out_grab_bb); if (r) *cast(ImS8*)p_v  = cast(ImS8)v32;  return r; }
+    case ImGuiDataType.U8:  { ImU32 v32 = cast(ImU32)*cast(ImU8*)p_v;  bool r = SliderBehaviorT!(ImU32, ImS32, float)(bb, id, ImGuiDataType.U32, &v32, *cast(const ImU8*)p_min,  *cast(const ImU8*)p_max,  format, flags, out_grab_bb); if (r) *cast(ImU8*)p_v  = cast(ImU8)v32;  return r; }
+    case ImGuiDataType.S16: { ImS32 v32 = cast(ImS32)*cast(ImS16*)p_v; bool r = SliderBehaviorT!(ImS32, ImS32, float)(bb, id, ImGuiDataType.S32, &v32, *cast(const ImS16*)p_min, *cast(const ImS16*)p_max, format, flags, out_grab_bb); if (r) *cast(ImS16*)p_v = cast(ImS16)v32; return r; }
+    case ImGuiDataType.U16: { ImU32 v32 = cast(ImU32)*cast(ImU16*)p_v; bool r = SliderBehaviorT!(ImU32, ImS32, float)(bb, id, ImGuiDataType.U32, &v32, *cast(const ImU16*)p_min, *cast(const ImU16*)p_max, format, flags, out_grab_bb); if (r) *cast(ImU16*)p_v = cast(ImU16)v32; return r; }
     case ImGuiDataType.S32:
-        IM_ASSERT(*cast(const ImS32*)p_min >= IM_S32_MIN/2 && *cast(const ImS32*)p_max <= IM_S32_MAX/2);
-        return SliderBehaviorT!(ImS32, ImS32, float )(bb, id, data_type, cast(ImS32*)p_v,  *cast(const ImS32*)p_min,  *cast(const ImS32*)p_max,  format, power, flags, out_grab_bb);
+        IM_ASSERT(*cast(const ImS32*)p_min >= IM_S32_MIN / 2 && *cast(const ImS32*)p_max <= IM_S32_MAX / 2);
+        return SliderBehaviorT!(ImS32, ImS32, float )(bb, id, data_type, cast(ImS32*)p_v,  *cast(const ImS32*)p_min,  *cast(const ImS32*)p_max,  format, flags, out_grab_bb);
     case ImGuiDataType.U32:
-        IM_ASSERT(*cast(const ImU32*)p_max <= IM_U32_MAX/2);
-        return SliderBehaviorT!(ImU32, ImS32, float )(bb, id, data_type, cast(ImU32*)p_v,  *cast(const ImU32*)p_min,  *cast(const ImU32*)p_max,  format, power, flags, out_grab_bb);
+        IM_ASSERT(*cast(const ImU32*)p_max <= IM_U32_MAX / 2);
+        return SliderBehaviorT!(ImU32, ImS32, float )(bb, id, data_type, cast(ImU32*)p_v,  *cast(const ImU32*)p_min,  *cast(const ImU32*)p_max,  format, flags, out_grab_bb);
     case ImGuiDataType.S64:
-        IM_ASSERT(*cast(const ImS64*)p_min >= IM_S64_MIN/2 && *cast(const ImS64*)p_max <= IM_S64_MAX/2);
-        return SliderBehaviorT!(ImS64, ImS64, double)(bb, id, data_type, cast(ImS64*)p_v,  *cast(const ImS64*)p_min,  *cast(const ImS64*)p_max,  format, power, flags, out_grab_bb);
+        IM_ASSERT(*cast(const ImS64*)p_min >= IM_S64_MIN / 2 && *cast(const ImS64*)p_max <= IM_S64_MAX / 2);
+        return SliderBehaviorT!(ImS64, ImS64, double)(bb, id, data_type, cast(ImS64*)p_v,  *cast(const ImS64*)p_min,  *cast(const ImS64*)p_max,  format, flags, out_grab_bb);
     case ImGuiDataType.U64:
-        IM_ASSERT(*cast(const ImU64*)p_max <= IM_U64_MAX/2);
-        return SliderBehaviorT!(ImU64, ImS64, double)(bb, id, data_type, cast(ImU64*)p_v,  *cast(const ImU64*)p_min,  *cast(const ImU64*)p_max,  format, power, flags, out_grab_bb);
+        IM_ASSERT(*cast(const ImU64*)p_max <= IM_U64_MAX / 2);
+        return SliderBehaviorT!(ImU64, ImS64, double)(bb, id, data_type, cast(ImU64*)p_v,  *cast(const ImU64*)p_min,  *cast(const ImU64*)p_max,  format, flags, out_grab_bb);
     case ImGuiDataType.Float:
-        IM_ASSERT(*cast(const float*)p_min >= -FLT_MAX/2.0f && *cast(const float*)p_max <= FLT_MAX/2.0f);
-        return SliderBehaviorT!(float, float, float )(bb, id, data_type, cast(float*)p_v,  *cast(const float*)p_min,  *cast(const float*)p_max,  format, power, flags, out_grab_bb);
+        IM_ASSERT(*cast(const float*)p_min >= -FLT_MAX / 2.0f && *cast(const float*)p_max <= FLT_MAX / 2.0f);
+        return SliderBehaviorT!(float, float, float )(bb, id, data_type, cast(float*)p_v,  *cast(const float*)p_min,  *cast(const float*)p_max,  format, flags, out_grab_bb);
     case ImGuiDataType.Double:
-        IM_ASSERT(*cast(const double*)p_min >= -DBL_MAX/2.0f && *cast(const double*)p_max <= DBL_MAX/2.0f);
-        return SliderBehaviorT!(double,double,double)(bb, id, data_type, cast(double*)p_v, *cast(const double*)p_min, *cast(const double*)p_max, format, power, flags, out_grab_bb);
+        IM_ASSERT(*cast(const double*)p_min >= -DBL_MAX / 2.0f && *cast(const double*)p_max <= DBL_MAX / 2.0f);
+        return SliderBehaviorT!(double,double,double)(bb, id, data_type, cast(double*)p_v, *cast(const double*)p_min, *cast(const double*)p_max, format, flags, out_grab_bb);
     case ImGuiDataType.COUNT: break;
     default: break;
     }
@@ -2595,7 +2758,7 @@ bool SliderBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiDataType data_type, v
 
 // Note: p_data, p_min and p_max are _pointers_ to a memory address holding the data. For a slider, they are all required.
 // Read code of e.g. SliderFloat(), SliderInt() etc. or examples in 'Demo->Widgets->Data Types' to understand how to use this function directly.
-bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format = NULL, float power = 1.0f)
+bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format = NULL, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2607,7 +2770,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
     const float w = CalcItemWidth();
 
     const ImVec2 label_size = CalcTextSize(label, true);
-    const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y*2.0f));
+    const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
     const ImRect total_bb = ImRect(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f));
 
     ItemSize(total_bb, style.FramePadding.y);
@@ -2622,11 +2785,11 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
 
     // Tabbing or CTRL-clicking on Slider turns it into an input box
     const bool hovered = ItemHoverable(frame_bb, id);
-    bool temp_input_is_active = TempInputIsActive(id);
-    bool temp_input_start = false;
+    const bool temp_input_allowed = (flags & ImGuiSliderFlags.NoInput) == 0;
+    bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
     if (!temp_input_is_active)
     {
-        const bool focus_requested = FocusableItemRegister(window, id);
+        const bool focus_requested = temp_input_allowed && FocusableItemRegister(window, id);
         const bool clicked = (hovered && g.IO.MouseClicked[0]);
         if (focus_requested || clicked || g.NavActivateId == id || g.NavInputId == id)
         {
@@ -2634,17 +2797,20 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
             SetFocusID(id, window);
             FocusWindow(window);
             g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir.Left) | (1 << ImGuiDir.Right);
-            if (focus_requested || (clicked && g.IO.KeyCtrl) || g.NavInputId == id)
+            if (temp_input_allowed && (focus_requested || (clicked && g.IO.KeyCtrl) || g.NavInputId == id))
             {
-                temp_input_start = true;
+                temp_input_is_active = true;
                 FocusableItemUnregister(window);
             }
         }
     }
 
-    // Our current specs do NOT clamp when using CTRL+Click manual input, but we should eventually add a flag for that..
-    if (temp_input_is_active || temp_input_start)
-        return TempInputScalar(frame_bb, id, label, data_type, p_data, format);// , p_min, p_max);
+    if (temp_input_is_active)
+    {
+        // Only clamp CTRL+Click input when ImGuiSliderFlags_ClampInput is set
+        const bool is_clamp_input = (flags & ImGuiSliderFlags.ClampOnInput) != 0;
+        return TempInputScalar(frame_bb, id, label, data_type, p_data, format, is_clamp_input ? p_min : NULL, is_clamp_input ? p_max : NULL);
+    }
 
     // Draw frame
     const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol.FrameBgActive : g.HoveredId == id ? ImGuiCol.FrameBgHovered : ImGuiCol.FrameBg);
@@ -2653,7 +2819,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
 
     // Slider behavior
     ImRect grab_bb;
-    const bool value_changed = SliderBehavior(frame_bb, id, data_type, p_data, p_min, p_max, format, power, ImGuiSliderFlags.None, &grab_bb);
+    const bool value_changed = SliderBehavior(frame_bb, id, data_type, p_data, p_min, p_max, format, flags, &grab_bb);
     if (value_changed)
         MarkItemEdited(id);
 
@@ -2664,7 +2830,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
     // Display value using user-provided display format so user can add prefix/suffix/decorations to the value.
     char[64] value_buf;
     int value_buf_end = DataTypeFormatString(value_buf, data_type, p_data, format);
-    RenderTextClipped(frame_bb.Min, frame_bb.Max, cast(string)value_buf[0..value_buf_end], NULL, ImVec2(0.5f,0.5f));
+    RenderTextClipped(frame_bb.Min, frame_bb.Max, cast(string)value_buf[0..value_buf_end], NULL, ImVec2(0.5f, 0.5f));
 
     if (label_size.x > 0.0f)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
@@ -2674,7 +2840,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
 }
 
 // Add multiple sliders on 1 line for compact edition of multiple components
-bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int components, const void* p_min, const void* p_max, string format = NULL, float power = 1.0f)
+bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int components, const void* p_min, const void* p_max, string format = NULL, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2691,7 +2857,7 @@ bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int component
         PushID(i);
         if (i > 0)
             SameLine(0, g.Style.ItemInnerSpacing.x);
-        value_changed |= SliderScalar("", data_type, v, p_min, p_max, format, power);
+        value_changed |= SliderScalar("", data_type, v, p_min, p_max, format, flags);
         PopID();
         PopItemWidth();
         v = cast(void*)(cast(char*)v + type_size);
@@ -2709,62 +2875,62 @@ bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int component
     return value_changed;
 }
 
-bool SliderFloat(string label, float* v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
+bool SliderFloat(string label, float* v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalar(label, ImGuiDataType.Float, v, &v_min, &v_max, format, power);
+    return SliderScalar(label, ImGuiDataType.Float, v, &v_min, &v_max, format, flags);
 }
 
-bool SliderFloat2(string label, float[/*2*/] v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
+bool SliderFloat2(string label, float[/*2*/] v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 2, &v_min, &v_max, format, power);
+    return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 2, &v_min, &v_max, format, flags);
 }
 
-bool SliderFloat3(string label, float[/*3*/] v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
+bool SliderFloat3(string label, float[/*3*/] v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 3, &v_min, &v_max, format, power);
+    return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 3, &v_min, &v_max, format, flags);
 }
 
-bool SliderFloat4(string label, float[/*4*/] v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
+bool SliderFloat4(string label, float[/*4*/] v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 4, &v_min, &v_max, format, power);
+    return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 4, &v_min, &v_max, format, flags);
 }
 
-bool SliderFloat2(string label, ImVec2* v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
+bool SliderFloat2(string label, ImVec2* v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderFloat2(label, (&v.x)[0..2], v_min, v_max, format, power);
+    return SliderFloat2(label, (&v.x)[0..2], v_min, v_max, format, flags);
 }
 
-bool SliderAngle(string label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f, string format = "%.0f deg")
+bool SliderAngle(string label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f, string format = "%.0f deg", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     if (format == NULL)
         format = "%.0f deg";
-    float v_deg = (*v_rad) * 360.0f / (2*IM_PI);
-    bool value_changed = SliderFloat(label, &v_deg, v_degrees_min, v_degrees_max, format, 1.0f);
-    *v_rad = v_deg * (2*IM_PI) / 360.0f;
+    float v_deg = (*v_rad) * 360.0f / (2 * IM_PI);
+    bool value_changed = SliderFloat(label, &v_deg, v_degrees_min, v_degrees_max, format, flags);
+    *v_rad = v_deg * (2 * IM_PI) / 360.0f;
     return value_changed;
 }
 
-bool SliderInt(string label, int* v, int v_min, int v_max, string format = "%d")
+bool SliderInt(string label, int* v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalar(label, ImGuiDataType.S32, v, &v_min, &v_max, format);
+    return SliderScalar(label, ImGuiDataType.S32, v, &v_min, &v_max, format, flags);
 }
 
-bool SliderInt2(string label, int[/*2*/] v, int v_min, int v_max, string format = "%d")
+bool SliderInt2(string label, int[/*2*/] v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 2, &v_min, &v_max, format);
+    return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 2, &v_min, &v_max, format, flags);
 }
 
-bool SliderInt3(string label, int[/*3*/] v, int v_min, int v_max, string format = "%d")
+bool SliderInt3(string label, int[/*3*/] v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 3, &v_min, &v_max, format);
+    return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 3, &v_min, &v_max, format, flags);
 }
 
-bool SliderInt4(string label, int[/*4*/] v, int v_min, int v_max, string format = "%d")
+bool SliderInt4(string label, int[/*4*/] v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 4, &v_min, &v_max, format);
+    return SliderScalarN(label, ImGuiDataType.S32, v.ptr, 4, &v_min, &v_max, format, flags);
 }
 
-bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format = NULL, float power = 1.0f)
+bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format = NULL, float power = 1.0f, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -2804,7 +2970,7 @@ bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type
 
     // Slider behavior
     ImRect grab_bb;
-    const bool value_changed = SliderBehavior(frame_bb, id, data_type, p_data, p_min, p_max, format, power, ImGuiSliderFlags.Vertical, &grab_bb);
+    const bool value_changed = SliderBehavior(frame_bb, id, data_type, p_data, p_min, p_max, format, flags | ImGuiSliderFlags.Vertical, &grab_bb);
     if (value_changed)
         MarkItemEdited(id);
 
@@ -2816,22 +2982,49 @@ bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type
     // For the vertical slider we allow centered text to overlap the frame padding
     char[64] value_buf;
     int value_buf_end = DataTypeFormatString(value_buf, data_type, p_data, format);
-    RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, cast(string)value_buf[0..value_buf_end], NULL, ImVec2(0.5f,0.0f));
+    RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, cast(string)value_buf[0..value_buf_end], NULL, ImVec2(0.5f, 0.0f));
     if (label_size.x > 0.0f)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
 
     return value_changed;
 }
 
-bool VSliderFloat(string label, const ImVec2/*&*/ size, float* v, float v_min, float v_max, string format = "%.3f", float power = 1.0f)
+bool VSliderFloat(string label, const ImVec2/*&*/ size, float* v, float v_min, float v_max, string format = "%.3f", float power = 1.0f, ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return VSliderScalar(label, size, ImGuiDataType.Float, v, &v_min, &v_max, format, power);
+    return VSliderScalar(label, size, ImGuiDataType.Float, v, &v_min, &v_max, format, power, flags);
 }
 
-bool VSliderInt(string label, const ImVec2/*&*/ size, int* v, int v_min, int v_max, string format = "%d")
+bool VSliderInt(string label, const ImVec2/*&*/ size, int* v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = ImGuiSliderFlags.None)
 {
-    return VSliderScalar(label, size, ImGuiDataType.S32, v, &v_min, &v_max, format);
+    return VSliderScalar(label, size, ImGuiDataType.S32, v, &v_min, &v_max, format, flags);
 }
+
+version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+
+// Obsolete versions with power parameter. See https://github.com/ocornut/imgui/issues/3361 for details.
+bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format, float power)
+{
+    ImGuiSliderFlags slider_flags = ImGuiSliderFlags.None;
+    if (power != 1.0f)
+    {
+        IM_ASSERT(power == 1.0f, "Call function with ImGuiSliderFlags_Logarithmic flags instead of using the old 'float power' function!");
+        slider_flags |= ImGuiSliderFlags.Logarithmic;   // Fallback for non-asserting paths
+    }
+    return SliderScalar(label, data_type, p_data, p_min, p_max, format, slider_flags);
+}
+
+bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int components, const void* v_min, const void* v_max, string format, float power)
+{
+    ImGuiSliderFlags slider_flags = ImGuiSliderFlags.None;
+    if (power != 1.0f)
+    {
+        IM_ASSERT(power == 1.0f, "Call function with ImGuiSliderFlags_Logarithmic flags instead of using the old 'float power' function!");
+        slider_flags |= ImGuiSliderFlags.Logarithmic;   // Fallback for non-asserting paths
+    }
+    return SliderScalarN(label, data_type, v, components, v_min, v_max, format, slider_flags);
+}
+
+} // IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
 //-------------------------------------------------------------------------
 // [SECTION] Widgets: InputScalar, InputFloat, InputInt, etc.
@@ -2917,7 +3110,7 @@ int ImParseFormatPrecision(string fmt, int default_precision)
     int precision = INT_MAX;
     if (fmt_start < fmt.length && fmt[fmt_start] == '.')
     {
-        fmt_start += ImAtoi!int(fmt[fmt_start..$], &precision).length;
+        fmt_start += ImAtoi!int(fmt[fmt_start + 1..$], &precision).length;
         if (precision < 0 || precision > 99)
             precision = default_precision;
     }
@@ -2950,20 +3143,10 @@ bool TempInputText(const ImRect/*&*/ bb, ImGuiID id, string label, char[] buf, I
     return value_changed;
 }
 
-// Note that Drag/Slider functions are currently NOT forwarding the min/max values clamping values!
+// Note that Drag/Slider functions are only forwarding the min/max values clamping values if the
+//  ImGuiSliderFlags_ClampOnInput / ImGuiSliderFlags_ClampOnInput flag is set!
 // This is intended: this way we allow CTRL+Click manual input to set a value out of bounds, for maximum flexibility.
 // However this may not be ideal for all uses, as some user code may break on out of bound values.
-// In the future we should add flags to Slider/Drag to specify how to enforce min/max values with CTRL+Click.
-// See GitHub issues #1829 and #3209
-// In the meanwhile, you can easily "wrap" those functions to enforce clamping, using wrapper functions, e.g.
-//   bool SliderFloatClamp(const char* label, float* v, float v_min, float v_max)
-//   {
-//      float v_backup = *v;
-//      if (!SliderFloat(label, v, v_min, v_max))
-//         return false;
-//      *v = ImClamp(*v, v_min, v_max);
-//      return v_backup != *v;
-//   }
 bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataType data_type, void* p_data, string format, const void* p_clamp_min = NULL, const void* p_clamp_max = NULL)
 {
     ImGuiContext* g = GImGui;
@@ -2986,7 +3169,7 @@ bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataTy
 
         // Apply new value (or operations) then clamp
         DataTypeApplyOpFromText(ImCstring(data_buf), cast(string)g.InputTextState.InitialTextA.asArray(), data_type, p_data, NULL);
-        if (p_clamp_min && p_clamp_max)
+        if (p_clamp_min || p_clamp_max)
             DataTypeClamp(data_type, p_data, p_clamp_min, p_clamp_max);
 
         // Only mark as edited if new value is different
@@ -3109,7 +3292,7 @@ bool InputScalarN(string label, ImGuiDataType data_type, void* p_data, int compo
 bool InputFloat(string label, float* v, float step = 0.0f, float step_fast = 0.0f, string format = "%.3f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     flags |= ImGuiInputTextFlags.CharsScientific;
-    return InputScalar(label, ImGuiDataType.Float, cast(void*)v, cast(void*)(step>0.0f ? &step : NULL), cast(void*)(step_fast>0.0f ? &step_fast : NULL), format, flags);
+    return InputScalar(label, ImGuiDataType.Float, cast(void*)v, cast(void*)(step > 0.0f ? &step : NULL), cast(void*)(step_fast > 0.0f ? &step_fast : NULL), format, flags);
 }
 
 bool InputFloat2(string label, float[/*2*/] v, string format = "%.3f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
@@ -3170,7 +3353,7 @@ bool InputInt(string label, int* v, int step = 1, int step_fast = 100, ImGuiInpu
 {
     // Hexadecimal input provided as a convenience but the flag name is awkward. Typically you'd use InputText() to parse your own data, if you want to handle prefixes.
     string format = (flags & ImGuiInputTextFlags.CharsHexadecimal) ? "%08X" : "%d";
-    return InputScalar(label, ImGuiDataType.S32, cast(void*)v, cast(void*)(step>0 ? &step : NULL), cast(void*)(step_fast>0 ? &step_fast : NULL), format, flags);
+    return InputScalar(label, ImGuiDataType.S32, cast(void*)v, cast(void*)(step > 0 ? &step : NULL), cast(void*)(step_fast > 0 ? &step_fast : NULL), format, flags);
 }
 
 bool InputInt2(string label, int[/*2*/] v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
@@ -3191,7 +3374,7 @@ bool InputInt4(string label, int[/*4*/] v, ImGuiInputTextFlags flags = ImGuiInpu
 bool InputDouble(string label, double* v, double step = 0.0, double step_fast = 0.0, string format = "%.6f", ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
 {
     flags |= ImGuiInputTextFlags.CharsScientific;
-    return InputScalar(label, ImGuiDataType.Double, cast(void*)v, cast(void*)(step>0.0 ? &step : NULL), cast(void*)(step_fast>0.0 ? &step_fast : NULL), format, flags);
+    return InputScalar(label, ImGuiDataType.Double, cast(void*)v, cast(void*)(step > 0.0 ? &step : NULL), cast(void*)(step_fast > 0.0 ? &step_fast : NULL), format, flags);
 }
 
 //-------------------------------------------------------------------------
@@ -3305,10 +3488,10 @@ void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, STB_TEXTEDIT_STRING* obj, int 
 }
 
 bool is_separator(uint c)                                        { return ImCharIsBlankW(c) || c==',' || c==';' || c=='(' || c==')' || c=='{' || c=='}' || c=='[' || c==']' || c=='|'; }
-int  is_word_boundary_from_right(STB_TEXTEDIT_STRING* obj, int idx)      { return idx > 0 ? (is_separator( obj.TextW[idx-1] ) && !is_separator( obj.TextW[idx] ) ) : 1; }
+int  is_word_boundary_from_right(STB_TEXTEDIT_STRING* obj, int idx)      { return idx > 0 ? (is_separator(obj.TextW[idx - 1]) && !is_separator(obj.TextW[idx]) ) : 1; }
 int  STB_TEXTEDIT_MOVEWORDLEFT_IMPL(STB_TEXTEDIT_STRING* obj, int idx)   { idx--; while (idx >= 0 && !is_word_boundary_from_right(obj, idx)) idx--; return idx < 0 ? 0 : idx; }
 static if (D_IMGUI_Apple) {    // FIXME: Move setting to IO structure
-    int  is_word_boundary_from_left(STB_TEXTEDIT_STRING* obj, int idx)       { return idx > 0 ? (!is_separator( obj.TextW[idx-1] ) && is_separator( obj.TextW[idx] ) ) : 1; }
+    int  is_word_boundary_from_left(STB_TEXTEDIT_STRING* obj, int idx)       { return idx > 0 ? (!is_separator(obj.TextW[idx - 1]) && is_separator(obj.TextW[idx]) ) : 1; }
     int  STB_TEXTEDIT_MOVEWORDRIGHT(STB_TEXTEDIT_STRING* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_left(obj, idx)) idx++; return idx > len ? len : idx; }
 } else {
     int  STB_TEXTEDIT_MOVEWORDRIGHT(STB_TEXTEDIT_STRING* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_right(obj, idx)) idx++; return idx > len ? len : idx; }
@@ -3542,7 +3725,7 @@ bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, ImGuiInpu
         // Turn a-z into A-Z
         if (flags & ImGuiInputTextFlags.CharsUppercase)
             if (c >= 'a' && c <= 'z')
-                *p_char = (c += cast(uint)('A'-'a'));
+                *p_char = (c += cast(uint)('A' - 'a'));
 
         if (flags & ImGuiInputTextFlags.CharsNoBlank)
             if (ImCharIsBlankW(c))
@@ -3603,7 +3786,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         BeginGroup();
     const ImGuiID id = window.GetID(label);
     const ImVec2 label_size = CalcTextSize(label, true);
-    const ImVec2 frame_size = CalcItemSize(size_arg, CalcItemWidth(), (is_multiline ? g.FontSize * 8.0f : label_size.y) + style.FramePadding.y*2.0f); // Arbitrary default of 8 lines high for multi-line
+    const ImVec2 frame_size = CalcItemSize(size_arg, CalcItemWidth(), (is_multiline ? g.FontSize * 8.0f : label_size.y) + style.FramePadding.y * 2.0f); // Arbitrary default of 8 lines high for multi-line
     const ImVec2 total_size = ImVec2(frame_size.x + (label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f), frame_size.y);
 
     const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + frame_size);
@@ -3793,7 +3976,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
         // Edit in progress
         const float mouse_x = (io.MousePos.x - frame_bb.Min.x - style.FramePadding.x) + state.ScrollX;
-        const float mouse_y = (is_multiline ? (io.MousePos.y - draw_window.DC.CursorPos.y - style.FramePadding.y) : (g.FontSize*0.5f));
+        const float mouse_y = (is_multiline ? (io.MousePos.y - draw_window.DC.CursorPos.y - style.FramePadding.y) : (g.FontSize * 0.5f));
 
         const bool is_osx = io.ConfigMacOSXBehaviors;
         if (select_all || (hovered && !is_osx && io.MouseDoubleClicked[0]))
@@ -3889,9 +4072,9 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             if (!state.HasSelection())
             {
                 if (is_wordmove_key_down)
-                    state.OnKeyPressed(STB_TEXTEDIT_K_WORDLEFT|STB_TEXTEDIT_K_SHIFT);
+                    state.OnKeyPressed(STB_TEXTEDIT_K_WORDLEFT | STB_TEXTEDIT_K_SHIFT);
                 else if (is_osx && io.KeySuper && !io.KeyAlt && !io.KeyCtrl)
-                    state.OnKeyPressed(STB_TEXTEDIT_K_LINESTART|STB_TEXTEDIT_K_SHIFT);
+                    state.OnKeyPressed(STB_TEXTEDIT_K_LINESTART | STB_TEXTEDIT_K_SHIFT);
             }
             state.OnKeyPressed(STB_TEXTEDIT_K_BACKSPACE | k_mask);
         }
@@ -4280,7 +4463,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 {
                     ImVec2 rect_size = InputTextCalcTextSizeW(p, text_selected_end, &p, NULL, true);
                     if (rect_size.x <= 0.0f) rect_size.x = IM_FLOOR(g.Font.GetCharAdvance(cast(ImWchar)' ') * 0.50f); // So we can see selected empty lines
-                    ImRect rect = ImRect(rect_pos + ImVec2(0.0f, bg_offy_up - g.FontSize), rect_pos +ImVec2(rect_size.x, bg_offy_dn));
+                    ImRect rect = ImRect(rect_pos + ImVec2(0.0f, bg_offy_up - g.FontSize), rect_pos + ImVec2(rect_size.x, bg_offy_dn));
                     rect.ClipWith(ImRect(clip_rect));
                     if (rect.Overlaps(ImRect(clip_rect)))
                         draw_window.DrawList.AddRectFilled(rect.Min, rect.Max, bg_color);
@@ -4451,8 +4634,8 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
     if ((flags & (ImGuiColorEditFlags.DisplayRGB | ImGuiColorEditFlags.DisplayHSV)) != 0 && (flags & ImGuiColorEditFlags.NoInputs) == 0)
     {
         // RGB/HSV 0..255 Sliders
-        const float w_item_one  = ImMax(1.0f, IM_FLOOR((w_inputs - (style.ItemInnerSpacing.x) * (components-1)) / cast(float)components));
-        const float w_item_last = ImMax(1.0f, IM_FLOOR(w_inputs - (w_item_one + style.ItemInnerSpacing.x) * (components-1)));
+        const float w_item_one  = ImMax(1.0f, IM_FLOOR((w_inputs - (style.ItemInnerSpacing.x) * (components - 1)) / cast(float)components));
+        const float w_item_last = ImMax(1.0f, IM_FLOOR(w_inputs - (w_item_one + style.ItemInnerSpacing.x) * (components - 1)));
 
         const bool hide_prefix = (w_item_one <= CalcTextSize((flags & ImGuiColorEditFlags.Float) ? "M:0.000" : "M:000").x);
         __gshared string[4] ids = [ "##X", "##Y", "##Z", "##W" ];
@@ -4479,7 +4662,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
             // FIXME: When ImGuiColorEditFlags_HDR flag is passed HS values snap in weird ways when SV values go below 0.
             if (flags & ImGuiColorEditFlags.Float)
             {
-                value_changed |= DragFloat(ids[n], &f[n], 1.0f/255.0f, 0.0f, hdr ? 0.0f : 1.0f, fmt_table_float[fmt_idx][n]);
+                value_changed |= DragFloat(ids[n], &f[n], 1.0f / 255.0f, 0.0f, hdr ? 0.0f : 1.0f, fmt_table_float[fmt_idx][n]);
                 value_changed_as_float |= value_changed;
             }
             else
@@ -4495,9 +4678,9 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
         // RGB Hexadecimal Input
         char[64] buf;
         if (alpha)
-            ImFormatString(buf, "#%02X%02X%02X%02X", ImClamp(i[0],0,255), ImClamp(i[1],0,255), ImClamp(i[2],0,255), ImClamp(i[3],0,255));
+            ImFormatString(buf, "#%02X%02X%02X%02X", ImClamp(i[0], 0, 255), ImClamp(i[1], 0, 255), ImClamp(i[2], 0, 255), ImClamp(i[3], 0, 255));
         else
-            ImFormatString(buf, "#%02X%02X%02X", ImClamp(i[0],0,255), ImClamp(i[1],0,255), ImClamp(i[2],0,255));
+            ImFormatString(buf, "#%02X%02X%02X", ImClamp(i[0], 0, 255), ImClamp(i[1], 0, 255), ImClamp(i[2], 0, 255));
         SetNextItemWidth(w_inputs);
         if (InputText("##Text", buf, ImGuiInputTextFlags.CharsHexadecimal | ImGuiInputTextFlags.CharsUppercase))
         {
@@ -4529,7 +4712,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
                 // Store current color and open a picker
                 g.ColorPickerRef = col_v4;
                 OpenPopup("picker");
-                SetNextWindowPos(window.DC.LastItemRect.GetBL() + ImVec2(-1,style.ItemSpacing.y));
+                SetNextWindowPos(window.DC.LastItemRect.GetBL() + ImVec2(-1, style.ItemSpacing.y));
             }
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
@@ -4701,7 +4884,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     float wheel_thickness = sv_picker_size * 0.08f;
     float wheel_r_outer = sv_picker_size * 0.50f;
     float wheel_r_inner = wheel_r_outer - wheel_thickness;
-    ImVec2 wheel_center = ImVec2(picker_pos.x + (sv_picker_size + bars_width)*0.5f, picker_pos.y + sv_picker_size*0.5f);
+    ImVec2 wheel_center = ImVec2(picker_pos.x + (sv_picker_size + bars_width)*0.5f, picker_pos.y + sv_picker_size * 0.5f);
 
     // Note: the triangle is displayed rotated with triangle_pa pointing to Hue, but most coordinates stays unrotated for logic.
     float triangle_r = wheel_r_inner - cast(int)(sv_picker_size * 0.027f);
@@ -4740,10 +4923,10 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
             ImVec2 initial_off = g.IO.MouseClickedPos[0] - wheel_center;
             ImVec2 current_off = g.IO.MousePos - wheel_center;
             float initial_dist2 = ImLengthSqr(initial_off);
-            if (initial_dist2 >= (wheel_r_inner-1)*(wheel_r_inner-1) && initial_dist2 <= (wheel_r_outer+1)*(wheel_r_outer+1))
+            if (initial_dist2 >= (wheel_r_inner - 1) * (wheel_r_inner - 1) && initial_dist2 <= (wheel_r_outer + 1) * (wheel_r_outer + 1))
             {
                 // Interactive with Hue wheel
-                H = ImAtan2(current_off.y, current_off.x) / IM_PI*0.5f;
+                H = ImAtan2(current_off.y, current_off.x) / IM_PI * 0.5f;
                 if (H < 0.0f)
                     H += 1.0f;
                 value_changed = value_changed_h = true;
@@ -4772,8 +4955,8 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         InvisibleButton("sv", ImVec2(sv_picker_size, sv_picker_size));
         if (IsItemActive())
         {
-            S = ImSaturate((io.MousePos.x - picker_pos.x) / (sv_picker_size-1));
-            V = 1.0f - ImSaturate((io.MousePos.y - picker_pos.y) / (sv_picker_size-1));
+            S = ImSaturate((io.MousePos.x - picker_pos.x) / (sv_picker_size - 1));
+            V = 1.0f - ImSaturate((io.MousePos.y - picker_pos.y) / (sv_picker_size - 1));
             value_changed = value_changed_sv = true;
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
@@ -4784,7 +4967,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         InvisibleButton("hue", ImVec2(bars_width, sv_picker_size));
         if (IsItemActive())
         {
-            H = ImSaturate((io.MousePos.y - picker_pos.y) / (sv_picker_size-1));
+            H = ImSaturate((io.MousePos.y - picker_pos.y) / (sv_picker_size - 1));
             value_changed = value_changed_h = true;
         }
     }
@@ -4796,7 +4979,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         InvisibleButton("alpha", ImVec2(bars_width, sv_picker_size));
         if (IsItemActive())
         {
-            col[3] = 1.0f - ImSaturate((io.MousePos.y - picker_pos.y) / (sv_picker_size-1));
+            col[3] = 1.0f - ImSaturate((io.MousePos.y - picker_pos.y) / (sv_picker_size - 1));
             value_changed = true;
         }
     }
@@ -4847,7 +5030,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     {
         if (flags & ImGuiColorEditFlags.InputRGB)
         {
-            ColorConvertHSVtoRGB(H >= 1.0f ? H - 10 * 1e-6f : H, S > 0.0f ? S : 10*1e-6f, V > 0.0f ? V : 1e-6f, col[0], col[1], col[2]);
+            ColorConvertHSVtoRGB(H >= 1.0f ? H - 10 * 1e-6f : H, S > 0.0f ? S : 10 * 1e-6f, V > 0.0f ? V : 1e-6f, col[0], col[1], col[2]);
             g.ColorEditLastHue = H;
             g.ColorEditLastSat = S;
             memcpy(g.ColorEditLastColor, col, sizeof!(float) * 3);
@@ -4950,17 +5133,17 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
             // Paint colors over existing vertices
             ImVec2 gradient_p0 = ImVec2(wheel_center.x + ImCos(a0) * wheel_r_inner, wheel_center.y + ImSin(a0) * wheel_r_inner);
             ImVec2 gradient_p1 = ImVec2(wheel_center.x + ImCos(a1) * wheel_r_inner, wheel_center.y + ImSin(a1) * wheel_r_inner);
-            ShadeVertsLinearColorGradientKeepAlpha(draw_list, vert_start_idx, vert_end_idx, gradient_p0, gradient_p1, col_hues[n], col_hues[n+1]);
+            ShadeVertsLinearColorGradientKeepAlpha(draw_list, vert_start_idx, vert_end_idx, gradient_p0, gradient_p1, col_hues[n], col_hues[n + 1]);
         }
 
         // Render Cursor + preview on Hue Wheel
         float cos_hue_angle = ImCos(H * 2.0f * IM_PI);
         float sin_hue_angle = ImSin(H * 2.0f * IM_PI);
-        ImVec2 hue_cursor_pos = ImVec2(wheel_center.x + cos_hue_angle * (wheel_r_inner+wheel_r_outer)*0.5f, wheel_center.y + sin_hue_angle * (wheel_r_inner+wheel_r_outer)*0.5f);
+        ImVec2 hue_cursor_pos = ImVec2(wheel_center.x + cos_hue_angle * (wheel_r_inner + wheel_r_outer) * 0.5f, wheel_center.y + sin_hue_angle * (wheel_r_inner + wheel_r_outer) * 0.5f);
         float hue_cursor_rad = value_changed_h ? wheel_thickness * 0.65f : wheel_thickness * 0.55f;
         int hue_cursor_segments = ImClamp(cast(int)(hue_cursor_rad / 1.4f), 9, 32);
         draw_list.AddCircleFilled(hue_cursor_pos, hue_cursor_rad, hue_color32, hue_cursor_segments);
-        draw_list.AddCircle(hue_cursor_pos, hue_cursor_rad+1, col_midgrey, hue_cursor_segments);
+        draw_list.AddCircle(hue_cursor_pos, hue_cursor_rad + 1, col_midgrey, hue_cursor_segments);
         draw_list.AddCircle(hue_cursor_pos, hue_cursor_rad, col_white, hue_cursor_segments);
 
         // Render SV triangle (rotated according to hue)
@@ -4998,7 +5181,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     // Render cursor/preview circle (clamp S/V within 0..1 range because floating points colors may lead HSV values to be out of range)
     float sv_cursor_rad = value_changed_sv ? 10.0f : 6.0f;
     draw_list.AddCircleFilled(sv_cursor_pos, sv_cursor_rad, user_col32_striped_of_alpha, 12);
-    draw_list.AddCircle(sv_cursor_pos, sv_cursor_rad+1, col_midgrey, 12);
+    draw_list.AddCircle(sv_cursor_pos, sv_cursor_rad + 1, col_midgrey, 12);
     draw_list.AddCircle(sv_cursor_pos, sv_cursor_rad, col_white, 12);
 
     // Render alpha bar
@@ -5075,8 +5258,8 @@ bool ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flag
     if ((flags & ImGuiColorEditFlags.AlphaPreviewHalf) && col_rgb.w < 1.0f)
     {
         float mid_x = IM_ROUND((bb_inner.Min.x + bb_inner.Max.x) * 0.5f);
-        RenderColorRectWithAlphaCheckerboard(window.DrawList,ImVec2(bb_inner.Min.x + grid_step, bb_inner.Min.y), bb_inner.Max, GetColorU32(col_rgb), grid_step, ImVec2(-grid_step + off, off), rounding, ImDrawCornerFlags.TopRight| ImDrawCornerFlags.BotRight);
-        window.DrawList.AddRectFilled(bb_inner.Min, ImVec2(mid_x, bb_inner.Max.y), GetColorU32(col_rgb_without_alpha), rounding, ImDrawCornerFlags.TopLeft|ImDrawCornerFlags.BotLeft);
+        RenderColorRectWithAlphaCheckerboard(window.DrawList, ImVec2(bb_inner.Min.x + grid_step, bb_inner.Min.y), bb_inner.Max, GetColorU32(col_rgb), grid_step, ImVec2(-grid_step + off, off), rounding, ImDrawCornerFlags.TopRight | ImDrawCornerFlags.BotRight);
+        window.DrawList.AddRectFilled(bb_inner.Min, ImVec2(mid_x, bb_inner.Max.y), GetColorU32(col_rgb_without_alpha), rounding, ImDrawCornerFlags.TopLeft | ImDrawCornerFlags.BotLeft);
     }
     else
     {
@@ -5194,7 +5377,7 @@ void ColorEditOptionsPopup(const float* col, ImGuiColorEditFlags flags)
 
     if (allow_opt_inputs || allow_opt_datatype)
         Separator();
-    if (Button("Copy as..", ImVec2(-1,0)))
+    if (Button("Copy as..", ImVec2(-1, 0)))
         OpenPopup("Copy");
     if (BeginPopup("Copy"))
     {
@@ -5238,16 +5421,16 @@ void ColorPickerOptionsPopup(const float* ref_col, ImGuiColorEditFlags flags)
             // Draw small/thumbnail version of each picker type (over an invisible button for selection)
             if (picker_type > 0) Separator();
             PushID(picker_type);
-            ImGuiColorEditFlags picker_flags = ImGuiColorEditFlags.NoInputs|ImGuiColorEditFlags.NoOptions|ImGuiColorEditFlags.NoLabel|ImGuiColorEditFlags.NoSidePreview|(flags & ImGuiColorEditFlags.NoAlpha);
+            ImGuiColorEditFlags picker_flags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoOptions | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.NoSidePreview | (flags & ImGuiColorEditFlags.NoAlpha);
             if (picker_type == 0) picker_flags |= ImGuiColorEditFlags.PickerHueBar;
             if (picker_type == 1) picker_flags |= ImGuiColorEditFlags.PickerHueWheel;
             ImVec2 backup_pos = GetCursorScreenPos();
             if (Selectable("##selectable", false, ImGuiSelectableFlags.None, picker_size)) // By default, Selectable() is closing popup
                 g.ColorEditOptions = (g.ColorEditOptions & ~ImGuiColorEditFlags._PickerMask) | (picker_flags & ImGuiColorEditFlags._PickerMask);
             SetCursorScreenPos(backup_pos);
-            ImVec4 dummy_ref_col;
-            memcpy(&dummy_ref_col, ref_col, sizeof!(float) * (picker_flags & ImGuiColorEditFlags.NoAlpha ? 3 : 4));
-            ColorPicker4("##dummypicker", dummy_ref_col.array(), picker_flags);
+            ImVec4 previewing_ref_col;
+            memcpy(&previewing_ref_col, ref_col, sizeof!(float) * (picker_flags & ImGuiColorEditFlags.NoAlpha ? 3 : 4));
+            ColorPicker4("##dummypicker", previewing_ref_col.array(), picker_flags);
             PopID();
         }
         PopItemWidth();
@@ -5417,7 +5600,7 @@ bool TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, string label)
     const ImVec2 label_size = CalcTextSize(label_end, false);
 
     // We vertically grow up to current line height up the typical widget height.
-    const float frame_height = ImMax(ImMin(window.DC.CurrLineSize.y, g.FontSize + style.FramePadding.y*2), label_size.y + padding.y*2);
+    const float frame_height = ImMax(ImMin(window.DC.CurrLineSize.y, g.FontSize + style.FramePadding.y * 2), label_size.y + padding.y * 2);
     ImRect frame_bb;
     frame_bb.Min.x = (flags & ImGuiTreeNodeFlags.SpanFullWidth) ? window.WorkRect.Min.x : window.DC.CursorPos.x;
     frame_bb.Min.y = window.DC.CursorPos.y;
@@ -5431,9 +5614,9 @@ bool TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, string label)
         frame_bb.Max.x += IM_FLOOR(window.WindowPadding.x * 0.5f);
     }
 
-    const float text_offset_x = g.FontSize + (display_frame ? padding.x*3 : padding.x*2);               // Collapser arrow width + Spacing
+    const float text_offset_x = g.FontSize + (display_frame ? padding.x * 3 : padding.x * 2);           // Collapser arrow width + Spacing
     const float text_offset_y = ImMax(padding.y, window.DC.CurrLineTextBaseOffset);                    // Latch before ItemSize changes it
-    const float text_width = g.FontSize + (label_size.x > 0.0f ? label_size.x + padding.x*2 : 0.0f);    // Include collapser
+    const float text_width = g.FontSize + (label_size.x > 0.0f ? label_size.x + padding.x * 2 : 0.0f);  // Include collapser
     ImVec2 text_pos = ImVec2(window.DC.CursorPos.x + text_offset_x, window.DC.CursorPos.y + text_offset_y);
     ItemSize(ImVec2(text_width, frame_height), padding.y);
 
@@ -5696,7 +5879,7 @@ bool CollapsingHeader(string label, bool* p_open, ImGuiTreeNodeFlags flags = ImG
         // FIXME: We can evolve this into user accessible helpers to add extra buttons on title bars, headers, etc.
         // FIXME: CloseButton can overlap into text, need find a way to clip the text somehow.
         ImGuiContext* g = GImGui;
-        ImGuiItemHoveredDataBackup last_item_backup = ImGuiItemHoveredDataBackup(false);
+        ImGuiLastItemDataBackup last_item_backup = ImGuiLastItemDataBackup(false);
         float button_size = g.FontSize;
         float button_x = ImMax(window.DC.LastItemRect.Min.x, window.DC.LastItemRect.Max.x - g.Style.FramePadding.x * 2.0f - button_size);
         float button_y = window.DC.LastItemRect.Min.y;
@@ -5714,7 +5897,7 @@ bool CollapsingHeader(string label, bool* p_open, ImGuiTreeNodeFlags flags = ImG
 // - Selectable()
 //-------------------------------------------------------------------------
 
-// Tip: pass a non-visible label (e.g. "##dummy") then you can use the space to draw other text or image.
+// Tip: pass a non-visible label (e.g. "##hello") then you can use the space to draw other text or image.
 // But you need to make sure the ID is unique, e.g. enclose calls in PushID/PopID or use ##unique_id.
 // With this scheme, ImGuiSelectableFlags_SpanAllColumns and ImGuiSelectableFlags_AllowItemOverlap are also frequently used flags.
 // FIXME: Selectable() with (size.x == 0.0f) and (SelectableTextAlign.x > 0.0f) followed by SameLine() is currently not supported.
@@ -5739,8 +5922,8 @@ bool Selectable(string label, bool selected = false, ImGuiSelectableFlags flags 
     ItemSize(size, 0.0f);
 
     // Fill horizontal space
-    const float min_x = (flags & ImGuiSelectableFlags.SpanAllColumns) ? window.ContentRegionRect.Min.x : pos.x;
-    const float max_x = (flags & ImGuiSelectableFlags.SpanAllColumns) ? window.ContentRegionRect.Max.x : GetContentRegionMaxAbs().x;
+    const float min_x = (flags & ImGuiSelectableFlags.SpanAllColumns) ? window.ParentWorkRect.Min.x : pos.x;
+    const float max_x = (flags & ImGuiSelectableFlags.SpanAllColumns) ? window.ParentWorkRect.Max.x : window.WorkRect.Max.x;
     if (size_arg.x == 0.0f || (flags & ImGuiSelectableFlags.SpanAvailWidth))
         size.x = ImMax(label_size.x, max_x - min_x);
 
@@ -6045,7 +6228,7 @@ int PlotEx(ImGuiPlotType plot_type, string label, float function(void* data, int
             const float v0 = values_getter(data, (v_idx + values_offset) % values_count);
             const float v1 = values_getter(data, (v_idx + 1 + values_offset) % values_count);
             if (plot_type == ImGuiPlotType.Lines)
-                SetTooltip("%d: %8.4g\n%d: %8.4g", v_idx, v0, v_idx+1, v1);
+                SetTooltip("%d: %8.4g\n%d: %8.4g", v_idx, v0, v_idx + 1, v1);
             else if (plot_type == ImGuiPlotType.Histogram)
                 SetTooltip("%d: %8.4g", v_idx, v0);
             idx_hovered = v_idx;
@@ -6091,7 +6274,7 @@ int PlotEx(ImGuiPlotType plot_type, string label, float function(void* data, int
 
     // Text overlay
     if (overlay_text !is NULL)
-        RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, overlay_text, NULL, ImVec2(0.5f,0.0f));
+        RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, overlay_text, NULL, ImVec2(0.5f, 0.0f));
 
     if (label_size.x > 0.0f)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
@@ -6730,9 +6913,9 @@ bool    BeginTabBarEx(ImGuiTabBar* tab_bar, const ImRect/*&*/ tab_bar_bb, ImGuiT
     tab_bar.CurrFrameVisible = g.FrameCount;
     tab_bar.FramePadding = g.Style.FramePadding;
 
-    // Layout
-    ItemSize(ImVec2(tab_bar.OffsetMaxIdeal, tab_bar.BarRect.GetHeight()), tab_bar.FramePadding.y);
+    // Set cursor pos in a way which only be used in the off-chance the user erroneously submits item before BeginTabItem(): items will overlap
     window.DC.CursorPos.x = tab_bar.BarRect.Min.x;
+    window.DC.CursorPos.y = tab_bar.BarRect.Max.y + g.Style.ItemSpacing.y;
 
     // Draw separator
     const ImU32 col = GetColorU32((flags & ImGuiTabBarFlags.IsFocused) ? ImGuiCol.TabActive : ImGuiCol.TabUnfocusedActive);
@@ -6758,7 +6941,7 @@ void    EndTabBar()
         IM_ASSERT_USER_ERROR(tab_bar != NULL, "Mismatched BeginTabBar()/EndTabBar()!");
         return;
     }
-    if (tab_bar.WantLayout)
+    if (tab_bar.WantLayout) // Fallback in case no TabItem have been submitted
         TabBarLayout(tab_bar);
 
     // Restore the last visible height if no tab is visible, this reduce vertical flicker/movement when a tabs gets removed without calling SetTabItemClosed().
@@ -6782,15 +6965,17 @@ void TabBarLayout(ImGuiTabBar* tab_bar)
     ImGuiContext* g = GImGui;
     tab_bar.WantLayout = false;
 
-    // Garbage collect
+    // Garbage collect by compacting list
     int tab_dst_n = 0;
     for (int tab_src_n = 0; tab_src_n < tab_bar.Tabs.Size; tab_src_n++)
     {
         ImGuiTabItem* tab = &tab_bar.Tabs[tab_src_n];
-        if (tab.LastFrameVisible < tab_bar.PrevFrameVisible)
+        if (tab.LastFrameVisible < tab_bar.PrevFrameVisible || tab.WantClose)
         {
-            if (tab.ID == tab_bar.SelectedTabId)
-                tab_bar.SelectedTabId = 0;
+            // Remove tab
+            if (tab_bar.VisibleTabId == tab.ID) { tab_bar.VisibleTabId = 0; }
+            if (tab_bar.SelectedTabId == tab.ID) { tab_bar.SelectedTabId = 0; }
+            if (tab_bar.NextSelectedTabId == tab.ID) { tab_bar.NextSelectedTabId = 0; }
             continue;
         }
         if (tab_dst_n != tab_src_n)
@@ -6944,6 +7129,11 @@ void TabBarLayout(ImGuiTabBar* tab_bar)
     // Clear name buffers
     if ((tab_bar.Flags & ImGuiTabBarFlags.DockNode) == 0)
         tab_bar.TabsNames.Buf.resize(0);
+
+    // Actual layout in host window (we don't do it in BeginTabBar() so as not to waste an extra frame)
+    ImGuiWindow* window = g.CurrentWindow;
+    window.DC.CursorPos = tab_bar.BarRect.Min;
+    ItemSize(ImVec2(tab_bar.OffsetMaxIdeal, tab_bar.BarRect.GetHeight()), tab_bar.FramePadding.y);
 }
 
 // Dockables uses Name/ID in the global namespace. Non-dockable items use the ID stack.
@@ -7107,7 +7297,7 @@ ImGuiTabItem* TabBarTabListPopupButton(ImGuiTabBar* tab_bar)
     arrow_col.w *= 0.5f;
     PushStyleColor(ImGuiCol.Text, arrow_col);
     PushStyleColor(ImGuiCol.Button, ImVec4(0, 0, 0, 0));
-    bool open = BeginCombo("##v", NULL, ImGuiComboFlags.NoPreview);
+    bool open = BeginCombo("##v", NULL, ImGuiComboFlags.NoPreview | ImGuiComboFlags.HeightLargest);
     PopStyleColor(2);
 
     ImGuiTabItem* tab_to_select = NULL;
@@ -7194,7 +7384,8 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
     const ImGuiStyle* style = &g.Style;
     const ImGuiID id = TabBarCalcTabID(tab_bar, label);
 
-    // If the user called us with *p_open == false, we early out and don't render. We make a dummy call to ItemAdd() so that attempts to use a contextual popup menu with an implicit ID won't use an older ID.
+    // If the user called us with *p_open == false, we early out and don't render.
+    // We make a call to ItemAdd() so that attempts to use a contextual popup menu with an implicit ID won't use an older ID.
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, window.DC.LastItemStatusFlags);
     if (p_open && !*p_open)
     {
@@ -7234,7 +7425,7 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
     tab.Flags = flags;
 
     // Append name with zero-terminator
-    tab.NameOffset = tab_bar.TabsNames.size();
+    tab.NameOffset = cast(ImS16)tab_bar.TabsNames.size();
     tab_bar.TabsNames.append(label);
     tab_bar.TabsNames.append("\0"); // D_IMGUI: Tabs use zero as a separator between entries
 
@@ -7384,9 +7575,8 @@ static if (false) {
 }
 
 // [Public] This is call is 100% optional but it allows to remove some one-frame glitches when a tab has been unexpectedly removed.
-// To use it to need to call the function SetTabItemClosed() after BeginTabBar() and before any call to BeginTabItem().
+// To use it to need to call the function SetTabItemClosed() between BeginTabBar() and EndTabBar().
 // Tabs closed by the close button will automatically be flagged to avoid this issue.
-// FIXME: We should aim to support calling SetTabItemClosed() after the tab submission (for next frame)
 void    SetTabItemClosed(string label)
 {
     ImGuiContext* g = GImGui;
@@ -7394,9 +7584,9 @@ void    SetTabItemClosed(string label)
     if (is_within_manual_tab_bar)
     {
         ImGuiTabBar* tab_bar = g.CurrentTabBar;
-        IM_ASSERT(tab_bar.WantLayout);         // Needs to be called AFTER BeginTabBar() and BEFORE the first call to BeginTabItem()
         ImGuiID tab_id = TabBarCalcTabID(tab_bar, label);
-        TabBarRemoveTab(tab_bar, tab_id);
+        if (ImGuiTabItem* tab = TabBarFindTabByID(tab_bar, tab_id))
+            tab.WantClose = true; // Will be processed by next call to TabBarLayout()
     }
 }
 
@@ -7477,7 +7667,7 @@ bool TabItemLabelAndCloseButton(ImDrawList* draw_list, const ImRect/*&*/ bb, ImG
                 close_button_visible = true;
     if (close_button_visible)
     {
-        ImGuiItemHoveredDataBackup last_item_backup = ImGuiItemHoveredDataBackup(false);
+        ImGuiLastItemDataBackup last_item_backup = ImGuiLastItemDataBackup(false);
         const float close_button_sz = g.FontSize;
         PushStyleVar(ImGuiStyleVar.FramePadding, frame_padding);
         if (CloseButton(close_button_id, ImVec2(bb.Max.x - frame_padding.x * 2.0f - close_button_sz, bb.Min.y)))
@@ -7632,7 +7822,7 @@ void SetColumnOffset(int column_index, float offset)
         column_index = columns.Current;
     IM_ASSERT(column_index < columns.Columns.Size);
 
-    const bool preserve_width = !(columns.Flags & ImGuiColumnsFlags.NoPreserveWidths) && (column_index < columns.Count-1);
+    const bool preserve_width = !(columns.Flags & ImGuiColumnsFlags.NoPreserveWidths) && (column_index < columns.Count - 1);
     const float width = preserve_width ? GetColumnWidthEx(columns, column_index, columns.IsBeingResized) : 0.0f;
 
     if (!(columns.Flags & ImGuiColumnsFlags.NoForceWithinWindow))
@@ -7737,7 +7927,8 @@ void BeginColumns(string str_id, int columns_count, ImGuiColumnsFlags flags = Im
     columns.HostCursorPosY = window.DC.CursorPos.y;
     columns.HostCursorMaxPosX = window.DC.CursorMaxPos.x;
     columns.HostInitialClipRect = window.ClipRect;
-    columns.HostWorkRect = window.WorkRect;
+    columns.HostBackupParentWorkRect = window.ParentWorkRect;
+    window.ParentWorkRect = window.WorkRect;
 
     // Set state for first column
     // We aim so that the right-most column will have the same clipping width as other after being clipped by parent ClipRect
@@ -7917,7 +8108,8 @@ void EndColumns()
     }
     columns.IsBeingResized = is_being_resized;
 
-    window.WorkRect = columns.HostWorkRect;
+    window.WorkRect = window.ParentWorkRect;
+    window.ParentWorkRect = columns.HostBackupParentWorkRect;
     window.DC.CurrentColumns = NULL;
     window.DC.ColumnsOffset.x = 0.0f;
     window.DC.CursorPos.x = IM_FLOOR(window.Pos.x + window.DC.Indent.x + window.DC.ColumnsOffset.x);
