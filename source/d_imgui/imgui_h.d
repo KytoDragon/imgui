@@ -1,4 +1,4 @@
-// dear imgui, v1.78
+// dear imgui, v1.79
 // (headers)
 module d_imgui.imgui_h;
 
@@ -12,7 +12,7 @@ module d_imgui.imgui_h;
 // - FAQ                   http://dearimgui.org/faq
 // - Homepage & latest     https://github.com/ocornut/imgui
 // - Releases & changelog  https://github.com/ocornut/imgui/releases
-// - Gallery               https://github.com/ocornut/imgui/issues/3075 (please post your screenshots/video there!)
+// - Gallery               https://github.com/ocornut/imgui/issues/3488 (please post your screenshots/video there!)
 // - Glossary              https://github.com/ocornut/imgui/wiki/Glossary
 // - Wiki                  https://github.com/ocornut/imgui/wiki
 // - Issues & support      https://github.com/ocornut/imgui/issues
@@ -92,8 +92,8 @@ version (OSX) {
 
 // Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals. Work in progress versions typically starts at XYY99 then bounce up to XYY00, XYY01 etc. when release tagging happens)
-enum IMGUI_VERSION              = "1.78";
-enum IMGUI_VERSION_NUM          = 17800;
+enum IMGUI_VERSION              = "1.79";
+enum IMGUI_VERSION_NUM          = 17900;
 pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndDataLayout(IMGUI_VERSION, sizeof!(ImGuiIO), sizeof!(ImGuiStyle), sizeof!(ImVec2), sizeof!(ImVec4), sizeof!(ImDrawVert), sizeof!(ImDrawIdx));}
 
 pragma(inline, true) int sizeof(T)() {return cast(int)T.sizeof;}
@@ -730,13 +730,13 @@ namespace ImGui
     //  - CloseCurrentPopup() is called by default by Selectable()/MenuItem() when activated (FIXME: need some options).
     //  - Use ImGuiPopupFlags_NoOpenOverExistingPopup to avoid opening a popup if there's already one at the same level. This is equivalent to e.g. testing for !IsAnyPopupOpen() prior to OpenPopup().
     IMGUI_API void          OpenPopup(const char* str_id, ImGuiPopupFlags popup_flags = 0);                     // call to mark popup as open (don't call every frame!).
-    IMGUI_API bool          OpenPopupContextItem(const char* str_id = NULL, ImGuiPopupFlags popup_flags = 1);   // helper to open popup when clicked on last item. return true when just opened. (note: actually triggers on the mouse _released_ event to be consistent with popup behaviors)
+    IMGUI_API void          OpenPopupOnItemClick(const char* str_id = NULL, ImGuiPopupFlags popup_flags = 1);   // helper to open popup when clicked on last item. return true when just opened. (note: actually triggers on the mouse _released_ event to be consistent with popup behaviors)
     IMGUI_API void          CloseCurrentPopup();                                                                // manually close the popup we have begin-ed into.
     // Popups: open+begin combined functions helpers
     //  - Helpers to do OpenPopup+BeginPopup where the Open action is triggered by e.g. hovering an item and right-clicking.
     //  - They are convenient to easily create context menus, hence the name.
     //  - IMPORTANT: Notice that BeginPopupContextXXX takes ImGuiPopupFlags just like OpenPopup() and unlike BeginPopup(). For full consistency, we may add ImGuiWindowFlags to the BeginPopupContextXXX functions in the future.
-    //  - We exceptionally default their flags to 1 (== ImGuiPopupFlags_MouseButtonRight) for backward compatibility with older API taking 'int mouse_button = 1' parameter. Passing a mouse button to ImGuiPopupFlags is guaranteed to be legal.
+    //  - IMPORTANT: we exceptionally default their flags to 1 (== ImGuiPopupFlags_MouseButtonRight) for backward compatibility with older API taking 'int mouse_button = 1' parameter, so if you add other flags remember to re-add the ImGuiPopupFlags_MouseButtonRight.
     IMGUI_API bool          BeginPopupContextItem(const char* str_id = NULL, ImGuiPopupFlags popup_flags = 1);  // open+begin popup when clicked on last item. if you can pass a NULL str_id only if the previous item had an id. If you want to use that on a non-interactive item such as Text() you need to pass in an explicit ID here. read comments in .cpp!
     IMGUI_API bool          BeginPopupContextWindow(const char* str_id = NULL, ImGuiPopupFlags popup_flags = 1);// open+begin popup when clicked on current window.
     IMGUI_API bool          BeginPopupContextVoid(const char* str_id = NULL, ImGuiPopupFlags popup_flags = 1);  // open+begin popup when clicked in void (where there are no windows).
@@ -763,8 +763,9 @@ namespace ImGui
     // Tab Bars, Tabs
     IMGUI_API bool          BeginTabBar(const char* str_id, ImGuiTabBarFlags flags = 0);        // create and append into a TabBar
     IMGUI_API void          EndTabBar();                                                        // only call EndTabBar() if BeginTabBar() returns true!
-    IMGUI_API bool          BeginTabItem(const char* label, bool* p_open = NULL, ImGuiTabItemFlags flags = 0);// create a Tab. Returns true if the Tab is selected.
+    IMGUI_API bool          BeginTabItem(const char* label, bool* p_open = NULL, ImGuiTabItemFlags flags = 0); // create a Tab. Returns true if the Tab is selected.
     IMGUI_API void          EndTabItem();                                                       // only call EndTabItem() if BeginTabItem() returns true!
+    IMGUI_API bool          TabItemButton(const char* label, ImGuiTabItemFlags flags = 0);      // create a Tab behaving like a button. return true when clicked. cannot be selected in the tab bar.
     IMGUI_API void          SetTabItemClosed(const char* tab_or_docked_window_label);           // notify TabBar or Docking system of a closed tab/window ahead (useful to reduce visual flicker on reorderable tab bars). For tab-bar: call after BeginTabBar() and before Tab submissions. Otherwise call with a window name.
 
     // Logging/Capture
@@ -965,6 +966,7 @@ enum ImGuiInputTextFlags : int
     NoUndoRedo          = 1 << 16,  // Disable undo/redo. Note that input text owns the text data while active, if you want to provide your own undo/redo stack you need e.g. to call ClearActiveID().
     CharsScientific     = 1 << 17,  // Allow 0123456789.+-*/eE (Scientific notation input)
     CallbackResize      = 1 << 18,  // Callback on buffer capacity changes request (beyond 'buf_size' parameter value), allowing the string to grow. Notify when the string wants to be resized (for string types which hold a cache of their Size). You will be provided a new BufSize in the callback and NEED to honor it. (see misc/cpp/imgui_stdlib.h for an example of using this)
+    CallbackEdit        = 1 << 19,  // Callback on any edit (note that InputText() already returns true on edit, the callback is useful mainly to manipulate the underlying buffer while focus is active)
     // [Internal]
     Multiline           = 1 << 20,  // For internal use by InputTextMultiline()
     NoMarkEdited        = 1 << 21   // For internal use by functions using InputText() before reformatting data
@@ -1000,13 +1002,15 @@ enum ImGuiTreeNodeFlags : int
 //   small flags values as a mouse button index, so we encode the mouse button in the first few bits of the flags.
 //   It is therefore guaranteed to be legal to pass a mouse button index in ImGuiPopupFlags.
 // - For the same reason, we exceptionally default the ImGuiPopupFlags argument of BeginPopupContextXXX functions to 1 instead of 0.
+//   IMPORTANT: because the default parameter is 1 (==ImGuiPopupFlags_MouseButtonRight), if you rely on the default parameter
+//   and want to another another flag, you need to pass in the ImGuiPopupFlags_MouseButtonRight flag.
 // - Multiple buttons currently cannot be combined/or-ed in those functions (we could allow it later).
 enum ImGuiPopupFlags : int
 {
     None                    = 0,
-    MouseButtonLeft         = 0,        // For BeginPopupContext*(): open on Left Mouse release. Guaranted to always be == 0 (same as ImGuiMouseButton_Left)
-    MouseButtonRight        = 1,        // For BeginPopupContext*(): open on Right Mouse release. Guaranted to always be == 1 (same as ImGuiMouseButton_Right)
-    MouseButtonMiddle       = 2,        // For BeginPopupContext*(): open on Middle Mouse release. Guaranted to always be == 2 (same as ImGuiMouseButton_Middle)
+    MouseButtonLeft         = 0,        // For BeginPopupContext*(): open on Left Mouse release. Guaranteed to always be == 0 (same as ImGuiMouseButton_Left)
+    MouseButtonRight        = 1,        // For BeginPopupContext*(): open on Right Mouse release. Guaranteed to always be == 1 (same as ImGuiMouseButton_Right)
+    MouseButtonMiddle       = 2,        // For BeginPopupContext*(): open on Middle Mouse release. Guaranteed to always be == 2 (same as ImGuiMouseButton_Middle)
     MouseButtonMask_        = 0x1F,
     MouseButtonDefault_     = 1,
     NoOpenOverExistingPopup = 1 << 5,   // For OpenPopup*(), BeginPopupContext*(): don't open if there's already a popup at the same level of the popup stack
@@ -1032,7 +1036,9 @@ enum ImGuiSelectableFlags : int
     SelectOnRelease    = 1 << 22,  // Override button behavior to react on Release (default is Click+Release)
     SpanAvailWidth     = 1 << 23,  // Span all avail width even if we declared less for layout purpose. FIXME: We may be able to remove this (added in 6251d379, 2bcafc86 for menus)
     DrawHoveredWhenHeld= 1 << 24,  // Always show active when held, even is not hovered. This concept could probably be renamed/formalized somehow.
-    SetNavIdOnHover    = 1 << 25
+
+    SetNavIdOnHover        = 1 << 25,  // Set Nav/Focus ID on mouse hover (used by MenuItem)
+    NoPadWithHalfSpacing   = 1 << 26   // Disable padding each side with ItemSpacing * 0.5f
 }
 
 // Flags for ImGui::BeginCombo()
@@ -1077,11 +1083,15 @@ enum ImGuiTabItemFlags : int
     UnsavedDocument               = 1 << 0,   // Append '*' to title without affecting the ID, as a convenience to avoid using the ### operator. Also: tab is selected on closure and closure is deferred by one frame to allow code to undo it without flicker.
     SetSelected                   = 1 << 1,   // Trigger flag to programmatically make the tab selected when calling BeginTabItem()
     NoCloseWithMiddleMouseButton  = 1 << 2,   // Disable behavior of closing tabs (that are submitted with p_open != NULL) with middle mouse button. You can still repro this behavior on user's side with if (IsItemHovered() && IsMouseClicked(2)) *p_open = false.
-    NoPushId                      = 1 << 3,   // Don't call PushID(tab.ID)/PopID() on BeginTabItem()/EndTabItem()
-    NoTooltip                     = 1 << 4    // Disable tooltip for the given tab
-    ,
-    // [Internal]
-    NoCloseButton             = 1 << 20   // Track whether p_open was set or not (we'll need this info on the next frame to recompute ContentWidth during layout)
+    NoPushId                      = 1 << 3,   // Don't call PushID(tab->ID)/PopID() on BeginTabItem()/EndTabItem()
+    NoTooltip                     = 1 << 4,   // Disable tooltip for the given tab
+    NoReorder                     = 1 << 5,   // Disable reordering this tab or having another tab cross over this tab
+    Leading                       = 1 << 6,   // Enforce the tab position to the left of the tab bar (after the tab list popup button)
+    Trailing                      = 1 << 7    // Enforce the tab position to the right of the tab bar (before the scrolling buttons)
+
+    , // [internal]
+	NoCloseButton             = 1 << 20,  // Track whether p_open was set or not (we'll need this info on the next frame to recompute ContentWidth during layout)
+    Button                    = 1 << 21   // Used by TabItemButton, change the tab item behavior to mimic a button
 }
 
 // Flags for ImGui::IsWindowFocused()
@@ -1452,7 +1462,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 enum ImGuiSliderFlags : int
 {
     None                   = 0,
-    ClampOnInput           = 1 << 4,       // Clamp value to min/max bounds when input manually with CTRL+Click. By default CTRL+Click allows going out of bounds.
+    AlwaysClamp            = 1 << 4,       // Clamp value to min/max bounds when input manually with CTRL+Click. By default CTRL+Click allows going out of bounds.
     Logarithmic            = 1 << 5,       // Make the widget logarithmic (linear otherwise). Consider using ImGuiSliderFlags_NoRoundToFormat with this if using a format-string with small amount of digits.
     NoRoundToFormat        = 1 << 6,       // Disable rounding underlying value to match precision of the display format string (e.g. %.3f values are rounded to those 3 digits)
     NoInput                = 1 << 7,       // Disable CTRL+Click or Enter key allowing to input text directly into the widget
@@ -1461,6 +1471,11 @@ enum ImGuiSliderFlags : int
     , // [internal]
     Vertical               = 1 << 20,  // Should this slider be orientated vertically?
     ReadOnly               = 1 << 21
+}
+
+    // Obsolete names (will be removed)
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    deprecated enum ImGuiSliderFlags_ClampOnInput = ImGuiSliderFlags.AlwaysClamp; // [renamed in 1.79]
 }
 
 // Identify a mouse button.
@@ -1571,6 +1586,7 @@ struct ImVector(T)
     pragma(inline, true) bool         empty() const                       { return Size == 0; }
     pragma(inline, true) int          size() const                        { return Size; }
     pragma(inline, true) int          size_in_bytes() const               { return Size * cast(int)sizeof!(T); }
+    pragma(inline, true) int          max_size() const                    { return 0x7FFFFFFF / cast(int)sizeof!(T); }
     pragma(inline, true) int          capacity() const                    { return Capacity; }
     pragma(inline, true) ref inout (T)     opIndex(int i) inout             { IM_ASSERT(i < Size); return Data[i]; }
 
@@ -1641,7 +1657,7 @@ struct ImGuiStyle
     float       LogSliderDeadzone;          // The size in pixels of the dead-zone around zero on logarithmic sliders that cross zero.
     float       TabRounding;                // Radius of upper corners of a tab. Set to 0.0f to have rectangular tabs.
     float       TabBorderSize;              // Thickness of border around tabs.
-    float       TabMinWidthForUnselectedCloseButton; // Minimum width for close button to appears on an unselected tab when hovered. Set to 0.0f to always show when hovering, set to FLT_MAX to never show close button unless selected.
+    float       TabMinWidthForCloseButton;  // Minimum width for close button to appears on an unselected tab when hovered. Set to 0.0f to always show when hovering, set to FLT_MAX to never show close button unless selected.
     ImGuiDir    ColorButtonPosition;        // Side of the color button in the ColorEdit4 widget (left/right). Defaults to ImGuiDir_Right.
     ImVec2      ButtonTextAlign;            // Alignment of button text when button is larger than text. Defaults to (0.5f, 0.5f) (centered).
     ImVec2      SelectableTextAlign;        // Alignment of selectable text. Defaults to (0.0f, 0.0f) (top-left aligned). It's generally important to keep this left-aligned if you want to lay multiple items on a same line.
@@ -1824,9 +1840,10 @@ struct ImGuiIO
 // Shared state of InputText(), passed as an argument to your callback when a ImGuiInputTextFlags_Callback* flag is used.
 // The callback function should return 0 by default.
 // Callbacks (follow a flag name and see comments in ImGuiInputTextFlags_ declarations for more details)
+// - ImGuiInputTextFlags_CallbackEdit:        Callback on buffer edit (note that InputText() already returns true on edit, the callback is useful mainly to manipulate the underlying buffer while focus is active)
+// - ImGuiInputTextFlags_CallbackAlways:      Callback on each iteration
 // - ImGuiInputTextFlags_CallbackCompletion:  Callback on pressing TAB
 // - ImGuiInputTextFlags_CallbackHistory:     Callback on pressing Up/Down arrows
-// - ImGuiInputTextFlags_CallbackAlways:      Callback on each iteration
 // - ImGuiInputTextFlags_CallbackCharFilter:  Callback on character inputs to replace or discard them. Modify 'EventChar' to replace or discard, or return 1 in callback to discard.
 // - ImGuiInputTextFlags_CallbackResize:      Callback on buffer capacity changes request (beyond 'buf_size' parameter value), allowing the string to grow.
 struct ImGuiInputTextCallbackData
@@ -1859,7 +1876,9 @@ struct ImGuiInputTextCallbackData
     { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).DeleteChars(pos, bytes_count); }
     void      InsertChars(int pos, string new_text)
     { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).InsertChars(pos, new_text); }
-    bool                HasSelection() const { return SelectionStart != SelectionEnd; }
+    void                SelectAll()             { SelectionStart = 0; SelectionEnd = BufTextLen; }
+    void                ClearSelection()        { SelectionStart = SelectionEnd = BufTextLen; }
+    bool                HasSelection() const    { return SelectionStart != SelectionEnd; }
 }
 
 // Resizing callback data to apply custom constraint. As enabled by SetNextWindowSizeConstraints(). Callback is called during the next Begin().
@@ -1906,8 +1925,11 @@ struct ImGuiPayload
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 // namespace ImGui
 // {
-    // OBSOLETED in 1.78 (from August 2020)
-    // Old drag/sliders functions that took a 'float power = 1.0' argument instead of flags
+    // OBSOLETED in 1.79 (from August 2020)
+    deprecated pragma(inline, true) void  OpenPopupContextItem(string str_id = NULL, ImGuiMouseButton mb = ImGuiMouseButton.Right) { OpenPopupOnItemClick(str_id, cast(ImGuiPopupFlags)mb); } // Bool return value removed. Use IsWindowAppearing() in BeginPopup() instead. Renamed in 1.77, renamed back in 1.79. Sorry!
+    // OBSOLETED in 1.78 (from June 2020)
+    // Old drag/sliders functions that took a 'float power = 1.0' argument instead of flags.
+    // For shared code, you can version check at compile-time with `#if IMGUI_VERSION_NUM >= 17704`.
     //deprecated bool      DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, string format, float power);
     //deprecated bool      DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min, const void* p_max, string format, float power);
     //deprecated pragma(inline, true) bool  DragFloat(string label, float* v, float v_speed, float v_min, float v_max, string format, float power)    { return DragScalar(label, ImGuiDataType.Float, v, v_speed, &v_min, &v_max, format, power); }
@@ -1921,9 +1943,8 @@ static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     deprecated pragma(inline, true) bool  SliderFloat3(string label, float[/*3*/] v, float v_min, float v_max, string format, float power)              { return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 3, &v_min, &v_max, format, power); }
     deprecated pragma(inline, true) bool  SliderFloat4(string label, float[/*4*/] v, float v_min, float v_max, string format, float power)              { return SliderScalarN(label, ImGuiDataType.Float, v.ptr, 4, &v_min, &v_max, format, power); }
     // OBSOLETED in 1.77 (from June 2020)
-    deprecated pragma(inline, true) bool  OpenPopupOnItemClick(string str_id = NULL, ImGuiMouseButton mb = ImGuiMouseButton.Right)          { return OpenPopupContextItem(str_id, cast(ImGuiPopupFlags)mb); } // Passing a mouse button to ImGuiPopupFlags is legal
     //deprecated pragma(inline, true) bool  BeginPopupContextWindow(string str_id, ImGuiMouseButton mb, bool over_items) { return BeginPopupContextWindow(str_id, cast(ImGuiPopupFlags)mb | (over_items ? ImGuiPopupFlags.None : ImGuiPopupFlags.NoOpenOverItems)); }
-    // OBSOLETED in 1.72 (from July 2019)
+    // OBSOLETED in 1.72 (from April 2019)
     deprecated pragma(inline, true) void  TreeAdvanceToLabelPos()               { SetCursorPosX(GetCursorPosX() + GetTreeNodeToLabelSpacing()); }
     // OBSOLETED in 1.71 (from June 2019)
     deprecated pragma(inline, true) void  SetNextTreeNodeOpen(bool open, ImGuiCond cond = ImGuiCond.None) { SetNextItemOpen(open, cond); }
@@ -2133,43 +2154,54 @@ struct ImGuiStorage
 }
 
 // Helper: Manually clip large list of items.
-// If you are submitting lots of evenly spaced items and you have a random access to the list, you can perform coarse clipping based on visibility to save yourself from processing those items at all.
+// If you are submitting lots of evenly spaced items and you have a random access to the list, you can perform coarse
+// clipping based on visibility to save yourself from processing those items at all.
 // The clipper calculates the range of visible items and advance the cursor to compensate for the non-visible items we have skipped.
-// ImGui already clip items based on their bounds but it needs to measure text size to do so. Coarse clipping before submission makes this cost and your own data fetching/submission cost null.
+// (Dear ImGui already clip items based on their bounds but it needs to measure text size to do so, whereas manual coarse clipping before submission makes this cost and your own data fetching/submission cost almost null)
 // Usage:
-//     ImGuiListClipper clipper(1000);  // we have 1000 elements, evenly spaced.
-//     while (clipper.Step())
-//         for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
-//             ImGui::Text("line number %d", i);
-// - Step 0: the clipper let you process the first element, regardless of it being visible or not, so we can measure the element height (step skipped if we passed a known height as second arg to constructor).
-// - Step 1: the clipper infer height from first element, calculate the actual range of elements to display, and position the cursor before the first element.
-// - (Step 2: empty step only required if an explicit items_height was passed to constructor or Begin() and user call Step(). Does nothing and switch to Step 3.)
-// - Step 3: the clipper validate that we have reached the expected Y position (corresponding to element DisplayEnd), advance the cursor to the end of the list and then returns 'false' to end the loop.
+//   ImGuiListClipper clipper;
+//   clipper.Begin(1000);         // We have 1000 elements, evenly spaced.
+//   while (clipper.Step())
+//       for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+//           ImGui::Text("line number %d", i);
+// Generally what happens is:
+// - Clipper lets you process the first element (DisplayStart = 0, DisplayEnd = 1) regardless of it being visible or not.
+// - User code submit one element.
+// - Clipper can measure the height of the first element
+// - Clipper calculate the actual range of elements to display based on the current clipping rectangle, position the cursor before the first visible element.
+// - User code submit visible elements.
 struct ImGuiListClipper
 {
     nothrow:
     @nogc:
 
-    int     DisplayStart, DisplayEnd;
-    int     ItemsCount;
+    int     DisplayStart;
+    int     DisplayEnd;
 
     // [Internal]
+    int     ItemsCount;
     int     StepNo;
     float   ItemsHeight;
     float   StartPosY;
 
-    // items_count:  Use -1 to ignore (you can call Begin later). Use INT_MAX if you don't know how many items you have (in which case the cursor won't be advanced in the final step).
-    // items_height: Use -1.0f to be calculated automatically on first step. Otherwise pass in the distance between your items, typically GetTextLineHeightWithSpacing() or GetFrameHeightWithSpacing().
-    // If you don't specify an items_height, you NEED to call Step(). If you specify items_height you may call the old Begin()/End() api directly, but prefer calling Step().
-    this(int items_count, float items_height = -1.0f)  { Begin(items_count, items_height); } // NB: Begin() initialize every fields (as we allow user to call Begin/End multiple times on a same instance if they want).
-    void destroy()                                                 { IM_ASSERT(ItemsCount == -1); }      // Assert if user forgot to call End() or Step() until false.
+    @disable this();
+    this(bool dummy)
+    { (cast(ImGuiListClipper_Wrapper*)&this).__ctor(dummy); }
+    void destroy()
+    { return (cast(ImGuiListClipper_Wrapper*)&this).destroy(); }
 
+    // items_count: Use INT_MAX if you don't know how many items you have (in which case the cursor won't be advanced in the final step)
+    // items_height: Use -1.0f to be calculated automatically on first step. Otherwise pass in the distance between your items, typically GetTextLineHeightWithSpacing() or GetFrameHeightWithSpacing().
     bool Step()                                              // Call until it returns false. The DisplayStart/DisplayEnd fields will be set and you can process/draw those items.
     { return (cast(ImGuiListClipper_Wrapper*)&this).Step(); }
     void Begin(int count, float items_height = -1.0f)  // Automatically called by constructor if you passed 'items_count' or by Step() in Step 1.
     { (cast(ImGuiListClipper_Wrapper*)&this).Begin(count, items_height); }
     void End()                                               // Automatically called on the last call of Step() that returns false.
     { (cast(ImGuiListClipper_Wrapper*)&this).End(); }
+
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    deprecated this(int items_count, float items_height = -1.0f)  { memset(&this, 0, sizeof(this)); ItemsCount = -1; Begin(items_count, items_height); } // [removed in 1.79]
+}
 }
 
 // Helpers macros to generate 32-bit encoded colors
@@ -2796,11 +2828,10 @@ struct ImFont
     float                       FallbackAdvanceX;   // 4     // out // = FallbackGlyph->AdvanceX
     float                       FontSize;           // 4     // in  //            // Height of characters/line, set during loading (don't change after loading)
 
-    // Members: Hot ~36/48 bytes (for CalcTextSize + render loop)
+    // Members: Hot ~28/40 bytes (for CalcTextSize + render loop)
     ImVector!ImWchar           IndexLookup;        // 12-16 // out //            // Sparse. Index glyphs by Unicode code-point.
     ImVector!ImFontGlyph       Glyphs;             // 12-16 // out //            // All glyphs.
     const (ImFontGlyph)*          FallbackGlyph;      // 4-8   // out // = FindGlyph(FontFallbackChar)
-    ImVec2                      DisplayOffset;      // 8     // in  // = (0,0)    // Offset font rendering by xx pixels
 
     // Members: Cold ~32/40 bytes
     ImFontAtlas*                ContainerAtlas;     // 4-8   // out //            // What we has been loaded into
@@ -2846,7 +2877,7 @@ struct ImFont
     { (cast(ImFont_Wrapper*)&this).ClearOutputData(); }
     void              GrowIndex(int new_size)
     { (cast(ImFont_Wrapper*)&this).GrowIndex(new_size); }
-    void              AddGlyph(ImFontConfig* src_cfg, ImWchar codepoint, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float advance_x)
+    void              AddGlyph(const ImFontConfig* src_cfg, ImWchar codepoint, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float advance_x)
     { (cast(ImFont_Wrapper*)&this).AddGlyph(src_cfg, codepoint, x0, y0, x1, y1, u0, v0, u1, v1, advance_x); }
     void              AddRemapChar(ImWchar dst, ImWchar src, bool overwrite_dst = true) // Makes 'dst' character/glyph points to 'src' character/glyph. Currently needs to be called AFTER fonts have been built.
     { (cast(ImFont_Wrapper*)&this).AddRemapChar(dst, src, overwrite_dst); }
