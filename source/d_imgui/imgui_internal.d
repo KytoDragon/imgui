@@ -1456,7 +1456,7 @@ struct ImGuiWindowSettings
 
     @disable this();
     this(size_t name_length)       { ID = 0; Pos = Size = ImVec2ih(0, 0); Collapsed = WantApply = false; name_len = name_length; }
-    string GetName()             {  return cast(string)(cast(char*)(&this + 1))[0..name_len]; }
+    string GetName()             return {  return cast(string)(cast(char*)(&this + 1))[0..name_len]; }
 }
 
 struct ImGuiSettingsHandler
