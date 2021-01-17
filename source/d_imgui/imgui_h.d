@@ -2066,9 +2066,9 @@ struct ImGuiTextBuffer
     void      append(string str)
     { (cast(ImGuiTextBuffer_Wrapper*)&this).append(str); }
 
-    void      appendf(string fmt, ...)
+    void      appendf(A...)(string fmt, A a)
     {
-        mixin va_start;
+        mixin va_start!a;
         appendfv(fmt, va_args);
         va_end(va_args);
     }

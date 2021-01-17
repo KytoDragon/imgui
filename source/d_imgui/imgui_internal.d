@@ -451,8 +451,12 @@ static if (!IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS) {
     pragma(inline, true) double ImSign(double x)           { return (x < 0.0) ? -1.0 : ((x > 0.0) ? 1.0 : 0.0); }
 
 // D_IMGUI: We use our own code to parse integers and doubles since C's sscanf needs zero termination and D's conv-functions are not @nogc.
-int sscanf(string str, string fmt, ...) {
-    mixin va_start;
+int sscanf(A...)(string str, string fmt, A a) {
+    mixin va_start!a;
+    return sscanf(str, fmt, va_args);
+}
+
+int sscanf(string str, string fmt, va_list va_args) {
 
     // separate Pos=%i,%i, Size=%i,%i and Collapsed=%d into individual numbers
     if (fmt == "Pos=%i,%i") {

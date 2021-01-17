@@ -4290,11 +4290,11 @@ struct ExampleAppConsole
         Items.clear();
     }
 
-    void    AddLog(string fmt, ...) /*IM_FMTARGS(2)*/
+    void    AddLog(A...)(string fmt, A a) /*IM_FMTARGS(2)*/
     {
         // FIXME-OPT
         char[1024] buf;
-        mixin va_start;
+        mixin va_start!a;
         vsnprintf(buf, fmt, va_args);
         buf[IM_ARRAYSIZE(buf)-1] = 0;
         va_end(va_args);
@@ -4639,10 +4639,10 @@ struct ExampleAppLog
         LineOffsets.push_back(0);
     }
 
-    void    AddLog(string fmt, ...) /*IM_FMTARGS(2)*/
+    void    AddLog(A...)(string fmt, A a) /*IM_FMTARGS(2)*/
     {
         int old_size = Buf.size();
-        mixin va_start;
+        mixin va_start!a;
         Buf.appendfv(fmt, va_args);
         va_end(va_args);
         for (int new_size = Buf.size(); old_size < new_size; old_size++)

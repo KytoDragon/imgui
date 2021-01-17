@@ -1458,9 +1458,9 @@ ptrdiff_t ImIndexOf(string haystack, string needle) {
 // #define vsnprintf _vsnprintf
 // #endif
 
-int ImFormatString(char[] buf, string fmt, ...)
+int ImFormatString(A...)(char[] buf, string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     int w = vsnprintf(buf, fmt, va_args);
     va_end(va_args);
     if (buf == NULL)
@@ -9795,13 +9795,13 @@ void EndDragDropTarget()
 //-----------------------------------------------------------------------------
 
 // Pass text data straight to log (without being displayed)
-void LogText(string fmt, ...)
+void LogText(A...)(string fmt, A a)
 {
     ImGuiContext* g = GImGui;
     if (!g.LogEnabled)
         return;
 
-    mixin va_start;
+    mixin va_start!a;
     if (g.LogFile)
     {
         g.LogBuffer.Buf.resize(0);
