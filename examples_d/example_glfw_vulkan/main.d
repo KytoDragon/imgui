@@ -377,7 +377,7 @@ int main()
     // Setup GLFW window
 
     // Initialize GLFW3 and Vulkan related glfw functions
-    loadGLFW("glfw3_x64_3.3.2.dll"); // load the lib found in system path
+    loadGLFW("glfw3");  // load the lib found in system path
     loadGLFW_Vulkan;    // load vulkan specific glfw function pointers
     glfwSetErrorCallback(& glfw_error_callback);
 
