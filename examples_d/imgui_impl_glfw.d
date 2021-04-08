@@ -91,13 +91,15 @@ static GLFWcursor*[ ImGuiMouseCursor.COUNT ]        g_MouseCursors;
 static bool                 g_InstalledCallbacks = false;
 
 // Chain GLFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
-// Current limitation of BindBC-GLFW is that these function pointer types are non-@NoGC, so we specify them manually.
-extern(C) nothrow @nogc {
-    /*GLFWmousebuttonfun*/  void function(GLFWwindow*,int,int,int)      g_PrevUserCallbackMousebutton = null;
-    /*GLFWscrollfun*/       void function(GLFWwindow*,double,double)    g_PrevUserCallbackScroll = null;
-    /*GLFWkeyfun*/          void function(GLFWwindow*,int,int,int,int)  g_PrevUserCallbackKey = null;
-    /*GLFWcharfun*/         void function(GLFWwindow*,uint)             g_PrevUserCallbackChar = null;
-}
+// D-Issue: Current limitation of BindBC-GLFW is that these function pointer types are non-@NoGC, but it'll be fixed soon.
+// Our current workaround is to simply not use any previously existing callbacks, even if captured. We can do that,
+// as we know that none have been assigned before, and that capturing any previously assigned ones is of educational nature.
+// This BindBC-GLFW limitation is reported and will be fixed soon.
+GLFWmousebuttonfun  g_PrevUserCallbackMousebutton = null;
+GLFWscrollfun       g_PrevUserCallbackScroll = null;
+GLFWkeyfun          g_PrevUserCallbackKey = null;
+GLFWcharfun         g_PrevUserCallbackChar = null;
+
 
 //static const( char )* ImGui_ImplGlfw_GetClipboardText( void* user_data ) {
 static string ImGui_ImplGlfw_GetClipboardText( void* user_data ) {
@@ -111,16 +113,18 @@ static void ImGui_ImplGlfw_SetClipboardText( void* user_data, const( char )* tex
 }
 
 extern( C ) void ImGui_ImplGlfw_MouseButtonCallback( GLFWwindow* window, int button, int action, int mods ) {
-    if( g_PrevUserCallbackMousebutton != null )
-        g_PrevUserCallbackMousebutton( window, button, action, mods );
+    // see comment at variable deceleration
+    //if( g_PrevUserCallbackMousebutton != null )
+    //    g_PrevUserCallbackMousebutton( window, button, action, mods );
 
     if( action == GLFW_PRESS && button >= 0 && button < g_MouseJustPressed.length )
         g_MouseJustPressed[ button ] = true;
 }
 
 extern( C ) void ImGui_ImplGlfw_ScrollCallback( GLFWwindow* window, double xoffset, double yoffset ) {
-    if( g_PrevUserCallbackScroll != null )
-        g_PrevUserCallbackScroll( window, xoffset, yoffset );
+    // see comment at variable deceleration
+    //if( g_PrevUserCallbackScroll != null )
+    //    g_PrevUserCallbackScroll( window, xoffset, yoffset );
 
     ImGuiIO* io = & ImGui.GetIO();
     io.MouseWheelH += cast( float )xoffset;
@@ -128,8 +132,9 @@ extern( C ) void ImGui_ImplGlfw_ScrollCallback( GLFWwindow* window, double xoffs
 }
 
 extern( C ) void ImGui_ImplGlfw_KeyCallback( GLFWwindow* window, int key, int scancode, int action, int mods ) {
-    if( g_PrevUserCallbackKey != null )
-        g_PrevUserCallbackKey( window, key, scancode, action, mods );
+    // see comment at variable deceleration
+    //if( g_PrevUserCallbackKey != null )
+    //    g_PrevUserCallbackKey( window, key, scancode, action, mods );
 
     ImGuiIO* io = & ImGui.GetIO();
     if( action == GLFW_PRESS )
@@ -148,8 +153,9 @@ extern( C ) void ImGui_ImplGlfw_KeyCallback( GLFWwindow* window, int key, int sc
 }
 
 extern( C ) void ImGui_ImplGlfw_CharCallback( GLFWwindow* window, uint c ) {
-    if( g_PrevUserCallbackChar != null )
-        g_PrevUserCallbackChar( window, c );
+    // see comment at variable deceleration
+    //if( g_PrevUserCallbackChar != null )
+    //    g_PrevUserCallbackChar( window, c );
 
     ImGuiIO* io = & ImGui.GetIO();
     io.AddInputCharacter( c );
