@@ -197,7 +197,7 @@ void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
             ImRect line_rect = ImRect(pos, pos + ImVec2(FLT_MAX, line_height));
             while (line < text.length)
             {
-                
+
                 if (IsClippedEx(line_rect, 0, false))
                     break;
 
@@ -253,9 +253,9 @@ void TextUnformatted(string text)
     TextEx(text, ImGuiTextFlags.NoWidthForLargeClippedText);
 }
 
-void Text(string fmt, ...)
+void Text(A...)(string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     TextV(fmt, va_args);
     va_end(va_args);
 }
@@ -271,9 +271,9 @@ void TextV(string fmt, va_list args)
     TextEx(cast(string)g.TempBuffer[0..text_end], ImGuiTextFlags.NoWidthForLargeClippedText);
 }
 
-void TextColored(const ImVec4/*&*/ col, string fmt, ...)
+void TextColored(A...)(const ImVec4/*&*/ col, string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     TextColoredV(col, fmt, va_args);
     va_end(va_args);
 }
@@ -291,9 +291,9 @@ void TextColoredV(const ImVec4/*&*/ col, string fmt, va_list args)
     PopStyleColor();
 }
 
-void TextDisabled(string fmt, ...)
+void TextDisabled(A...)(string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     TextDisabledV(fmt, va_args);
     va_end(va_args);
 }
@@ -312,9 +312,9 @@ void TextDisabledV(string fmt, va_list args)
     PopStyleColor();
 }
 
-void TextWrapped(string fmt, ...)
+void TextWrapped(A...)(string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     TextWrappedV(fmt, va_args);
     va_end(va_args);
 }
@@ -336,9 +336,9 @@ void TextWrappedV(string fmt, va_list args)
         PopTextWrapPos();
 }
 
-void LabelText(string label, string fmt, ...)
+void LabelText(A...)(string label, string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     LabelTextV(label, fmt, va_args);
     va_end(va_args);
 }
@@ -368,9 +368,9 @@ void LabelTextV(string label, string fmt, va_list args)
         RenderText(ImVec2(value_bb.Max.x + style.ItemInnerSpacing.x, value_bb.Min.y + style.FramePadding.y), label);
 }
 
-void BulletText(string fmt, ...)
+void BulletText(A...)(string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     BulletTextV(fmt, va_args);
     va_end(va_args);
 }
@@ -5108,7 +5108,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         ImVec4 col_v4 = ImVec4(col[0], col[1], col[2], (flags & ImGuiColorEditFlags.NoAlpha) ? 1.0f : col[3]);
         if (flags & ImGuiColorEditFlags.NoLabel)
             Text("Current");
-        
+
         ImGuiColorEditFlags sub_flags_to_forward = ImGuiColorEditFlags._InputMask | ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.AlphaPreview | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.NoTooltip;
         ColorButton("##current", col_v4, (flags & sub_flags_to_forward), ImVec2(square_sz * 3, square_sz * 2));
         if (ref_col != NULL)
@@ -5558,17 +5558,17 @@ void ColorPickerOptionsPopup(const float* ref_col, ImGuiColorEditFlags flags)
 // - CollapsingHeader()
 //-------------------------------------------------------------------------
 
-bool TreeNode(string str_id, string fmt, ...)
+bool TreeNode(A...)(string str_id, string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     bool is_open = TreeNodeExV(str_id, ImGuiTreeNodeFlags.None, fmt, va_args);
     va_end(va_args);
     return is_open;
 }
 
-bool TreeNode(const void* ptr_id, string fmt, ...)
+bool TreeNode(A...)(const void* ptr_id, string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     bool is_open = TreeNodeExV(ptr_id, ImGuiTreeNodeFlags.None, fmt, va_args);
     va_end(va_args);
     return is_open;
@@ -5601,17 +5601,17 @@ bool TreeNodeEx(string label, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None
     return TreeNodeBehavior(window.GetID(label), flags, label);
 }
 
-bool TreeNodeEx(string str_id, ImGuiTreeNodeFlags flags, string fmt, ...)
+bool TreeNodeEx(A...)(string str_id, ImGuiTreeNodeFlags flags, string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     bool is_open = TreeNodeExV(str_id, flags, fmt, va_args);
     va_end(va_args);
     return is_open;
 }
 
-bool TreeNodeEx(const void* ptr_id, ImGuiTreeNodeFlags flags, string fmt, ...)
+bool TreeNodeEx(A...)(const void* ptr_id, ImGuiTreeNodeFlags flags, string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     bool is_open = TreeNodeExV(ptr_id, flags, fmt, va_args);
     va_end(va_args);
     return is_open;
@@ -6380,7 +6380,7 @@ int PlotEx(ImGuiPlotType plot_type, string label, float function(void* data, int
 
     if (label_size.x > 0.0f)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
-    
+
     // Return hovered index or -1 if none are hovered.
     // This is currently not exposed in the public API because we need a larger redesign of the whole thing, but in the short-term we are making it available in PlotEx().
     return idx_hovered;
