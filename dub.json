@@ -31,13 +31,13 @@
 			"sourceFiles"	: ["examples_d/imgui_impl_glfw.d", "examples_d/imgui_impl_vulkan.d"],
 			"dependencies"	: {
 				"d_snprintf"	: "~>1.1.0",
-				"bindbc-glfw"	: "~>0.10",
+				"bindbc-glfw"	: "~>0.12",
 				"erupted"		: "~>2.1",
 			},
 			"subConfigurations"	: {
 				"bindbc-glfw"	: "dynamicBC",
 			},
-			"versions"		: ["GLFW_33"],
+			"versions"		: ["GLFW_33", "BindGLFW_NoGC_Callbacks"],
 			"libs-windows"	: ["Imm32", "User32"],
 		},
 	],
