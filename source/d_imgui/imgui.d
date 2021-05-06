@@ -2248,9 +2248,9 @@ void append(string str)
     Buf[write_off - 1 + len] = 0;
 }
 
-void appendf(string fmt, ...)
+void appendf(A...)(string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     appendfv(fmt, va_args);
     va_end(va_args);
 }
@@ -3622,7 +3622,7 @@ void UpdateMouseMovingWindowEndFrame()
         if (root_window != NULL && !is_closed_popup)
         {
             StartMouseMovingWindow(g.HoveredWindow);
-            
+
             // Cancel moving if clicked outside of title bar
             if (g.IO.ConfigWindowsMoveFromTitleBarOnly && !(root_window.Flags & ImGuiWindowFlags.NoTitleBar))
                 if (!root_window.TitleBarRect().Contains(g.IO.MouseClickedPos[0]))
@@ -7840,9 +7840,9 @@ void SetTooltipV(string fmt, va_list args)
     EndTooltip();
 }
 
-void SetTooltip(string fmt, ...)
+void SetTooltip(A...)(string fmt, A a)
 {
-    mixin va_start;
+    mixin va_start!a;
     SetTooltipV(fmt, va_args);
     va_end(va_args);
 }
@@ -10163,7 +10163,7 @@ void LoadIniSettingsFromMemory(string ini_data)
         line_end = line;
         while (line_end < ini_data.length && ini_data[line_end] != '\n' && ini_data[line_end] != '\r')
             line_end++;
-        
+
         if (line < ini_data.length && ini_data[line] == ';')
             continue;
         if (line < line_end && ini_data[line] == '[' && ini_data[line_end - 1] == ']')
