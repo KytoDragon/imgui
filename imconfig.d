@@ -20,7 +20,9 @@ enum D_IMGUI_USER_DEFINED_ASSERT = false;
 // void IM_ASSERT(bool expr, string msg)
 
 //---- Define attributes of all API symbols declarations, e.g. for DLL under Windows
-// Using dear imgui via a shared library is not recommended, because of function call overhead and because we don't guarantee backward nor forward ABI compatibility.
+// Using Dear ImGui via a shared library is not recommended, because of function call overhead and because we don't guarantee backward nor forward ABI compatibility.
+// DLL users: heaps and globals are not shared across DLL boundaries! You will need to call SetCurrentContext() + SetAllocatorFunctions()
+// for each static/DLL boundary you are calling from. Read "Context and Memory Allocators" section of imgui.cpp for more details.
 // D_IMGUI: Not supported
 
 //---- Don't define obsolete functions/enums/behaviors. Consider enabling from time to time after updating to avoid using soon-to-be obsolete function/names.
@@ -31,11 +33,11 @@ enum IMGUI_DISABLE_OBSOLETE_FUNCTIONS = false;
 // It is very strongly recommended to NOT disable the demo windows during development. Please read comments in imgui_demo.d.
 // D_IMGUI: Disabling everything is not supported.
 enum IMGUI_DISABLE_DEMO_WINDOWS = false;                        // Disable demo windows: ShowDemoWindow()/ShowStyleEditor() will be empty. Not recommended.
-enum IMGUI_DISABLE_METRICS_WINDOW = false;                     // Disable debug/metrics window: ShowMetricsWindow() will be empty.
+enum IMGUI_DISABLE_METRICS_WINDOW = false;                     // Disable metrics/debugger window: ShowMetricsWindow() will be empty.
 
 //---- Don't implement some OS-functions to reduce linkage requirements.
-enum IMGUI_DISABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS = false;   // [Win32] Don't implement default clipboard handler. Won't use and link with OpenClipboard/GetClipboardData/CloseClipboard etc.
-enum IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS = false;         // [Win32] Don't implement default IME handler. Won't use and link with ImmGetContext/ImmSetCompositionWindow.
+enum IMGUI_DISABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS = false;   // [Win32] Don't implement default clipboard handler. Won't use and link with OpenClipboard/GetClipboardData/CloseClipboard etc. (user32.lib/.a, kernel32.lib/.a)
+enum IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS = false;         // [Win32] Don't implement default IME handler. Won't use and link with ImmGetContext/ImmSetCompositionWindow. (imm32.lib/.a)
 enum IMGUI_DISABLE_WIN32_FUNCTIONS = false;                     // [Win32] Won't use and link with any Win32 function (clipboard, ime).
 enum IMGUI_ENABLE_OSX_DEFAULT_CLIPBOARD_FUNCTIONS = false;      // [OSX] Implement default OSX clipboard handler (need to link with '-framework ApplicationServices', this is why this is not the default).
 
@@ -83,7 +85,7 @@ enum IMGUI_DISABLE_TTY_FUNCTIONS = false;
 //---- Pack colors to BGRA8 instead of RGBA8 (to avoid converting from one to another)
 enum IMGUI_USE_BGRA_PACKED_COLOR = false;
 
-//---- Use 32-bit for ImWchar (default is 16-bit) to support full unicode code points.
+//---- Use 32-bit for ImWchar (default is 16-bit) to support unicode planes 1-16. (e.g. point beyond 0xFFFF like emoticons, dingbats, symbols, shapes, ancient languages, etc...)
 enum IMGUI_USE_WCHAR32 = false;
 
 //---- Avoid multiple STB libraries implementations, or redefine path/filenames to prioritize another version
@@ -93,13 +95,13 @@ enum IMGUI_USE_WCHAR32 = false;
 // D_IMGUI: Not supported.
 
 //---- Use 32-bit vertex indices (default is 16-bit) is one way to allow large meshes with more than 64K vertices.
-// Your renderer back-end will need to support it (most example renderer back-ends support both 16/32-bit indices).
+// Your renderer backend will need to support it (most example renderer backends support both 16/32-bit indices).
 // Another way to allow large meshes while keeping 16-bit indices is to handle ImDrawCmd.VtxOffset in your renderer.
 // Read about ImGuiBackendFlags.RendererHasVtxOffset for details.
 enum D_IMGUI_USER_DEFINED_DRAW_IDX = false;
 // alias ImDrawIdx = uint;
 
-//---- Override ImDrawCallback signature (will need to modify renderer back-ends accordingly)
+//---- Override ImDrawCallback signature (will need to modify renderer backends accordingly)
 enum D_IMGUI_USER_DEFINED_DRAW_CALLBACK = false;
 // import d_imgui.imgui_h.d : ImDrawList, ImDrawCmd;
 // alias ImDrawCallback = void function(const ImDrawList* draw_list, const ImDrawCmd* cmd, MyType* my_renderer_user_data);
