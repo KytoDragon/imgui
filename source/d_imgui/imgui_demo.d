@@ -43,8 +43,6 @@ module d_imgui.imgui_demo;
 // - In Visual Studio IDE: CTRL+comma ("Edit.NavigateTo") can follow symbols in comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
 // - With Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols in comments.
 
-// D_IMGUI: Due to https://issues.dlang.org/show_bug.cgi?id=19158 some of the local vairables have been renamed.
-
 // D_IMGUI: In D, global variables never get destroyed. This means that all the __gshared definitions never deallocate their memory.
 //          Be aware of that, if you want to use global variables to hold data for ImGui.
 
@@ -686,19 +684,19 @@ private void ShowDemoWindowWidgets()
 
             ImGui.DragInt("drag int 0..100", &i2, 1, 0, 100, "%d%%", ImGuiSliderFlags.AlwaysClamp);
 
-            __gshared float f1_2 = 1.00f, f2 = 0.0067f;
-            ImGui.DragFloat("drag float", &f1_2, 0.005f);
+            __gshared float f1 = 1.00f, f2 = 0.0067f;
+            ImGui.DragFloat("drag float", &f1, 0.005f);
             ImGui.DragFloat("drag small float", &f2, 0.0001f, 0.0f, 0.0f, "%.06f ns");
         }
 
         {
-            __gshared int i1_3 = 0;
-            ImGui.SliderInt("slider int", &i1_3, -1, 3);
+            __gshared int i1 = 0;
+            ImGui.SliderInt("slider int", &i1, -1, 3);
             ImGui.SameLine(); HelpMarker("CTRL+click to input value.");
 
-            __gshared float f1_3 = 0.123f, f2_3 = 0.0f;
-            ImGui.SliderFloat("slider float", &f1_3, 0.0f, 1.0f, "ratio = %.3f");
-            ImGui.SliderFloat("slider float (log)", &f2_3, -10.0f, 10.0f, "%.4f", ImGuiSliderFlags.Logarithmic);
+            __gshared float f1 = 0.123f, f2 = 0.0f;
+            ImGui.SliderFloat("slider float", &f1, 0.0f, 1.0f, "ratio = %.3f");
+            ImGui.SliderFloat("slider float (log)", &f2, -10.0f, 10.0f, "%.4f", ImGuiSliderFlags.Logarithmic);
 
             __gshared float angle = 0.0f;
             ImGui.SliderAngle("slider angle", &angle);
@@ -731,8 +729,8 @@ private void ShowDemoWindowWidgets()
             // Using the _simplified_ one-liner ListBox() api here
             // See "List boxes" section for examples of how to use the more flexible BeginListBox()/EndListBox() api.
             string[9] items = [ "Apple", "Banana", "Cherry", "Kiwi", "Mango", "Orange", "Pineapple", "Strawberry", "Watermelon" ];
-            __gshared int item_current2 = 1;
-            ImGui.ListBox("listbox", &item_current2, items, 4);
+            __gshared int item_current = 1;
+            ImGui.ListBox("listbox", &item_current, items, 4);
             ImGui.SameLine(); HelpMarker(
                 "Using the simplified one-liner ListBox API here.\nRefer to the \"List boxes\" section below for an explanation of how to use the more flexible and general BeginListBox/EndListBox API.");
         }
@@ -1086,14 +1084,14 @@ private void ShowDemoWindowWidgets()
         // (your selection data could be an index, a pointer to the object, an id for the object, a flag intrusively
         // stored in the object itself, etc.)
         string[14] items = [ "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL", "MMMM", "OOOOOOO" ];
-        __gshared int item_current_idx_2 = 0; // Here we store our selection data as an index.
+        __gshared int item_current_idx = 0; // Here we store our selection data as an index.
         if (ImGui.BeginListBox("listbox 1"))
         {
             for (int n = 0; n < IM_ARRAYSIZE(items); n++)
             {
-                const bool is_selected = (item_current_idx_2 == n);
+                const bool is_selected = (item_current_idx == n);
                 if (ImGui.Selectable(items[n], is_selected))
-                    item_current_idx_2 = n;
+                    item_current_idx = n;
 
                 // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
                 if (is_selected)
@@ -1108,9 +1106,9 @@ private void ShowDemoWindowWidgets()
         {
             for (int n = 0; n < IM_ARRAYSIZE(items); n++)
             {
-                const bool is_selected = (item_current_idx_2 == n);
+                const bool is_selected = (item_current_idx == n);
                 if (ImGui.Selectable(items[n], is_selected))
-                    item_current_idx_2 = n;
+                    item_current_idx = n;
 
                 // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
                 if (is_selected)
@@ -1157,16 +1155,16 @@ private void ShowDemoWindowWidgets()
         if (ImGui.TreeNode("Selection State: Multiple Selection"))
         {
             HelpMarker("Hold CTRL and click to select multiple items.");
-            __gshared bool[5] selection_2 = [ false, false, false, false, false ];
+            __gshared bool[5] selection = [ false, false, false, false, false ];
             for (int n = 0; n < 5; n++)
             {
                 char[32] buf;
-                snprintf(buf, "Object %d", n);
-                if (ImGui.Selectable(ImCstring(buf), selection_2[n]))
+                sprintf(buf, "Object %d", n);
+                if (ImGui.Selectable(ImCstring(buf), selection[n]))
                 {
                     if (!ImGui.GetIO().KeyCtrl)    // Clear selection when CTRL is not held
-                        memset(selection_2, 0, sizeof(selection_2));
-                    selection_2[n] ^= 1;
+                        memset(selection, 0, sizeof(selection));
+                    selection[n] ^= 1;
                 }
             }
             ImGui.TreePop();
@@ -1175,24 +1173,24 @@ private void ShowDemoWindowWidgets()
         {
             // Using the Selectable() override that takes "bool* p_selected" parameter,
             // this function toggle your bool value automatically.
-            __gshared bool[3] selected_3 = [ false, false, false ];
-            ImGui.Selectable("main.c",    &selected_3[0]); ImGui.SameLine(300); ImGui.Text(" 2,345 bytes");
-            ImGui.Selectable("Hello.cpp", &selected_3[1]); ImGui.SameLine(300); ImGui.Text("12,345 bytes");
-            ImGui.Selectable("Hello.h",   &selected_3[2]); ImGui.SameLine(300); ImGui.Text(" 2,345 bytes");
+            __gshared bool[3] selected = [ false, false, false ];
+            ImGui.Selectable("main.c",    &selected[0]); ImGui.SameLine(300); ImGui.Text(" 2,345 bytes");
+            ImGui.Selectable("Hello.cpp", &selected[1]); ImGui.SameLine(300); ImGui.Text("12,345 bytes");
+            ImGui.Selectable("Hello.h",   &selected[2]); ImGui.SameLine(300); ImGui.Text(" 2,345 bytes");
             ImGui.TreePop();
         }
         if (ImGui.TreeNode("In columns"))
         {
-            __gshared bool[10] selected_4 = false;
+            __gshared bool[10] selected = false;
 
             if (ImGui.BeginTable("split1", 3, ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings))
             {
                 for (int i = 0; i < 10; i++)
                 {
                     char[32] label;
-                    snprintf(label, "Item %d", i);
+                    sprintf(label, "Item %d", i);
                     ImGui.TableNextColumn();
-                    ImGui.Selectable(ImCstring(label), &selected_4[i]); // FIXME-TABLE: Selection overlap
+                    ImGui.Selectable(ImCstring(label), &selected[i]); // FIXME-TABLE: Selection overlap
                 }
                 ImGui.EndTable();
             }
@@ -1202,10 +1200,10 @@ private void ShowDemoWindowWidgets()
                 for (int i = 0; i < 10; i++)
                 {
                     char[32] label;
-                    snprintf(label, "Item %d", i);
+                    sprintf(label, "Item %d", i);
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.Selectable(ImCstring(label), &selected_4[i], ImGuiSelectableFlags.SpanAllColumns);
+                    ImGui.Selectable(ImCstring(label), &selected[i], ImGuiSelectableFlags.SpanAllColumns);
                     ImGui.TableNextColumn();
                     ImGui.Text("Some other contents");
                     ImGui.TableNextColumn();
@@ -1217,11 +1215,11 @@ private void ShowDemoWindowWidgets()
         }
         if (ImGui.TreeNode("Grid"))
         {
-            __gshared char[4][4] selected_5 = [ [ 1, 0, 0, 0 ], [ 0, 1, 0, 0 ], [ 0, 0, 1, 0 ], [ 0, 0, 0, 1 ] ];
+            __gshared char[4][4] selected = [ [ 1, 0, 0, 0 ], [ 0, 1, 0, 0 ], [ 0, 0, 1, 0 ], [ 0, 0, 0, 1 ] ];
 
             // Add in a bit of silly fun...
             const float time = cast(float)ImGui.GetTime();
-            const bool winning_state = ImIndexOf(cast(string)selected_5.ptr[0..16], '\0') == -1; // If all cells are selected...
+            const bool winning_state = ImIndexOf(cast(string)selected.ptr[0..16], '\0') == -1; // If all cells are selected...
             if (winning_state)
                 ImGui.PushStyleVar(ImGuiStyleVar.SelectableTextAlign, ImVec2(0.5f + 0.5f * ImCos(time * 2.0f), 0.5f + 0.5f * ImSin(time * 3.0f)));
 
@@ -1231,14 +1229,14 @@ private void ShowDemoWindowWidgets()
                     if (x > 0)
                         ImGui.SameLine();
                     ImGui.PushID(y * 4 + x);
-                    if (ImGui.Selectable("Sailor", selected_5[y][x] != 0, ImGuiSelectableFlags.None, ImVec2(50, 50)))
+                    if (ImGui.Selectable("Sailor", selected[y][x] != 0, ImGuiSelectableFlags.None, ImVec2(50, 50)))
                     {
                         // Toggle clicked cell + toggle neighbors
-                        selected_5[y][x] ^= 1;
-                        if (x > 0) { selected_5[y][x - 1] ^= 1; }
-                        if (x < 3) { selected_5[y][x + 1] ^= 1; }
-                        if (y > 0) { selected_5[y - 1][x] ^= 1; }
-                        if (y < 3) { selected_5[y + 1][x] ^= 1; }
+                        selected[y][x] ^= 1;
+                        if (x > 0) { selected[y][x - 1] ^= 1; }
+                        if (x < 3) { selected[y][x + 1] ^= 1; }
+                        if (y > 0) { selected[y - 1][x] ^= 1; }
+                        if (y < 3) { selected[y + 1][x] ^= 1; }
                     }
                     ImGui.PopID();
                 }
@@ -1253,17 +1251,17 @@ private void ShowDemoWindowWidgets()
                 "By default, Selectables uses style.SelectableTextAlign but it can be overridden on a per-item "
                 ~"basis using PushStyleVar(). You'll probably want to always keep your default situation to "
                 ~"left-align otherwise it becomes difficult to layout multiple items on a same line");
-            __gshared bool[3*3] selected_6 = [ true, false, true, false, true, false, true, false, true ];
+            __gshared bool[3*3] selected = [ true, false, true, false, true, false, true, false, true ];
             for (int y = 0; y < 3; y++)
             {
                 for (int x = 0; x < 3; x++)
                 {
                     ImVec2 alignment = ImVec2(cast(float)x / 2.0f, cast(float)y / 2.0f);
                     char[32] name;
-                    snprintf(name, "(%.1f,%.1f)", alignment.x, alignment.y);
+                    sprintf(name, "(%.1f,%.1f)", alignment.x, alignment.y);
                     if (x > 0) ImGui.SameLine();
                     ImGui.PushStyleVar(ImGuiStyleVar.SelectableTextAlign, alignment);
-                    ImGui.Selectable(ImCstring(name), &selected_6[3 * y + x], ImGuiSelectableFlags.None, ImVec2(80, 80));
+                    ImGui.Selectable(ImCstring(name), &selected[3 * y + x], ImGuiSelectableFlags.None, ImVec2(80, 80));
                     ImGui.PopStyleVar();
                 }
             }
@@ -1292,12 +1290,12 @@ private void ShowDemoWindowWidgets()
                 ~"label:\n"
                 ~"\tlock cmpxchg8b eax\n";
 
-            __gshared ImGuiInputTextFlags flags_2 = ImGuiInputTextFlags.AllowTabInput;
+            __gshared ImGuiInputTextFlags flags = ImGuiInputTextFlags.AllowTabInput;
             HelpMarker("You can use the ImGuiInputTextFlags_CallbackResize facility if you need to wire InputTextMultiline() to a dynamic string type. See misc/cpp/imgui_stdlib.h for an example. (This is not demonstrated in imgui_demo.cpp because we don't want to include <string> in here)");
-            ImGui.CheckboxFlags("ImGuiInputTextFlags_ReadOnly", &flags_2, ImGuiInputTextFlags.ReadOnly);
-            ImGui.CheckboxFlags("ImGuiInputTextFlags_AllowTabInput", &flags_2, ImGuiInputTextFlags.AllowTabInput);
-            ImGui.CheckboxFlags("ImGuiInputTextFlags_CtrlEnterForNewLine", &flags_2, ImGuiInputTextFlags.CtrlEnterForNewLine);
-            ImGui.InputTextMultiline("##source", text, ImVec2(-FLT_MIN, ImGui.GetTextLineHeight() * 16), flags_2);
+            ImGui.CheckboxFlags("ImGuiInputTextFlags_ReadOnly", &flags, ImGuiInputTextFlags.ReadOnly);
+            ImGui.CheckboxFlags("ImGuiInputTextFlags_AllowTabInput", &flags, ImGuiInputTextFlags.AllowTabInput);
+            ImGui.CheckboxFlags("ImGuiInputTextFlags_CtrlEnterForNewLine", &flags, ImGuiInputTextFlags.CtrlEnterForNewLine);
+            ImGui.InputTextMultiline("##source", text, ImVec2(-FLT_MIN, ImGui.GetTextLineHeight() * 16), flags);
             ImGui.TreePop();
         }
 
@@ -1335,7 +1333,7 @@ private void ShowDemoWindowWidgets()
 
         if (ImGui.TreeNode("Completion, History, Edit Callbacks"))
         {
-            struct Funcs2
+            struct Funcs
             {
                 nothrow:
                 @nogc:
@@ -1375,17 +1373,17 @@ private void ShowDemoWindowWidgets()
                     return 0;
                 }
             }
-            __gshared char[64] buf1_2;
-            ImGui.InputText("Completion", buf1_2, ImGuiInputTextFlags.CallbackCompletion, &Funcs2.MyCallback);
+            __gshared char[64] buf1;
+            ImGui.InputText("Completion", buf1, ImGuiInputTextFlags.CallbackCompletion, &Funcs.MyCallback);
             ImGui.SameLine(); HelpMarker("Here we append \"..\" each time Tab is pressed. See 'Examples>Console' for a more meaningful demonstration of using this callback.");
 
-            __gshared char[64] buf2_2;
-            ImGui.InputText("History", buf2_2, ImGuiInputTextFlags.CallbackHistory, &Funcs2.MyCallback);
+            __gshared char[64] buf2;
+            ImGui.InputText("History", buf2, ImGuiInputTextFlags.CallbackHistory, &Funcs.MyCallback);
             ImGui.SameLine(); HelpMarker("Here we replace and select text each time Up/Down are pressed. See 'Examples>Console' for a more meaningful demonstration of using this callback.");
 
-            __gshared char[64] buf3_2;
+            __gshared char[64] buf3;
             __gshared int edit_count = 0;
-            ImGui.InputText("Edit", buf3_2, ImGuiInputTextFlags.CallbackEdit, &Funcs2.MyCallback, cast(void*)&edit_count);
+            ImGui.InputText("Edit", buf3, ImGuiInputTextFlags.CallbackEdit, &Funcs.MyCallback, cast(void*)&edit_count);
             ImGui.SameLine(); HelpMarker("Here we toggle the casing of the first character on every edits + count edits.");
             ImGui.SameLine(); ImGui.Text("(%d)", edit_count);
 
@@ -1400,7 +1398,7 @@ private void ShowDemoWindowWidgets()
             HelpMarker(
                 "Using ImGuiInputTextFlags_CallbackResize to wire your custom string type to InputText().\n\n"
                 ~"See misc/cpp/imgui_stdlib.h for an implementation of this for std::string.");
-            struct Funcs3
+            struct Funcs
             {
                 nothrow:
                 @nogc:
@@ -1422,7 +1420,7 @@ private void ShowDemoWindowWidgets()
                 static bool MyInputTextMultiline(string label, ImVector!(char)* my_str, const ImVec2/*&*/ size = ImVec2(0, 0), ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
                 {
                     IM_ASSERT((flags & ImGuiInputTextFlags.CallbackResize) == 0);
-                    return ImGui.InputTextMultiline(label, my_str.asArray(), size, flags | ImGuiInputTextFlags.CallbackResize, &Funcs3.MyResizeCallback, cast(void*)my_str);
+                    return ImGui.InputTextMultiline(label, my_str.asArray(), size, flags | ImGuiInputTextFlags.CallbackResize, &Funcs.MyResizeCallback, cast(void*)my_str);
                 }
             }
 
@@ -1432,7 +1430,7 @@ private void ShowDemoWindowWidgets()
             __gshared ImVector!char my_str;
             if (my_str.empty())
                 my_str.push_back(0);
-            Funcs3.MyInputTextMultiline("##MyStr", &my_str, ImVec2(-FLT_MIN, ImGui.GetTextLineHeight() * 16));
+            Funcs.MyInputTextMultiline("##MyStr", &my_str, ImVec2(-FLT_MIN, ImGui.GetTextLineHeight() * 16));
             ImGui.Text("Data: %p\nSize: %d\nCapacity: %d", cast(void*)my_str.begin(), my_str.size(), my_str.capacity());
             ImGui.TreePop();
         }
@@ -1528,14 +1526,14 @@ private void ShowDemoWindowWidgets()
             ImGui.Checkbox("Show Trailing TabItemButton()", &show_trailing_button);
 
             // Expose some other flags which are useful to showcase how they interact with Leading/Trailing tabs
-            __gshared ImGuiTabBarFlags tab_bar_flags_2 = ImGuiTabBarFlags.AutoSelectNewTabs | ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyResizeDown;
-            ImGui.CheckboxFlags("ImGuiTabBarFlags_TabListPopupButton", &tab_bar_flags_2, ImGuiTabBarFlags.TabListPopupButton);
-            if (ImGui.CheckboxFlags("ImGuiTabBarFlags_FittingPolicyResizeDown", &tab_bar_flags_2, ImGuiTabBarFlags.FittingPolicyResizeDown))
-                tab_bar_flags_2 &= ~(ImGuiTabBarFlags.FittingPolicyMask_ ^ ImGuiTabBarFlags.FittingPolicyResizeDown);
-            if (ImGui.CheckboxFlags("ImGuiTabBarFlags_FittingPolicyScroll", &tab_bar_flags_2, ImGuiTabBarFlags.FittingPolicyScroll))
-                tab_bar_flags_2 &= ~(ImGuiTabBarFlags.FittingPolicyMask_ ^ ImGuiTabBarFlags.FittingPolicyScroll);
+            __gshared ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags.AutoSelectNewTabs | ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyResizeDown;
+            ImGui.CheckboxFlags("ImGuiTabBarFlags_TabListPopupButton", &tab_bar_flags, ImGuiTabBarFlags.TabListPopupButton);
+            if (ImGui.CheckboxFlags("ImGuiTabBarFlags_FittingPolicyResizeDown", &tab_bar_flags, ImGuiTabBarFlags.FittingPolicyResizeDown))
+                tab_bar_flags &= ~(ImGuiTabBarFlags.FittingPolicyMask_ ^ ImGuiTabBarFlags.FittingPolicyResizeDown);
+            if (ImGui.CheckboxFlags("ImGuiTabBarFlags_FittingPolicyScroll", &tab_bar_flags, ImGuiTabBarFlags.FittingPolicyScroll))
+                tab_bar_flags &= ~(ImGuiTabBarFlags.FittingPolicyMask_ ^ ImGuiTabBarFlags.FittingPolicyScroll);
 
-            if (ImGui.BeginTabBar("MyTabBar", tab_bar_flags_2))
+            if (ImGui.BeginTabBar("MyTabBar", tab_bar_flags))
             {
                 // Demo a Leading TabItemButton(): click the "?" button to open a menu
                 if (show_leading_button)
@@ -1588,8 +1586,8 @@ private void ShowDemoWindowWidgets()
         __gshared bool animate = true;
         ImGui.Checkbox("Animate", &animate);
 
-        __gshared float[7] arr_2 = [ 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f ];
-        ImGui.PlotLines("Frame Times", arr_2, IM_ARRAYSIZE(arr_2));
+        __gshared float[7] arr = [ 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f ];
+        ImGui.PlotLines("Frame Times", arr, IM_ARRAYSIZE(arr));
 
         // Fill an array of contiguous float values to plot
         // Tip: If your float aren't contiguous but part of a structure, you can pass a pointer to your first float
@@ -1616,15 +1614,15 @@ private void ShowDemoWindowWidgets()
                 average += values[n];
             average /= cast(float)IM_ARRAYSIZE(values);
             char[32] overlay;
-            snprintf(overlay, "avg %f", average);
+            sprintf(overlay, "avg %f", average);
             ImGui.PlotLines("Lines", values, values_offset, ImCstring(overlay), -1.0f, 1.0f, ImVec2(0, 80.0f));
         }
-        ImGui.PlotHistogram("Histogram", arr_2, 0, NULL, 0.0f, 1.0f, ImVec2(0, 80.0f));
+        ImGui.PlotHistogram("Histogram", arr, 0, NULL, 0.0f, 1.0f, ImVec2(0, 80.0f));
 
         // Use functions to generate output
         // FIXME: This is rather awkward because current plot API only pass in indices.
         // We probably want an API passing floats and user provide sample rate/count.
-        struct Funcs_2
+        struct Funcs
         {
             nothrow:
             @nogc:
@@ -1638,7 +1636,7 @@ private void ShowDemoWindowWidgets()
         ImGui.Combo("func", &func_type, "Sin\0Saw\0");
         ImGui.SameLine();
         ImGui.SliderInt("Sample count", &display_count, 1, 400);
-        float function(void*, int) nothrow @nogc func = (func_type == 0) ? &Funcs_2.Sin : &Funcs_2.Saw;
+        float function(void*, int) nothrow @nogc func = (func_type == 0) ? &Funcs.Sin : &Funcs.Saw;
         ImGui.PlotLines("Lines", func, NULL, display_count, 0, NULL, -1.0f, 1.0f, ImVec2(0, 80));
         ImGui.PlotHistogram("Histogram", func, NULL, display_count, 0, NULL, -1.0f, 1.0f, ImVec2(0, 80));
         ImGui.Separator();
@@ -1660,7 +1658,7 @@ private void ShowDemoWindowWidgets()
 
         float progress_saturated = IM_CLAMP(progress, 0.0f, 1.0f);
         char[32] buf;
-        snprintf(buf, "%d/%d", cast(int)(progress_saturated * 1753), 1753);
+        sprintf(buf, "%d/%d", cast(int)(progress_saturated * 1753), 1753);
         ImGui.ProgressBar(progress, ImVec2(0.0f, 0.0f), ImCstring(buf));
         ImGui.TreePop();
     }
@@ -1844,32 +1842,32 @@ private void ShowDemoWindowWidgets()
     if (ImGui.TreeNode("Drag/Slider Flags"))
     {
         // Demonstrate using advanced flags for DragXXX and SliderXXX functions. Note that the flags are the same!
-        __gshared ImGuiSliderFlags flags_3 = ImGuiSliderFlags.None;
-        ImGui.CheckboxFlags("ImGuiSliderFlags_AlwaysClamp", &flags_3, ImGuiSliderFlags.AlwaysClamp);
+        __gshared ImGuiSliderFlags flags = ImGuiSliderFlags.None;
+        ImGui.CheckboxFlags("ImGuiSliderFlags_AlwaysClamp", &flags, ImGuiSliderFlags.AlwaysClamp);
         ImGui.SameLine(); HelpMarker("Always clamp value to min/max bounds (if any) when input manually with CTRL+Click.");
-        ImGui.CheckboxFlags("ImGuiSliderFlags_Logarithmic", &flags_3, ImGuiSliderFlags.Logarithmic);
+        ImGui.CheckboxFlags("ImGuiSliderFlags_Logarithmic", &flags, ImGuiSliderFlags.Logarithmic);
         ImGui.SameLine(); HelpMarker("Enable logarithmic editing (more precision for small values).");
-        ImGui.CheckboxFlags("ImGuiSliderFlags_NoRoundToFormat", &flags_3, ImGuiSliderFlags.NoRoundToFormat);
+        ImGui.CheckboxFlags("ImGuiSliderFlags_NoRoundToFormat", &flags, ImGuiSliderFlags.NoRoundToFormat);
         ImGui.SameLine(); HelpMarker("Disable rounding underlying value to match precision of the format string (e.g. %.3f values are rounded to those 3 digits).");
-        ImGui.CheckboxFlags("ImGuiSliderFlags_NoInput", &flags_3, ImGuiSliderFlags.NoInput);
+        ImGui.CheckboxFlags("ImGuiSliderFlags_NoInput", &flags, ImGuiSliderFlags.NoInput);
         ImGui.SameLine(); HelpMarker("Disable CTRL+Click or Enter key allowing to input text directly into the widget.");
 
         // Drags
         __gshared float drag_f = 0.5f;
         __gshared int drag_i = 50;
         ImGui.Text("Underlying float value: %f", drag_f);
-        ImGui.DragFloat("DragFloat (0 -> 1)", &drag_f, 0.005f, 0.0f, 1.0f, "%.3f", flags_3);
-        ImGui.DragFloat("DragFloat (0 -> +inf)", &drag_f, 0.005f, 0.0f, FLT_MAX, "%.3f", flags_3);
-        ImGui.DragFloat("DragFloat (-inf -> 1)", &drag_f, 0.005f, -FLT_MAX, 1.0f, "%.3f", flags_3);
-        ImGui.DragFloat("DragFloat (-inf -> +inf)", &drag_f, 0.005f, -FLT_MAX, +FLT_MAX, "%.3f", flags_3);
-        ImGui.DragInt("DragInt (0 -> 100)", &drag_i, 0.5f, 0, 100, "%d", flags_3);
+        ImGui.DragFloat("DragFloat (0 -> 1)", &drag_f, 0.005f, 0.0f, 1.0f, "%.3f", flags);
+        ImGui.DragFloat("DragFloat (0 -> +inf)", &drag_f, 0.005f, 0.0f, FLT_MAX, "%.3f", flags);
+        ImGui.DragFloat("DragFloat (-inf -> 1)", &drag_f, 0.005f, -FLT_MAX, 1.0f, "%.3f", flags);
+        ImGui.DragFloat("DragFloat (-inf -> +inf)", &drag_f, 0.005f, -FLT_MAX, +FLT_MAX, "%.3f", flags);
+        ImGui.DragInt("DragInt (0 -> 100)", &drag_i, 0.5f, 0, 100, "%d", flags);
 
         // Sliders
         __gshared float slider_f = 0.5f;
         __gshared int slider_i = 50;
         ImGui.Text("Underlying float value: %f", slider_f);
-        ImGui.SliderFloat("SliderFloat (0 -> 1)", &slider_f, 0.0f, 1.0f, "%.3f", flags_3);
-        ImGui.SliderInt("SliderInt (0 -> 100)", &slider_i, 0, 100, "%d", flags_3);
+        ImGui.SliderFloat("SliderFloat (0 -> 1)", &slider_f, 0.0f, 1.0f, "%.3f", flags);
+        ImGui.SliderInt("SliderInt (0 -> 100)", &slider_i, 0, 100, "%d", flags);
 
         ImGui.TreePop();
     }
@@ -2042,7 +2040,7 @@ private void ShowDemoWindowWidgets()
         ImGui.VSliderInt("##int", ImVec2(18, 160), &int_value, 0, 5);
         ImGui.SameLine();
 
-        __gshared float[7] values_2 = [ 0.0f, 0.60f, 0.35f, 0.9f, 0.70f, 0.20f, 0.0f ];
+        __gshared float[7] values = [ 0.0f, 0.60f, 0.35f, 0.9f, 0.70f, 0.20f, 0.0f ];
         ImGui.PushID("set1");
         for (int i = 0; i < 7; i++)
         {
@@ -2052,9 +2050,9 @@ private void ShowDemoWindowWidgets()
             ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, cast(ImVec4)ImColor.HSV(i / 7.0f, 0.6f, 0.5f));
             ImGui.PushStyleColor(ImGuiCol.FrameBgActive, cast(ImVec4)ImColor.HSV(i / 7.0f, 0.7f, 0.5f));
             ImGui.PushStyleColor(ImGuiCol.SliderGrab, cast(ImVec4)ImColor.HSV(i / 7.0f, 0.9f, 0.9f));
-            ImGui.VSliderFloat("##v", ImVec2(18, 160), &values_2[i], 0.0f, 1.0f, "");
+            ImGui.VSliderFloat("##v", ImVec2(18, 160), &values[i], 0.0f, 1.0f, "");
             if (ImGui.IsItemActive() || ImGui.IsItemHovered())
-                ImGui.SetTooltip("%.3f", values_2[i]);
+                ImGui.SetTooltip("%.3f", values[i]);
             ImGui.PopStyleColor(4);
             ImGui.PopID();
         }
@@ -2088,7 +2086,7 @@ private void ShowDemoWindowWidgets()
             if (i > 0) ImGui.SameLine();
             ImGui.PushID(i);
             ImGui.PushStyleVar(ImGuiStyleVar.GrabMinSize, 40);
-            ImGui.VSliderFloat("##v", ImVec2(40, 160), &values_2[i], 0.0f, 1.0f, "%.2f\nsec");
+            ImGui.VSliderFloat("##v", ImVec2(40, 160), &values[i], 0.0f, 1.0f, "%.2f\nsec");
             ImGui.PopStyleVar();
             ImGui.PopID();
         }
@@ -2106,10 +2104,10 @@ private void ShowDemoWindowWidgets()
             // to allow your own widgets to use colors in their drag and drop interaction.
             // Also see 'Demo->Widgets->Color/Picker Widgets->Palette' demo.
             HelpMarker("You can drag from the color squares.");
-            __gshared float[3] col1_2 = [ 1.0f, 0.0f, 0.2f ];
-            __gshared float[4] col2_2 = [ 0.4f, 0.7f, 0.0f, 0.5f ];
-            ImGui.ColorEdit3("color 1", col1_2);
-            ImGui.ColorEdit4("color 2", col2_2);
+            __gshared float[3] col1 = [ 1.0f, 0.0f, 0.2f ];
+            __gshared float[4] col2 = [ 0.4f, 0.7f, 0.0f, 0.5f ];
+            ImGui.ColorEdit3("color 1", col1);
+            ImGui.ColorEdit4("color 2", col2);
             ImGui.TreePop();
         }
 
@@ -2241,7 +2239,7 @@ private void ShowDemoWindowWidgets()
         if (item_type == 10){ ret = ImGui.TreeNode("ITEM: TreeNode"); if (ret) ImGui.TreePop(); }     // Testing tree node
         if (item_type == 11){ ret = ImGui.TreeNodeEx("ITEM: TreeNode w/ ImGuiTreeNodeFlags_OpenOnDoubleClick", ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.NoTreePushOnOpen); } // Testing tree node with ImGuiButtonFlags_PressedOnDoubleClick button policy.
         if (item_type == 12){ string[4] items = [ "Apple", "Banana", "Cherry", "Kiwi" ]; __gshared int current = 1; ret = ImGui.Combo("ITEM: Combo", &current, items); }
-        if (item_type == 13){ string[4] items = [ "Apple", "Banana", "Cherry", "Kiwi" ]; __gshared int current_2 = 1; ret = ImGui.ListBox("ITEM: ListBox", &current_2, items, IM_ARRAYSIZE(items)); }
+        if (item_type == 13){ string[4] items = [ "Apple", "Banana", "Cherry", "Kiwi" ]; __gshared int current = 1; ret = ImGui.ListBox("ITEM: ListBox", &current, items, IM_ARRAYSIZE(items)); }
 
         // Display the values of IsItemHovered() and other common item state functions.
         // Note that the ImGuiHoveredFlags_XXX flags can be combined.
@@ -3738,14 +3736,14 @@ private void ShowDemoWindowTables()
     {
         // By default, if we don't enable ScrollX the sizing policy for each columns is "Stretch"
         // Each columns maintain a sizing weight, and they will occupy all available width.
-        __gshared ImGuiTableFlags flags_2 = ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.ContextMenuInBody;
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.ContextMenuInBody;
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags_2, ImGuiTableFlags.Resizable);
-        ImGui.CheckboxFlags("ImGuiTableFlags_BordersV", &flags_2, ImGuiTableFlags.BordersV);
+        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags, ImGuiTableFlags.Resizable);
+        ImGui.CheckboxFlags("ImGuiTableFlags_BordersV", &flags, ImGuiTableFlags.BordersV);
         ImGui.SameLine(); HelpMarker("Using the _Resizable flag automatically enables the _BordersInnerV flag as well, this is why the resize borders are still showing when unchecking this.");
         PopStyleCompact();
 
-        if (ImGui.BeginTable("table1", 3, flags_2))
+        if (ImGui.BeginTable("table1", 3, flags))
         {
             for (int row = 0; row < 5; row++)
             {
@@ -3774,11 +3772,11 @@ private void ShowDemoWindowTables()
             ~"Fixed-width columns generally makes more sense if you want to use horizontal scrolling.\n\n"
             ~"Double-click a column border to auto-fit the column to its contents.");
         PushStyleCompact();
-        __gshared ImGuiTableFlags flags_3 = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.ContextMenuInBody;
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendX", &flags_3, ImGuiTableFlags.NoHostExtendX);
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.ContextMenuInBody;
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendX", &flags, ImGuiTableFlags.NoHostExtendX);
         PopStyleCompact();
 
-        if (ImGui.BeginTable("table1", 3, flags_3))
+        if (ImGui.BeginTable("table1", 3, flags))
         {
             for (int row = 0; row < 5; row++)
             {
@@ -3801,9 +3799,9 @@ private void ShowDemoWindowTables()
         HelpMarker(
             "Using TableSetupColumn() to alter resizing policy on a per-column basis.\n\n"
             ~"When combining Fixed and Stretch columns, generally you only want one, maybe two trailing columns to use _WidthStretch.");
-        __gshared ImGuiTableFlags flags_4 = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable;
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable;
 
-        if (ImGui.BeginTable("table1", 3, flags_4))
+        if (ImGui.BeginTable("table1", 3, flags))
         {
             ImGui.TableSetupColumn("AAA", ImGuiTableColumnFlags.WidthFixed);
             ImGui.TableSetupColumn("BBB", ImGuiTableColumnFlags.WidthFixed);
@@ -3820,7 +3818,7 @@ private void ShowDemoWindowTables()
             }
             ImGui.EndTable();
         }
-        if (ImGui.BeginTable("table2", 6, flags_4))
+        if (ImGui.BeginTable("table2", 6, flags))
         {
             ImGui.TableSetupColumn("AAA", ImGuiTableColumnFlags.WidthFixed);
             ImGui.TableSetupColumn("BBB", ImGuiTableColumnFlags.WidthFixed);
@@ -3850,16 +3848,16 @@ private void ShowDemoWindowTables()
         HelpMarker(
             "Click and drag column headers to reorder columns.\n\n"
             ~"Right-click on a header to open a context menu.");
-        __gshared ImGuiTableFlags flags_5 = ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV;
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV;
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags_5, ImGuiTableFlags.Resizable);
-        ImGui.CheckboxFlags("ImGuiTableFlags_Reorderable", &flags_5, ImGuiTableFlags.Reorderable);
-        ImGui.CheckboxFlags("ImGuiTableFlags_Hideable", &flags_5, ImGuiTableFlags.Hideable);
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBody", &flags_5, ImGuiTableFlags.NoBordersInBody);
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags_5, ImGuiTableFlags.NoBordersInBodyUntilResize); ImGui.SameLine(); HelpMarker("Disable vertical borders in columns Body until hovered for resize (borders will always appears in Headers)");
+        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags, ImGuiTableFlags.Resizable);
+        ImGui.CheckboxFlags("ImGuiTableFlags_Reorderable", &flags, ImGuiTableFlags.Reorderable);
+        ImGui.CheckboxFlags("ImGuiTableFlags_Hideable", &flags, ImGuiTableFlags.Hideable);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBody", &flags, ImGuiTableFlags.NoBordersInBody);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags, ImGuiTableFlags.NoBordersInBodyUntilResize); ImGui.SameLine(); HelpMarker("Disable vertical borders in columns Body until hovered for resize (borders will always appears in Headers)");
         PopStyleCompact();
 
-        if (ImGui.BeginTable("table1", 3, flags_5))
+        if (ImGui.BeginTable("table1", 3, flags))
         {
             // Submit columns name with TableSetupColumn() and call TableHeadersRow() to create a row with a header in each column.
             // (Later we will show how TableSetupColumn() has other uses, optional flags, sizing weight etc.)
@@ -3880,7 +3878,7 @@ private void ShowDemoWindowTables()
         }
 
         // Use outer_size.x == 0.0f instead of default to make the table as tight as possible (only valid when no scrolling and no stretch column)
-        if (ImGui.BeginTable("table2", 3, flags_5 | ImGuiTableFlags.SizingFixedFit, ImVec2(0.0f, 0.0f)))
+        if (ImGui.BeginTable("table2", 3, flags | ImGuiTableFlags.SizingFixedFit, ImVec2(0.0f, 0.0f)))
         {
             ImGui.TableSetupColumn("One");
             ImGui.TableSetupColumn("Two");
@@ -3915,21 +3913,21 @@ private void ShowDemoWindowTables()
             ~"Actual padding values are using style.CellPadding.\n\n"
             ~"In this demo we don't show horizontal borders to emphasis how they don't affect default horizontal padding.");
 
-        __gshared ImGuiTableFlags flags1_6 = ImGuiTableFlags.BordersV;
+        __gshared ImGuiTableFlags flags1 = ImGuiTableFlags.BordersV;
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_PadOuterX", &flags1_6, ImGuiTableFlags.PadOuterX);
+        ImGui.CheckboxFlags("ImGuiTableFlags_PadOuterX", &flags1, ImGuiTableFlags.PadOuterX);
         ImGui.SameLine(); HelpMarker("Enable outer-most padding (default if ImGuiTableFlags_BordersOuterV is set)");
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoPadOuterX", &flags1_6, ImGuiTableFlags.NoPadOuterX);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoPadOuterX", &flags1, ImGuiTableFlags.NoPadOuterX);
         ImGui.SameLine(); HelpMarker("Disable outer-most padding (default if ImGuiTableFlags_BordersOuterV is not set)");
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoPadInnerX", &flags1_6, ImGuiTableFlags.NoPadInnerX);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoPadInnerX", &flags1, ImGuiTableFlags.NoPadInnerX);
         ImGui.SameLine(); HelpMarker("Disable inner padding between columns (double inner padding if BordersOuterV is on, single inner padding if BordersOuterV is off)");
-        ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterV", &flags1_6, ImGuiTableFlags.BordersOuterV);
-        ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerV", &flags1_6, ImGuiTableFlags.BordersInnerV);
+        ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterV", &flags1, ImGuiTableFlags.BordersOuterV);
+        ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerV", &flags1, ImGuiTableFlags.BordersInnerV);
         __gshared bool show_headers = false;
         ImGui.Checkbox("show_headers", &show_headers);
         PopStyleCompact();
 
-        if (ImGui.BeginTable("table_padding", 3, flags1_6))
+        if (ImGui.BeginTable("table_padding", 3, flags1))
         {
             if (show_headers)
             {
@@ -4057,33 +4055,33 @@ private void ShowDemoWindowTables()
         ImGui.SameLine();
         HelpMarker("This section allows you to interact and see the effect of various sizing policies depending on whether Scroll is enabled and the contents of your columns.");
 
-        enum ContentsType2 { CT_ShowWidth, CT_ShortText, CT_LongText, CT_Button, CT_FillButton, CT_InputText }
-        __gshared ImGuiTableFlags flags_7 = ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable;
-        __gshared int contents_type_2 = ContentsType2.CT_ShowWidth;
+        enum ContentsType { CT_ShowWidth, CT_ShortText, CT_LongText, CT_Button, CT_FillButton, CT_InputText }
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable;
+        __gshared int contents_type = ContentsType.CT_ShowWidth;
         __gshared int column_count = 3;
 
         PushStyleCompact();
         ImGui.PushID("Advanced");
         ImGui.PushItemWidth(TEXT_BASE_WIDTH * 30);
-        EditTableSizingFlags(&flags_7);
-        ImGui.Combo("Contents", &contents_type_2, "Show width\0Short Text\0Long Text\0Button\0Fill Button\0InputText\0");
-        if (contents_type_2 == ContentsType2.CT_FillButton)
+        EditTableSizingFlags(&flags);
+        ImGui.Combo("Contents", &contents_type, "Show width\0Short Text\0Long Text\0Button\0Fill Button\0InputText\0");
+        if (contents_type == ContentsType.CT_FillButton)
         {
             ImGui.SameLine();
             HelpMarker("Be mindful that using right-alignment (e.g. size.x = -FLT_MIN) creates a feedback loop where contents width can feed into auto-column width can feed into contents width.");
         }
         ImGui.DragInt("Columns", &column_count, 0.1f, 1, 64, "%d", ImGuiSliderFlags.AlwaysClamp);
-        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags_7, ImGuiTableFlags.Resizable);
-        ImGui.CheckboxFlags("ImGuiTableFlags_PreciseWidths", &flags_7, ImGuiTableFlags.PreciseWidths);
+        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags, ImGuiTableFlags.Resizable);
+        ImGui.CheckboxFlags("ImGuiTableFlags_PreciseWidths", &flags, ImGuiTableFlags.PreciseWidths);
         ImGui.SameLine(); HelpMarker("Disable distributing remainder width to stretched columns (width allocation on a 100-wide table with 3 columns: Without this flag: 33,33,34. With this flag: 33,33,33). With larger number of columns, resizing will appear to be less smooth.");
-        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags_7, ImGuiTableFlags.ScrollX);
-        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags_7, ImGuiTableFlags.ScrollY);
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoClip", &flags_7, ImGuiTableFlags.NoClip);
+        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags, ImGuiTableFlags.ScrollX);
+        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags, ImGuiTableFlags.ScrollY);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoClip", &flags, ImGuiTableFlags.NoClip);
         ImGui.PopItemWidth();
         ImGui.PopID();
         PopStyleCompact();
 
-        if (ImGui.BeginTable("table2", column_count, flags_7, ImVec2(0.0f, TEXT_BASE_HEIGHT * 7)))
+        if (ImGui.BeginTable("table2", column_count, flags, ImVec2(0.0f, TEXT_BASE_HEIGHT * 7)))
         {
             for (int cell = 0; cell < 10 * column_count; cell++)
             {
@@ -4095,7 +4093,7 @@ private void ShowDemoWindowTables()
                 char[32] label;
                 __gshared char[32] text_buf = "";
                 sprintf(label, "Hello %d,%d", column, row);
-                switch (contents_type_2) with(ContentsType2)
+                switch (contents_type) with(ContentsType)
                 {
                 case CT_ShortText:  ImGui.TextUnformatted(ImCstring(label)); break;
                 case CT_LongText:   ImGui.Text("Some %s text %d,%d\nOver two lines..", column == 0 ? "long" : "longeeer", column, row); break;
@@ -4117,16 +4115,16 @@ private void ShowDemoWindowTables()
     if (ImGui.TreeNode("Vertical scrolling, with clipping"))
     {
         HelpMarker("Here we activate ScrollY, which will create a child window container to allow hosting scrollable contents.\n\nWe also demonstrate using ImGuiListClipper to virtualize the submission of many items.");
-        __gshared ImGuiTableFlags flags_8 = ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable;
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable;
 
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags_8, ImGuiTableFlags.ScrollY);
+        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags, ImGuiTableFlags.ScrollY);
         PopStyleCompact();
 
         // When using ScrollX or ScrollY we need to specify a size for our table container!
         // Otherwise by default the table will fit all available space, like a BeginChild() call.
         ImVec2 outer_size = ImVec2(0.0f, TEXT_BASE_HEIGHT * 8);
-        if (ImGui.BeginTable("table_scrolly", 3, flags_8, outer_size))
+        if (ImGui.BeginTable("table_scrolly", 3, flags, outer_size))
         {
             ImGui.TableSetupScrollFreeze(0, 1); // Make top row always visible
             ImGui.TableSetupColumn("One", ImGuiTableColumnFlags.None);
@@ -4163,14 +4161,14 @@ private void ShowDemoWindowTables()
             ~"as automatically stretching columns doesn't make much sense with horizontal scrolling.\n\n"
             ~"Also note that as of the current version, you will almost always want to enable ScrollY along with ScrollX,"
             ~"because the container window won't automatically extend vertically to fix contents (this may be improved in future versions).");
-        __gshared ImGuiTableFlags flags_9 = ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable;
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable;
         __gshared int freeze_cols = 1;
         __gshared int freeze_rows = 1;
 
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags_9, ImGuiTableFlags.Resizable);
-        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags_9, ImGuiTableFlags.ScrollX);
-        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags_9, ImGuiTableFlags.ScrollY);
+        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags, ImGuiTableFlags.Resizable);
+        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags, ImGuiTableFlags.ScrollX);
+        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags, ImGuiTableFlags.ScrollY);
         ImGui.SetNextItemWidth(ImGui.GetFrameHeight());
         ImGui.DragInt("freeze_cols", &freeze_cols, 0.2f, 0, 9, NULL, ImGuiSliderFlags.NoInput);
         ImGui.SetNextItemWidth(ImGui.GetFrameHeight());
@@ -4180,7 +4178,7 @@ private void ShowDemoWindowTables()
         // When using ScrollX or ScrollY we need to specify a size for our table container!
         // Otherwise by default the table will fit all available space, like a BeginChild() call.
         ImVec2 outer_size = ImVec2(0.0f, TEXT_BASE_HEIGHT * 8);
-        if (ImGui.BeginTable("table_scrollx", 7, flags_9, outer_size))
+        if (ImGui.BeginTable("table_scrollx", 7, flags, outer_size))
         {
             ImGui.TableSetupScrollFreeze(freeze_cols, freeze_rows);
             ImGui.TableSetupColumn("Line #", ImGuiTableColumnFlags.NoHide); // Make the first column not hideable to match our use of TableSetupScrollFreeze()
@@ -4220,17 +4218,17 @@ private void ShowDemoWindowTables()
             "Showcase using Stretch columns + ScrollX together: "
             ~"this is rather unusual and only makes sense when specifying an 'inner_width' for the table!\n"
             ~"Without an explicit value, inner_width is == outer_size.x and therefore using Stretch columns + ScrollX together doesn't make sense.");
-        __gshared ImGuiTableFlags flags2_2 = ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.RowBg | ImGuiTableFlags.ContextMenuInBody;
+        __gshared ImGuiTableFlags flags2 = ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.RowBg | ImGuiTableFlags.ContextMenuInBody;
         __gshared float inner_width = 1000.0f;
         PushStyleCompact();
         ImGui.PushID("flags3");
         ImGui.PushItemWidth(TEXT_BASE_WIDTH * 30);
-        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags2_2, ImGuiTableFlags.ScrollX);
+        ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags2, ImGuiTableFlags.ScrollX);
         ImGui.DragFloat("inner_width", &inner_width, 1.0f, 0.0f, FLT_MAX, "%.1f");
         ImGui.PopItemWidth();
         ImGui.PopID();
         PopStyleCompact();
-        if (ImGui.BeginTable("table2", 7, flags2_2, outer_size, inner_width))
+        if (ImGui.BeginTable("table2", 7, flags2, outer_size, inner_width))
         {
             for (int cell = 0; cell < 20 * 7; cell++)
             {
@@ -4312,12 +4310,12 @@ private void ShowDemoWindowTables()
     {
         HelpMarker("Using TableSetupColumn() to setup default width.");
 
-        __gshared ImGuiTableFlags flags_10 = ImGuiTableFlags.Borders | ImGuiTableFlags.NoBordersInBodyUntilResize;
+        __gshared ImGuiTableFlags flags1 = ImGuiTableFlags.Borders | ImGuiTableFlags.NoBordersInBodyUntilResize;
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags_10, ImGuiTableFlags.Resizable);
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags_10, ImGuiTableFlags.NoBordersInBodyUntilResize);
+        ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags1, ImGuiTableFlags.Resizable);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags1, ImGuiTableFlags.NoBordersInBodyUntilResize);
         PopStyleCompact();
-        if (ImGui.BeginTable("table1", 3, flags_10))
+        if (ImGui.BeginTable("table1", 3, flags1))
         {
             // We could also set ImGuiTableFlags_SizingFixedFit on the table and all columns will default to ImGuiTableColumnFlags_WidthFixed.
             ImGui.TableSetupColumn("one", ImGuiTableColumnFlags.WidthFixed, 100.0f); // Default to 100.0f
@@ -4341,13 +4339,13 @@ private void ShowDemoWindowTables()
 
         HelpMarker("Using TableSetupColumn() to setup explicit width.\n\nUnless _NoKeepColumnsVisible is set, fixed columns with set width may still be shrunk down if there's not enough space in the host.");
 
-        __gshared ImGuiTableFlags flags2_3 = ImGuiTableFlags.None;
+        __gshared ImGuiTableFlags flags2 = ImGuiTableFlags.None;
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoKeepColumnsVisible", &flags2_3, ImGuiTableFlags.NoKeepColumnsVisible);
-        ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerV", &flags2_3, ImGuiTableFlags.BordersInnerV);
-        ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterV", &flags2_3, ImGuiTableFlags.BordersOuterV);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoKeepColumnsVisible", &flags2, ImGuiTableFlags.NoKeepColumnsVisible);
+        ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerV", &flags2, ImGuiTableFlags.BordersInnerV);
+        ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterV", &flags2, ImGuiTableFlags.BordersOuterV);
         PopStyleCompact();
-        if (ImGui.BeginTable("table2", 4, flags2_3))
+        if (ImGui.BeginTable("table2", 4, flags2))
         {
             // We could also set ImGuiTableFlags_SizingFixedFit on the table and all columns will default to ImGuiTableColumnFlags_WidthFixed.
             ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 100.0f);
@@ -4442,15 +4440,15 @@ private void ShowDemoWindowTables()
         // Important to that note how the two flags have slightly different behaviors!
         ImGui.Text("Using NoHostExtendX and NoHostExtendY:");
         PushStyleCompact();
-        __gshared ImGuiTableFlags flags_11 = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ContextMenuInBody | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoHostExtendX;
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendX", &flags_11, ImGuiTableFlags.NoHostExtendX);
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ContextMenuInBody | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoHostExtendX;
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendX", &flags, ImGuiTableFlags.NoHostExtendX);
         ImGui.SameLine(); HelpMarker("Make outer width auto-fit to columns, overriding outer_size.x value.\n\nOnly available when ScrollX/ScrollY are disabled and Stretch columns are not used.");
-        ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendY", &flags_11, ImGuiTableFlags.NoHostExtendY);
+        ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendY", &flags, ImGuiTableFlags.NoHostExtendY);
         ImGui.SameLine(); HelpMarker("Make outer height stop exactly at outer_size.y (prevent auto-extending table past the limit).\n\nOnly available when ScrollX/ScrollY are disabled. Data below the limit will be clipped and not visible.");
         PopStyleCompact();
 
         ImVec2 outer_size = ImVec2(0.0f, TEXT_BASE_HEIGHT * 5.5f);
-        if (ImGui.BeginTable("table1", 3, flags_11, outer_size))
+        if (ImGui.BeginTable("table1", 3, flags, outer_size))
         {
             for (int row = 0; row < 10; row++)
             {
@@ -4504,14 +4502,14 @@ private void ShowDemoWindowTables()
         ImGui.SetNextItemOpen(open_action != 0);
     if (ImGui.TreeNode("Background color"))
     {
-        __gshared ImGuiTableFlags flags_13 = ImGuiTableFlags.RowBg;
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.RowBg;
         __gshared int row_bg_type = 1;
         __gshared int row_bg_target = 1;
         __gshared int cell_bg_type = 1;
 
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_Borders", &flags_13, ImGuiTableFlags.Borders);
-        ImGui.CheckboxFlags("ImGuiTableFlags_RowBg", &flags_13, ImGuiTableFlags.RowBg);
+        ImGui.CheckboxFlags("ImGuiTableFlags_Borders", &flags, ImGuiTableFlags.Borders);
+        ImGui.CheckboxFlags("ImGuiTableFlags_RowBg", &flags, ImGuiTableFlags.RowBg);
         ImGui.SameLine(); HelpMarker("ImGuiTableFlags_RowBg automatically sets RowBg0 to alternative colors pulled from the Style.");
         ImGui.Combo("row bg type", cast(int*)&row_bg_type, "None\0Red\0Gradient\0");
         ImGui.Combo("row bg target", cast(int*)&row_bg_target, "RowBg0\0RowBg1\0"); ImGui.SameLine(); HelpMarker("Target RowBg0 to override the alternating odd/even colors,\nTarget RowBg1 to blend with them.");
@@ -4521,7 +4519,7 @@ private void ShowDemoWindowTables()
         IM_ASSERT(cell_bg_type >= 0 && cell_bg_type <= 1);
         PopStyleCompact();
 
-        if (ImGui.BeginTable("table1", 5, flags_13))
+        if (ImGui.BeginTable("table1", 5, flags))
         {
             for (int row = 0; row < 6; row++)
             {
@@ -4561,9 +4559,9 @@ private void ShowDemoWindowTables()
         ImGui.SetNextItemOpen(open_action != 0);
     if (ImGui.TreeNode("Tree view"))
     {
-        __gshared ImGuiTableFlags flags_12 = ImGuiTableFlags.BordersV | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg | ImGuiTableFlags.NoBordersInBody;
+        __gshared ImGuiTableFlags flags = ImGuiTableFlags.BordersV | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg | ImGuiTableFlags.NoBordersInBody;
 
-        if (ImGui.BeginTable("3ways", 3, flags_12))
+        if (ImGui.BeginTable("3ways", 3, flags))
         {
             // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
             ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.NoHide);
@@ -4728,17 +4726,17 @@ private void ShowDemoWindowTables()
     if (ImGui.TreeNode("Context menus"))
     {
         HelpMarker("By default, right-clicking over a TableHeadersRow()/TableHeader() line will open the default context-menu.\nUsing ImGuiTableFlags_ContextMenuInBody we also allow right-clicking over columns body.");
-        __gshared ImGuiTableFlags flags_14 = ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable | ImGuiTableFlags.Borders | ImGuiTableFlags.ContextMenuInBody;
+        __gshared ImGuiTableFlags flags1 = ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable | ImGuiTableFlags.Borders | ImGuiTableFlags.ContextMenuInBody;
 
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_ContextMenuInBody", &flags_14, ImGuiTableFlags.ContextMenuInBody);
+        ImGui.CheckboxFlags("ImGuiTableFlags_ContextMenuInBody", &flags1, ImGuiTableFlags.ContextMenuInBody);
         PopStyleCompact();
 
         // Context Menus: first example
         // [1.1] Right-click on the TableHeadersRow() line to open the default table context menu.
         // [1.2] Right-click in columns also open the default table context menu (if ImGuiTableFlags_ContextMenuInBody is set)
         const int COLUMNS_COUNT = 3;
-        if (ImGui.BeginTable("table_context_menu", COLUMNS_COUNT, flags_14))
+        if (ImGui.BeginTable("table_context_menu", COLUMNS_COUNT, flags1))
         {
             ImGui.TableSetupColumn("One");
             ImGui.TableSetupColumn("Two");
@@ -4884,18 +4882,18 @@ private void ShowDemoWindowTables()
         }
 
         // Options
-        __gshared ImGuiTableFlags flags_15 =
+        __gshared ImGuiTableFlags flags =
             ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti
             | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV | ImGuiTableFlags.NoBordersInBody
             | ImGuiTableFlags.ScrollY;
         PushStyleCompact();
-        ImGui.CheckboxFlags("ImGuiTableFlags_SortMulti", &flags_15, ImGuiTableFlags.SortMulti);
+        ImGui.CheckboxFlags("ImGuiTableFlags_SortMulti", &flags, ImGuiTableFlags.SortMulti);
         ImGui.SameLine(); HelpMarker("When sorting is enabled: hold shift when clicking headers to sort on multiple column. TableGetSortSpecs() may return specs where (SpecsCount > 1).");
-        ImGui.CheckboxFlags("ImGuiTableFlags_SortTristate", &flags_15, ImGuiTableFlags.SortTristate);
+        ImGui.CheckboxFlags("ImGuiTableFlags_SortTristate", &flags, ImGuiTableFlags.SortTristate);
         ImGui.SameLine(); HelpMarker("When sorting is enabled: allow no sorting, disable default sorting. TableGetSortSpecs() may return specs where (SpecsCount == 0).");
         PopStyleCompact();
 
-        if (ImGui.BeginTable("table_sorting", 4, flags_15, ImVec2(0.0f, TEXT_BASE_HEIGHT * 15), 0.0f))
+        if (ImGui.BeginTable("table_sorting", 4, flags, ImVec2(0.0f, TEXT_BASE_HEIGHT * 15), 0.0f))
         {
             // Declare columns
             // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
@@ -4955,18 +4953,18 @@ private void ShowDemoWindowTables()
         ImGui.SetNextItemOpen(open_action != 0);
     if (ImGui.TreeNode("Advanced"))
     {
-        __gshared ImGuiTableFlags flags_16 =
+        __gshared ImGuiTableFlags flags =
             ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable
             | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortMulti
             | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.NoBordersInBody
             | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY
             | ImGuiTableFlags.SizingFixedFit;
 
-        enum ContentsType3 { CT_Text, CT_Button, CT_SmallButton, CT_FillButton, CT_Selectable, CT_SelectableSpanRow }
-        __gshared int contents_type_3 = ContentsType3.CT_SelectableSpanRow;
+        enum ContentsType { CT_Text, CT_Button, CT_SmallButton, CT_FillButton, CT_Selectable, CT_SelectableSpanRow }
+        __gshared int contents_type = ContentsType.CT_SelectableSpanRow;
         string[6] contents_type_names = [ "Text", "Button", "SmallButton", "FillButton", "Selectable", "Selectable (span row)" ];
-        __gshared int freeze_cols_2 = 1;
-        __gshared int freeze_rows_2 = 1;
+        __gshared int freeze_cols = 1;
+        __gshared int freeze_rows = 1;
         __gshared int items_count = template_items_names.length * 2;
         __gshared ImVec2 outer_size_value = ImVec2(float.nan, float.nan);
         if (outer_size_value.x != outer_size_value.x) {
@@ -4975,7 +4973,7 @@ private void ShowDemoWindowTables()
         __gshared float row_min_height = 0.0f; // Auto
         __gshared float inner_width_with_scroll = 0.0f; // Auto-extend
         __gshared bool outer_size_enabled = true;
-        __gshared bool show_headers_2 = true;
+        __gshared bool show_headers = true;
         __gshared bool show_wrapped_text = false;
         //static ImGuiTextFilter filter;
         //ImGui::SetNextItemOpen(true, ImGuiCond_Once); // FIXME-TABLE: Enabling this results in initial clipped first pass on table which tend to affects column sizing
@@ -4987,79 +4985,79 @@ private void ShowDemoWindowTables()
 
             if (ImGui.TreeNodeEx("Features:", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags_16, ImGuiTableFlags.Resizable);
-                ImGui.CheckboxFlags("ImGuiTableFlags_Reorderable", &flags_16, ImGuiTableFlags.Reorderable);
-                ImGui.CheckboxFlags("ImGuiTableFlags_Hideable", &flags_16, ImGuiTableFlags.Hideable);
-                ImGui.CheckboxFlags("ImGuiTableFlags_Sortable", &flags_16, ImGuiTableFlags.Sortable);
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoSavedSettings", &flags_16, ImGuiTableFlags.NoSavedSettings);
-                ImGui.CheckboxFlags("ImGuiTableFlags_ContextMenuInBody", &flags_16, ImGuiTableFlags.ContextMenuInBody);
+                ImGui.CheckboxFlags("ImGuiTableFlags_Resizable", &flags, ImGuiTableFlags.Resizable);
+                ImGui.CheckboxFlags("ImGuiTableFlags_Reorderable", &flags, ImGuiTableFlags.Reorderable);
+                ImGui.CheckboxFlags("ImGuiTableFlags_Hideable", &flags, ImGuiTableFlags.Hideable);
+                ImGui.CheckboxFlags("ImGuiTableFlags_Sortable", &flags, ImGuiTableFlags.Sortable);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoSavedSettings", &flags, ImGuiTableFlags.NoSavedSettings);
+                ImGui.CheckboxFlags("ImGuiTableFlags_ContextMenuInBody", &flags, ImGuiTableFlags.ContextMenuInBody);
                 ImGui.TreePop();
             }
 
             if (ImGui.TreeNodeEx("Decorations:", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.CheckboxFlags("ImGuiTableFlags_RowBg", &flags_16, ImGuiTableFlags.RowBg);
-                ImGui.CheckboxFlags("ImGuiTableFlags_BordersV", &flags_16, ImGuiTableFlags.BordersV);
-                ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterV", &flags_16, ImGuiTableFlags.BordersOuterV);
-                ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerV", &flags_16, ImGuiTableFlags.BordersInnerV);
-                ImGui.CheckboxFlags("ImGuiTableFlags_BordersH", &flags_16, ImGuiTableFlags.BordersH);
-                ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterH", &flags_16, ImGuiTableFlags.BordersOuterH);
-                ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerH", &flags_16, ImGuiTableFlags.BordersInnerH);
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBody", &flags_16, ImGuiTableFlags.NoBordersInBody); ImGui.SameLine(); HelpMarker("Disable vertical borders in columns Body (borders will always appears in Headers");
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags_16, ImGuiTableFlags.NoBordersInBodyUntilResize); ImGui.SameLine(); HelpMarker("Disable vertical borders in columns Body until hovered for resize (borders will always appears in Headers)");
+                ImGui.CheckboxFlags("ImGuiTableFlags_RowBg", &flags, ImGuiTableFlags.RowBg);
+                ImGui.CheckboxFlags("ImGuiTableFlags_BordersV", &flags, ImGuiTableFlags.BordersV);
+                ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterV", &flags, ImGuiTableFlags.BordersOuterV);
+                ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerV", &flags, ImGuiTableFlags.BordersInnerV);
+                ImGui.CheckboxFlags("ImGuiTableFlags_BordersH", &flags, ImGuiTableFlags.BordersH);
+                ImGui.CheckboxFlags("ImGuiTableFlags_BordersOuterH", &flags, ImGuiTableFlags.BordersOuterH);
+                ImGui.CheckboxFlags("ImGuiTableFlags_BordersInnerH", &flags, ImGuiTableFlags.BordersInnerH);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBody", &flags, ImGuiTableFlags.NoBordersInBody); ImGui.SameLine(); HelpMarker("Disable vertical borders in columns Body (borders will always appears in Headers");
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoBordersInBodyUntilResize", &flags, ImGuiTableFlags.NoBordersInBodyUntilResize); ImGui.SameLine(); HelpMarker("Disable vertical borders in columns Body until hovered for resize (borders will always appears in Headers)");
                 ImGui.TreePop();
             }
 
             if (ImGui.TreeNodeEx("Sizing:", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                EditTableSizingFlags(&flags_16);
+                EditTableSizingFlags(&flags);
                 ImGui.SameLine(); HelpMarker("In the Advanced demo we override the policy of each column so those table-wide settings have less effect that typical.");
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendX", &flags_16, ImGuiTableFlags.NoHostExtendX);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendX", &flags, ImGuiTableFlags.NoHostExtendX);
                 ImGui.SameLine(); HelpMarker("Make outer width auto-fit to columns, overriding outer_size.x value.\n\nOnly available when ScrollX/ScrollY are disabled and Stretch columns are not used.");
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendY", &flags_16, ImGuiTableFlags.NoHostExtendY);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoHostExtendY", &flags, ImGuiTableFlags.NoHostExtendY);
                 ImGui.SameLine(); HelpMarker("Make outer height stop exactly at outer_size.y (prevent auto-extending table past the limit).\n\nOnly available when ScrollX/ScrollY are disabled. Data below the limit will be clipped and not visible.");
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoKeepColumnsVisible", &flags_16, ImGuiTableFlags.NoKeepColumnsVisible);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoKeepColumnsVisible", &flags, ImGuiTableFlags.NoKeepColumnsVisible);
                 ImGui.SameLine(); HelpMarker("Only available if ScrollX is disabled.");
-                ImGui.CheckboxFlags("ImGuiTableFlags_PreciseWidths", &flags_16, ImGuiTableFlags.PreciseWidths);
+                ImGui.CheckboxFlags("ImGuiTableFlags_PreciseWidths", &flags, ImGuiTableFlags.PreciseWidths);
                 ImGui.SameLine(); HelpMarker("Disable distributing remainder width to stretched columns (width allocation on a 100-wide table with 3 columns: Without this flag: 33,33,34. With this flag: 33,33,33). With larger number of columns, resizing will appear to be less smooth.");
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoClip", &flags_16, ImGuiTableFlags.NoClip);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoClip", &flags, ImGuiTableFlags.NoClip);
                 ImGui.SameLine(); HelpMarker("Disable clipping rectangle for every individual columns (reduce draw command count, items will be able to overflow into other columns). Generally incompatible with ScrollFreeze options.");
                 ImGui.TreePop();
             }
 
             if (ImGui.TreeNodeEx("Padding:", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.CheckboxFlags("ImGuiTableFlags_PadOuterX", &flags_16, ImGuiTableFlags.PadOuterX);
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoPadOuterX", &flags_16, ImGuiTableFlags.NoPadOuterX);
-                ImGui.CheckboxFlags("ImGuiTableFlags_NoPadInnerX", &flags_16, ImGuiTableFlags.NoPadInnerX);
+                ImGui.CheckboxFlags("ImGuiTableFlags_PadOuterX", &flags, ImGuiTableFlags.PadOuterX);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoPadOuterX", &flags, ImGuiTableFlags.NoPadOuterX);
+                ImGui.CheckboxFlags("ImGuiTableFlags_NoPadInnerX", &flags, ImGuiTableFlags.NoPadInnerX);
                 ImGui.TreePop();
             }
 
             if (ImGui.TreeNodeEx("Scrolling:", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags_16, ImGuiTableFlags.ScrollX);
+                ImGui.CheckboxFlags("ImGuiTableFlags_ScrollX", &flags, ImGuiTableFlags.ScrollX);
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(ImGui.GetFrameHeight());
-                ImGui.DragInt("freeze_cols", &freeze_cols_2, 0.2f, 0, 9, NULL, ImGuiSliderFlags.NoInput);
-                ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags_16, ImGuiTableFlags.ScrollY);
+                ImGui.DragInt("freeze_cols", &freeze_cols, 0.2f, 0, 9, NULL, ImGuiSliderFlags.NoInput);
+                ImGui.CheckboxFlags("ImGuiTableFlags_ScrollY", &flags, ImGuiTableFlags.ScrollY);
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(ImGui.GetFrameHeight());
-                ImGui.DragInt("freeze_rows", &freeze_rows_2, 0.2f, 0, 9, NULL, ImGuiSliderFlags.NoInput);
+                ImGui.DragInt("freeze_rows", &freeze_rows, 0.2f, 0, 9, NULL, ImGuiSliderFlags.NoInput);
                 ImGui.TreePop();
             }
 
             if (ImGui.TreeNodeEx("Sorting:", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.CheckboxFlags("ImGuiTableFlags_SortMulti", &flags_16, ImGuiTableFlags.SortMulti);
+                ImGui.CheckboxFlags("ImGuiTableFlags_SortMulti", &flags, ImGuiTableFlags.SortMulti);
                 ImGui.SameLine(); HelpMarker("When sorting is enabled: hold shift when clicking headers to sort on multiple column. TableGetSortSpecs() may return specs where (SpecsCount > 1).");
-                ImGui.CheckboxFlags("ImGuiTableFlags_SortTristate", &flags_16, ImGuiTableFlags.SortTristate);
+                ImGui.CheckboxFlags("ImGuiTableFlags_SortTristate", &flags, ImGuiTableFlags.SortTristate);
                 ImGui.SameLine(); HelpMarker("When sorting is enabled: allow no sorting, disable default sorting. TableGetSortSpecs() may return specs where (SpecsCount == 0).");
                 ImGui.TreePop();
             }
 
             if (ImGui.TreeNodeEx("Other:", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.Checkbox("show_headers", &show_headers_2);
+                ImGui.Checkbox("show_headers", &show_headers);
                 ImGui.Checkbox("show_wrapped_text", &show_wrapped_text);
 
                 ImGui.DragFloat2("##OuterSize", &outer_size_value);
@@ -5080,7 +5078,7 @@ private void ShowDemoWindowTables()
                 ImGui.SameLine(); HelpMarker("Specify height of the Selectable item.");
 
                 ImGui.DragInt("items_count", &items_count, 0.1f, 0, 9999);
-                ImGui.Combo("items_type (first column)", &contents_type_3, contents_type_names, IM_ARRAYSIZE(contents_type_names));
+                ImGui.Combo("items_type (first column)", &contents_type, contents_type_names, IM_ARRAYSIZE(contents_type_names));
                 //filter.Draw("filter");
                 ImGui.TreePop();
             }
@@ -5092,16 +5090,16 @@ private void ShowDemoWindowTables()
         }
 
         // Update item list if we changed the number of items
-        __gshared ImVector!MyItem items_2;
+        __gshared ImVector!MyItem items;
         __gshared ImVector!int selection;
         __gshared bool items_need_sort = false;
-        if (items_2.Size != items_count)
+        if (items.Size != items_count)
         {
-            items_2.resize(items_count, MyItem());
+            items.resize(items_count, MyItem());
             for (int n = 0; n < items_count; n++)
             {
                 const int template_n = n % IM_ARRAYSIZE(template_items_names);
-                MyItem* item = &items_2[n];
+                MyItem* item = &items[n];
                 item.ID = n;
                 item.Name = template_items_names[template_n];
                 item.Quantity = (template_n == 3) ? 10 : (template_n == 4) ? 20 : 0; // Assign default quantities
@@ -5114,8 +5112,8 @@ private void ShowDemoWindowTables()
         const (ImDrawList)* table_draw_list = NULL;  // "
 
         // Submit table
-        const float inner_width_to_use = (flags_16 & ImGuiTableFlags.ScrollX) ? inner_width_with_scroll : 0.0f;
-        if (ImGui.BeginTable("table_advanced", 6, flags_16, outer_size_enabled ? outer_size_value : ImVec2(0, 0), inner_width_to_use))
+        const float inner_width_to_use = (flags & ImGuiTableFlags.ScrollX) ? inner_width_with_scroll : 0.0f;
+        if (ImGui.BeginTable("table_advanced", 6, flags, outer_size_enabled ? outer_size_value : ImVec2(0, 0), inner_width_to_use))
         {
             // Declare columns
             // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
@@ -5124,18 +5122,18 @@ private void ShowDemoWindowTables()
             ImGui.TableSetupColumn("Name",         ImGuiTableColumnFlags.WidthFixed, 0.0f, MyItemColumnID.Name);
             ImGui.TableSetupColumn("Action",       ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 0.0f, MyItemColumnID.Action);
             ImGui.TableSetupColumn("Quantity",     ImGuiTableColumnFlags.PreferSortDescending, 0.0f, MyItemColumnID.Quantity);
-            ImGui.TableSetupColumn("Description",  (flags_16 & ImGuiTableFlags.NoHostExtendX) ? ImGuiTableColumnFlags.None : ImGuiTableColumnFlags.WidthStretch, 0.0f, MyItemColumnID.Description);
+            ImGui.TableSetupColumn("Description",  (flags & ImGuiTableFlags.NoHostExtendX) ? ImGuiTableColumnFlags.None : ImGuiTableColumnFlags.WidthStretch, 0.0f, MyItemColumnID.Description);
             ImGui.TableSetupColumn("Hidden",       ImGuiTableColumnFlags.DefaultHide | ImGuiTableColumnFlags.NoSort);
-            ImGui.TableSetupScrollFreeze(freeze_cols_2, freeze_rows_2);
+            ImGui.TableSetupScrollFreeze(freeze_cols, freeze_rows);
 
             // Sort our data if sort specs have been changed!
             ImGuiTableSortSpecs* sorts_specs = ImGui.TableGetSortSpecs();
             if (sorts_specs && sorts_specs.SpecsDirty)
                 items_need_sort = true;
-            if (sorts_specs && items_need_sort && items_2.Size > 1)
+            if (sorts_specs && items_need_sort && items.Size > 1)
             {
                 MyItem.s_current_sort_specs = sorts_specs; // Store in variable accessible by the sort function.
-                ImQsort(items_2.asArray(), &MyItem.CompareWithSortSpecs);
+                ImQsort(items.asArray(), &MyItem.CompareWithSortSpecs);
                 MyItem.s_current_sort_specs = NULL;
                 sorts_specs.SpecsDirty = false;
             }
@@ -5146,7 +5144,7 @@ private void ShowDemoWindowTables()
             const bool sorts_specs_using_quantity = (ImGui.TableGetColumnFlags(3) & ImGuiTableColumnFlags.IsSorted) != 0;
 
             // Show headers
-            if (show_headers_2)
+            if (show_headers)
                 ImGui.TableHeadersRow();
 
             // Show data
@@ -5155,7 +5153,7 @@ private void ShowDemoWindowTables()
 //#if 1
             // Demonstrate using clipper for large vertical lists
             ImGuiListClipper clipper = ImGuiListClipper(false);
-            clipper.Begin(items_2.Size);
+            clipper.Begin(items.Size);
             while (clipper.Step())
             {
                 for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
@@ -5167,7 +5165,7 @@ private void ShowDemoWindowTables()
 #endif
 */
                 {
-                    MyItem* item = &items_2[row_n];
+                    MyItem* item = &items[row_n];
                     //if (!filter.PassFilter(item->Name))
                     //    continue;
 
@@ -5179,17 +5177,17 @@ private void ShowDemoWindowTables()
                     ImGui.TableSetColumnIndex(0);
                     char[32] label;
                     sprintf(label, "%04d", item.ID);
-                    if (contents_type_3 == ContentsType3.CT_Text)
+                    if (contents_type == ContentsType.CT_Text)
                         ImGui.TextUnformatted(ImCstring(label));
-                    else if (contents_type_3 == ContentsType3.CT_Button)
+                    else if (contents_type == ContentsType.CT_Button)
                         ImGui.Button(ImCstring(label));
-                    else if (contents_type_3 == ContentsType3.CT_SmallButton)
+                    else if (contents_type == ContentsType.CT_SmallButton)
                         ImGui.SmallButton(ImCstring(label));
-                    else if (contents_type_3 == ContentsType3.CT_FillButton)
+                    else if (contents_type == ContentsType.CT_FillButton)
                         ImGui.Button(ImCstring(label), ImVec2(-FLT_MIN, 0.0f));
-                    else if (contents_type_3 == ContentsType3.CT_Selectable || contents_type_3 == ContentsType3.CT_SelectableSpanRow)
+                    else if (contents_type == ContentsType.CT_Selectable || contents_type == ContentsType.CT_SelectableSpanRow)
                     {
-                        ImGuiSelectableFlags selectable_flags = (contents_type_3 == ContentsType3.CT_SelectableSpanRow) ? ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap : ImGuiSelectableFlags.None;
+                        ImGuiSelectableFlags selectable_flags = (contents_type == ContentsType.CT_SelectableSpanRow) ? ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap : ImGuiSelectableFlags.None;
                         if (ImGui.Selectable(ImCstring(label), item_is_selected, selectable_flags, ImVec2(0, row_min_height)))
                         {
                             if (ImGui.GetIO().KeyCtrl)
@@ -5559,19 +5557,19 @@ private void ShowDemoWindowMisc()
             bool focus_2 = ImGui.Button("Focus on 2"); ImGui.SameLine();
             bool focus_3 = ImGui.Button("Focus on 3");
             int has_focus = 0;
-            __gshared char[128] buf_2 = "click on a button to set focus";
+            __gshared char[128] buf = "click on a button to set focus";
 
             if (focus_1) ImGui.SetKeyboardFocusHere();
-            ImGui.InputText("1", buf_2);
+            ImGui.InputText("1", buf);
             if (ImGui.IsItemActive()) has_focus = 1;
 
             if (focus_2) ImGui.SetKeyboardFocusHere();
-            ImGui.InputText("2", buf_2);
+            ImGui.InputText("2", buf);
             if (ImGui.IsItemActive()) has_focus = 2;
 
             ImGui.PushAllowKeyboardFocus(false);
             if (focus_3) ImGui.SetKeyboardFocusHere();
-            ImGui.InputText("3 (tab skip)", buf_2);
+            ImGui.InputText("3 (tab skip)", buf);
             if (ImGui.IsItemActive()) has_focus = 3;
             ImGui.SameLine(); HelpMarker("Item won't be cycled through when using TAB or Shift+Tab.");
             ImGui.PopAllowKeyboardFocus();
@@ -5596,7 +5594,7 @@ private void ShowDemoWindowMisc()
 
         if (ImGui.TreeNode("Dragging"))
         {
-            ImGui.TextWrapped("You can use ImGui.GetMouseDragDelta(0) to query for the dragged amount on any widget.");
+            ImGui.TextWrapped("You can use ImGui::GetMouseDragDelta(0) to query for the dragged amount on any widget.");
             for (int button = 0; button < 3; button++)
             {
                 ImGui.Text("IsMouseDragging(%d):", button);
