@@ -1,9 +1,0 @@
-{
-	"fileVersion": 1,
-	"versions": {
-		"bindbc-glfw": "0.12.0",
-		"bindbc-loader": "0.3.2",
-		"d_snprintf": "1.1.0",
-		"erupted": "2.1.24+v1.2.174"
-	}
-}
