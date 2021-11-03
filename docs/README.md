@@ -4,7 +4,9 @@ Dear ImGui
 This is the D-Port of Dear ImGui (https://github.com/ocornut/imgui). It aims to support all of ImGui's features as well as to update in a timely manner after a new ImGui version has been released.
 
 I have tried to mimic the original api as close as possible while adapting certain things to the D programming language (e.q. using strings instead of "const char*" and arrays instead of pointers). Please look at the included demo programm in imgui_demo.d for example code.
-You can see the demo in action (ATTENTION: requires glfw dynamic lib, see bellow!), running `dub run d_imgui:glfw_vulkan`, which then compiles and runs the glfw-vulkan backend found in `examples_d` folder. As a requirement, the 64-bit glfw dynamic library, minimum version 3.3, [found here](https://www.glfw.org/download.html), needs to exist somewhere in your system path.
+You can see the demo in action (ATTENTION: requires glfw dynamic lib, see bellow!), running `dub run d_imgui:glfw_vulkan`, which then compiles and runs the glfw-vulkan example, found in `examples_d`, with the glfw and vulkan backends found in `backends_d`.
+Alternatively, you can `dub run` the example from within the `examples_d/example_glfw_vulkan` path.
+As a requirement, for both cases, the 64-bit glfw dynamic library, minimum version 3.3, [found here](https://www.glfw.org/download.html), needs to exist somewhere in your system path.
 
 All of ImGui is nothrow and @nogc.
 

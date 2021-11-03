@@ -28,7 +28,7 @@
 			"targetType"	: "executable",
 			"dflags"		: ["-preview=intpromote"],
 			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_glfw_vulkan"],
-			"sourceFiles"	: ["examples_d/imgui_impl_glfw.d", "examples_d/imgui_impl_vulkan.d"],
+			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_vulkan.d"],
 			"dependencies"	: {
 				"d_snprintf"	: "~>1.1.0",
 				"bindbc-glfw"	: "~>0.12",
