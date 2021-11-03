@@ -94,11 +94,23 @@ static void SetupVulkan(const(char)*[] extensions)
         // Default information about the application, in case none was passed in by the user
         VkApplicationInfo app_info = {
             pEngineName         : "ErupteD_ImGui",
-            engineVersion       : VK_MAKE_VERSION(0, 1, 0),
             pApplicationName    : "ErupteD_ImGui",
-            applicationVersion  : VK_MAKE_VERSION(0, 1, 0),
             apiVersion          : VK_API_VERSION_1_0,
         };
+
+        // The API to specify any version to the application info was changed in Vulkan v1.2.175
+        static if (VK_HEADER_VERSION < 175)
+        {
+            app_info.engineVersion      = VK_MAKE_VERSION(0, 1, 0);
+            app_info.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
+        }
+
+        else
+        {
+            app_info.engineVersion      = VK_MAKE_API_VERSION(0, 1, 0, 0);
+            app_info.applicationVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
+        }
+
 
         VkInstanceCreateInfo instance_ci;
         instance_ci.pApplicationInfo = & app_info;
