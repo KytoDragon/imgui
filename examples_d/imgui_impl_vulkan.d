@@ -346,7 +346,7 @@ static void CreateOrResizeBuffer(ref VkBuffer buffer, ref VkDeviceMemory buffer_
 
     err = vkBindBufferMemory(v.Device, buffer, buffer_memory, 0);
     check_vk_result(err);
-    p_buffer_size = new_size;
+    p_buffer_size = req.size;
 }
 
 static void ImGui_ImplVulkan_SetupRenderState(ImDrawData* draw_data, VkPipeline pipeline, VkCommandBuffer command_buffer, ImGui_ImplVulkanH_FrameRenderBuffers* rb, int fb_width, int fb_height)
@@ -431,9 +431,9 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
         // Upload vertex/index data into a single contiguous GPU buffer
         ImDrawVert* vtx_dst = null;
         ImDrawIdx* idx_dst = null;
-        VkResult err = vkMapMemory(v.Device, rb.VertexBufferMemory, 0, vertex_size, 0, cast(void**)( & vtx_dst));
+        VkResult err = vkMapMemory(v.Device, rb.VertexBufferMemory, 0, rb.VertexBufferSize, 0, cast(void**)( & vtx_dst));
         check_vk_result(err);
-        err = vkMapMemory(v.Device, rb.IndexBufferMemory, 0, index_size, 0, cast(void**)( & idx_dst));
+        err = vkMapMemory(v.Device, rb.IndexBufferMemory, 0, rb.IndexBufferSize, 0, cast(void**)( & idx_dst));
         check_vk_result(err);
         for (int n = 0; n < draw_data.CmdListsCount; n++)
         {
