@@ -1407,7 +1407,7 @@ int ImStrlenW(const (ImWchar)* str)
 // Find end-of-line. Return pointer will point to either first \n, either str_end.
 size_t ImStreolRange(string str, size_t start)
 {
-    size_t index = ImIndexOf(str[start..$], '\n');
+    ptrdiff_t index = ImIndexOf(str[start..$], '\n');
     return index > 0 ? index + start : str.length;
 }
 
