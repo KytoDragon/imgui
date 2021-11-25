@@ -1655,7 +1655,7 @@ version (CRuntime_Microsoft) {
     MultiByteToWideChar(CP_UTF8, 0, filename.ptr, cast(int)filename.length, cast(wchar*)&buf[0], filename_wsize);
     MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, cast(wchar*)&buf[filename_wsize + 1], mode_wsize);
     buf[filename_wsize] = 0;
-    buf[filename_wsize + mode_wsize] = 0;
+    buf[filename_wsize + 1 + mode_wsize] = 0;   // + 1 as we added a terminating \0 between filename and mode
     return _wfopen(cast(const wchar*)&buf[0], cast(const wchar*)&buf[filename_wsize + 1]);
 } else {
     // D_IMGUI: Append a zero to each string
