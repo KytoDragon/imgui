@@ -7,6 +7,7 @@ I have tried to mimic the original api as close as possible while adapting certa
 You can see the demo in action using one of the available examples found in the examples_d folder:
 
 - GLFW + VULKAN: `dub run d_imgui:glfw_vulkan`
+- GLFW + OpenGl: `dub run d_imgui:glfw_opengl3`
 
 GLFW backends require the 64-bit glfw dynamic library, minimum version 3.3, [found here](https://www.glfw.org/download.html).
 Debug builds of the vulkan backends require the Vulkan-SDK, [found here](https://vulkan.lunarg.com/sdk/home).
@@ -17,7 +18,6 @@ The C++ version of Dear Imgui relies on compile-time options to integrate the li
 
 ### TODO:
 
-- Port the opengl-glfw bindings (maybe other too).
 - Wait for https://issues.dlang.org/show_bug.cgi?id=20905 to get fixed.
 - Further testing of all widgets.
 

@@ -11,7 +11,7 @@
 
 nothrow @nogc:
 
-import ImGui = d_imgui.imgui;
+import ImGui = d_imgui;
 import d_imgui.imgui_h;
 import imgui_impl_glfw;
 import imgui_impl_vulkan;
@@ -391,7 +391,7 @@ int main()
 {
     // Initialize GLFW3 and Vulkan related glfw functions
     loadGLFW("glfw3");  // load the lib found in system path
-    loadGLFW_Vulkan;    // load vulkan specific glfw function pointers
+    loadGLFW_Vulkan();    // load vulkan specific glfw function pointers
 
     // Setup GLFW window
     glfwSetErrorCallback(&glfw_error_callback);
@@ -530,11 +530,9 @@ int main()
         ImGui.NewFrame();
 
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        import d_imgui.imgui_demo : ShowDemoWindow;
         if (show_demo_window)
-            ShowDemoWindow(&show_demo_window);
+            ImGui.ShowDemoWindow(&show_demo_window);
 
-        import d_imgui.imgui_widgets;
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
             __gshared float f = 0.0f;
@@ -542,19 +540,19 @@ int main()
 
             ImGui.Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
-            Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            Checkbox("Another Window", &show_another_window);
+            ImGui.Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            ImGui.Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+            ImGui.Checkbox("Another Window", &show_another_window);
 
-            SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ColorEdit3("clear color", clear_color.array); // Edit 3 floats representing a color
+            ImGui.SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui.ColorEdit3("clear color", clear_color.array); // Edit 3 floats representing a color
 
-            if (Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+            if (ImGui.Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
             ImGui.SameLine();
-            Text("counter = %d", counter);
+            ImGui.Text("counter = %d", counter);
 
-            Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui.GetIO().Framerate, ImGui.GetIO().Framerate);
+            ImGui.Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui.GetIO().Framerate, ImGui.GetIO().Framerate);
             ImGui.End();
         }
 
@@ -562,8 +560,8 @@ int main()
         if (show_another_window)
         {
             ImGui.Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            Text("Hello from another window!");
-            if (Button("Close Me"))
+            ImGui.Text("Hello from another window!");
+            if (ImGui.Button("Close Me"))
                 show_another_window = false;
             ImGui.End();
         }

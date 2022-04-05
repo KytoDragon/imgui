@@ -40,5 +40,23 @@
 			"versions"		: ["GLFW_33", "BindGLFW_NoGC_Callbacks"],
 			"libs-windows"	: ["Imm32", "User32"],
 		},
+		{
+			"name"			: "glfw_opengl3",
+			"description"	: "Example GLFW OpenGl 3",
+			"targetType"	: "executable",
+			"dflags"		: ["-preview=intpromote"],
+			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_glfw_opengl3"],
+			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_opengl3.d"],
+			"dependencies"	: {
+				"d_snprintf"	: "~>1.1.1",
+				"bindbc-glfw"	: "~>1.0.0",
+		        "bindbc-opengl"	: "~>1.0.0",
+			},
+			"subConfigurations"	: {
+				"bindbc-glfw"	: "dynamicBC",
+			},
+			"versions"		: ["GLFW_33", "BindGLFW_NoGC_Callbacks", "GL_33"],
+			"libs-windows"	: ["Imm32", "User32"],
+		},
 	],
 }
