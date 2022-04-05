@@ -1407,7 +1407,7 @@ int ImStrlenW(const (ImWchar)* str)
 // Find end-of-line. Return pointer will point to either first \n, either str_end.
 size_t ImStreolRange(string str, size_t start)
 {
-    size_t index = ImIndexOf(str[start..$], '\n');
+    ptrdiff_t index = ImIndexOf(str[start..$], '\n');
     return index > 0 ? index + start : str.length;
 }
 
@@ -1655,7 +1655,7 @@ version (CRuntime_Microsoft) {
     MultiByteToWideChar(CP_UTF8, 0, filename.ptr, cast(int)filename.length, cast(wchar*)&buf[0], filename_wsize);
     MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, cast(wchar*)&buf[filename_wsize + 1], mode_wsize);
     buf[filename_wsize] = 0;
-    buf[filename_wsize + mode_wsize] = 0;
+    buf[filename_wsize + 1 + mode_wsize] = 0;   // + 1 as we added a terminating \0 between filename and mode
     return _wfopen(cast(const wchar*)&buf[0], cast(const wchar*)&buf[filename_wsize + 1]);
 } else {
     // D_IMGUI: Append a zero to each string
