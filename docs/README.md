@@ -3,7 +3,15 @@ Dear ImGui
 
 This is the D-Port of Dear ImGui (https://github.com/ocornut/imgui). It aims to support all of ImGui's features as well as to update in a timely manner after a new ImGui version has been released.
 
-I have tried to mimic the original api as close as posible while adapting certain things to the D programming language (e.q. using strings instead of "const char*" and arrays instead of pointers). Please look at the included demo programm in imgui_demo.d for example code. All of ImGui is nothrow and @nogc.
+I have tried to mimic the original api as close as possible while adapting certain things to the D programming language (e.q. using strings instead of "const char*" and arrays instead of pointers). Please look at the included demo programm in imgui_demo.d for example code.
+You can see the demo in action using one of the available examples found in the examples_d folder:
+
+- GLFW + VULKAN: `dub run d_imgui:glfw_vulkan`
+
+GLFW backends require the 64-bit glfw dynamic library, minimum version 3.3, [found here](https://www.glfw.org/download.html).
+Debug builds of the vulkan backends require the Vulkan-SDK, [found here](https://vulkan.lunarg.com/sdk/home).
+
+All of ImGui is nothrow and @nogc.
 
 The C++ version of Dear Imgui relies on compile-time options to integrate the library into your codebase. In this port this is done via the file imconfig.d (found in the root folder of this repository). Copy this file into a module name "d_imgui" in your codebase and adjust the parameters found within. This library will than import that file. (If you don't use dub packages, just move the file into the source/d_imgui folder of this library) (Currently broken due to https://issues.dlang.org/show_bug.cgi?id=20905)
 

@@ -2,7 +2,7 @@
 	"authors": [
 		"Kyto"
 	],
-	"copyright": "Copyright © 2020 KytoDragon, Copyright (c) 2014-2020 Omar Cornut",
+	"copyright": "Copyright © 2022 KytoDragon, Copyright (c) 2014-2022 Omar Cornut",
 	"name": "d_imgui",
 	"description": "Port of Dear Imgui: Bloat-free Immediate Mode Graphical User interface with minimal dependencies",
 	"homepage": "https://github.com/KytoDragon/imgui/",
@@ -18,6 +18,27 @@
 		"source/"
 	],
 	"dependencies": {
-		"d_snprintf": "~>1.1.0"
-	}
+		"d_snprintf": "~>1.1.1"
+	},
+
+	"subPackages" : [
+		{
+			"name"			: "glfw_vulkan",
+			"description"	: "Example GLFW Vulkan",
+			"targetType"	: "executable",
+			"dflags"		: ["-preview=intpromote"],
+			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_glfw_vulkan"],
+			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_vulkan.d"],
+			"dependencies"	: {
+				"d_snprintf"	: "~>1.1.1",
+				"bindbc-glfw"	: "~>1.0.0",
+				"erupted"		: "~>2.1",
+			},
+			"subConfigurations"	: {
+				"bindbc-glfw"	: "dynamicBC",
+			},
+			"versions"		: ["GLFW_33", "BindGLFW_NoGC_Callbacks"],
+			"libs-windows"	: ["Imm32", "User32"],
+		},
+	],
 }
