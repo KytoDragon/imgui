@@ -210,33 +210,33 @@ static void SetupVulkan(const(char)*[] extensions)
         // load all device based device level functions
         loadDeviceLevelFunctions(g_Device);
 
-        // get the previously determined queue
         vkGetDeviceQueue(g_Device, g_QueueFamily, 0, &g_Queue);
     }
 
     // Create Descriptor Pool
     {
-        uint32_t descriptor_type_count = 5;
-        VkDescriptorPoolSize[11] descriptor_pool_sizes =
+        VkDescriptorPoolSize[11] pool_sizes =
         [
-            { VK_DESCRIPTOR_TYPE_SAMPLER, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, descriptor_type_count },
-            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, descriptor_type_count }
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
        ];
-        VkDescriptorPoolCreateInfo descriptor_pool_ci;
-        descriptor_pool_ci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        descriptor_pool_ci.maxSets = descriptor_type_count * cast(uint32_t)descriptor_pool_sizes.length;
-        descriptor_pool_ci.poolSizeCount = descriptor_pool_sizes.length;
-        descriptor_pool_ci.pPoolSizes = descriptor_pool_sizes.ptr;
-        vkCreateDescriptorPool(g_Device, & descriptor_pool_ci, g_Allocator, & g_DescriptorPool).check_vk_result;
+        VkDescriptorPoolCreateInfo pool_info;
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+        pool_info.poolSizeCount = cast(uint32_t)IM_ARRAYSIZE(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes.ptr;
+        err = vkCreateDescriptorPool(g_Device, &pool_info, g_Allocator, &g_DescriptorPool);
+        check_vk_result(err);
     }
 }
 
@@ -261,11 +261,11 @@ static void SetupVulkanWindow(ImGui_ImplVulkanH_Window* wd, VkSurfaceKHR surface
     wd.SurfaceFormat = ImGui_ImplVulkanH_SelectSurfaceFormat(g_PhysicalDevice, wd.Surface, requestSurfaceImageFormat.ptr, cast(size_t)IM_ARRAYSIZE(requestSurfaceImageFormat), requestSurfaceColorSpace);
 
     // Select Present Mode
-    static if (IMGUI_UNLIMITED_FRAME_RATE) {
-        VkPresentModeKHR[3] present_modes = [ VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR ];
-    } else {
-        VkPresentModeKHR[1] present_modes = [ VK_PRESENT_MODE_FIFO_KHR ];
-    }
+static if (IMGUI_UNLIMITED_FRAME_RATE) {
+    VkPresentModeKHR[3] present_modes = [ VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR ];
+} else {
+    VkPresentModeKHR[1] present_modes = [ VK_PRESENT_MODE_FIFO_KHR ];
+}
     wd.PresentMode = ImGui_ImplVulkanH_SelectPresentMode(g_PhysicalDevice, wd.Surface, &present_modes[0], IM_ARRAYSIZE(present_modes));
     //printf("[vulkan] Selected PresentMode = %d\n", wd->PresentMode);
 
@@ -278,11 +278,11 @@ static void CleanupVulkan()
 {
     vkDestroyDescriptorPool(g_Device, g_DescriptorPool, g_Allocator);
 
-    static if (IMGUI_VULKAN_DEBUG_REPORT) {
-        // Remove the debug report callback
-        auto vkDestroyDebugReportCallbackEXT = cast(PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(g_Instance, "vkDestroyDebugReportCallbackEXT");
-        vkDestroyDebugReportCallbackEXT(g_Instance, g_DebugReport, g_Allocator);
-    }
+static if (IMGUI_VULKAN_DEBUG_REPORT) {
+    // Remove the debug report callback
+    auto vkDestroyDebugReportCallbackEXT = cast(PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(g_Instance, "vkDestroyDebugReportCallbackEXT");
+    vkDestroyDebugReportCallbackEXT(g_Instance, g_DebugReport, g_Allocator);
+}
 
     vkDestroyDevice(g_Device, g_Allocator);
     vkDestroyInstance(g_Instance, g_Allocator);
@@ -430,8 +430,7 @@ int main()
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
     // Setup Dear ImGui style
-    import d_imgui.imgui_draw : StyleColorsDark;
-    StyleColorsDark();
+    ImGui.StyleColorsDark();
     //ImGui::StyleColorsClassic();
 
     // Setup Platform/Renderer backends

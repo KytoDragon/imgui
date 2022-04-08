@@ -1,4 +1,4 @@
-// dear imgui, v1.83
+// dear imgui, v1.84
 // (tables and columns code)
 module d_imgui.imgui_tables;
 
@@ -304,12 +304,7 @@ pragma(inline, true) ImGuiTableFlags TableFixFlags(ImGuiTableFlags flags, ImGuiW
         flags |= ImGuiTableFlags.NoSavedSettings;
 
     // Inherit _NoSavedSettings from top-level window (child windows always have _NoSavedSettings set)
-version (IMGUI_HAS_DOCK) {
-    ImGuiWindow* window_for_settings = outer_window.RootWindowDockStop;
-} else {
-    ImGuiWindow* window_for_settings = outer_window.RootWindow;
-}
-    if (window_for_settings.Flags & ImGuiWindowFlags.NoSavedSettings)
+    if (outer_window.RootWindow.Flags & ImGuiWindowFlags.NoSavedSettings)
         flags |= ImGuiTableFlags.NoSavedSettings;
 
     return flags;
@@ -538,7 +533,7 @@ bool    BeginTableEx(string name, ImGuiID id, int columns_count, ImGuiTableFlags
                 *column = ImGuiTableColumn(false);
                 column.WidthAuto = width_auto;
                 column.IsPreserveWidthAuto = true; // Preserve WidthAuto when reinitializing a live table: not technically necessary but remove a visible flicker
-                column.IsEnabled = column.IsEnabledNextFrame = true;
+                column.IsEnabled = column.IsUserEnabled = column.IsUserEnabledNextFrame = true;
             }
             column.DisplayOrder = table.DisplayOrderToIndex[n] = cast(ImGuiTableColumnIdx)n;
         }
@@ -772,16 +767,18 @@ void TableUpdateLayout(ImGuiTable* table)
             column.InitStretchWeightOrWidth = -1.0f;
         }
 
-        // Update Enabled state, mark settings/sortspecs dirty
+        // Update Enabled state, mark settings and sort specs dirty
         if (!(table.Flags & ImGuiTableFlags.Hideable) || (column.Flags & ImGuiTableColumnFlags.NoHide))
-            column.IsEnabledNextFrame = true;
-        if (column.IsEnabled != column.IsEnabledNextFrame)
+            column.IsUserEnabledNextFrame = true;
+        if (column.IsUserEnabled != column.IsUserEnabledNextFrame)
         {
-            column.IsEnabled = column.IsEnabledNextFrame;
+            column.IsUserEnabled = column.IsUserEnabledNextFrame;
             table.IsSettingsDirty = true;
-            if (!column.IsEnabled && column.SortOrder != -1)
-                table.IsSortSpecsDirty = true;
         }
+        column.IsEnabled = column.IsUserEnabled && (column.Flags & ImGuiTableColumnFlags.Disabled) == 0;
+
+        if (column.SortOrder != -1 && !column.IsEnabled)
+            table.IsSortSpecsDirty = true;
         if (column.SortOrder > 0 && !(table.Flags & ImGuiTableFlags.SortMulti))
             table.IsSortSpecsDirty = true;
 
@@ -1180,9 +1177,8 @@ void TableUpdateBorders(ImGuiTable* table)
         if ((table.Flags & ImGuiTableFlags.NoBordersInBody) && table.IsUsingHeaders == false)
             continue;
 
-        if (table.FreezeColumnsCount > 0)
-            if (column.MaxX < table.Columns[table.DisplayOrderToIndex[table.FreezeColumnsCount - 1]].MaxX)
-                continue;
+        if (!column.IsVisibleX && table.LastResizedColumn != column_n)
+            continue;
 
         ImGuiID column_id = TableGetColumnResizeID(table, column_n, table.InstanceCurrent);
         ImRect hit_rect = ImRect(column.MaxX - hit_half_width, hit_y1, column.MaxX + hit_half_width, border_y2_hit);
@@ -1465,7 +1461,7 @@ void TableSetupColumn(string label, ImGuiTableColumnFlags flags = ImGuiTableColu
 
         // Init default visibility/sort state
         if ((flags & ImGuiTableColumnFlags.DefaultHide) && (table.SettingsLoadedFlags & ImGuiTableFlags.Hideable) == 0)
-            column.IsEnabled = column.IsEnabledNextFrame = false;
+            column.IsUserEnabled = column.IsUserEnabledNextFrame = false;
         if (flags & ImGuiTableColumnFlags.DefaultSort && (table.SettingsLoadedFlags & ImGuiTableFlags.Sortable) == 0)
         {
             column.SortOrder = 0; // Multiple columns using _DefaultSort will be reassigned unique SortOrder values when building the sort specs.
@@ -1493,11 +1489,22 @@ void TableSetupScrollFreeze(int columns, int rows)
     IM_ASSERT(columns >= 0 && columns < IMGUI_TABLE_MAX_COLUMNS);
     IM_ASSERT(rows >= 0 && rows < 128); // Arbitrary limit
 
-    table.FreezeColumnsRequest = (table.Flags & ImGuiTableFlags.ScrollX) ? cast(ImGuiTableColumnIdx)columns : 0;
+    table.FreezeColumnsRequest = (table.Flags & ImGuiTableFlags.ScrollX) ? cast(ImGuiTableColumnIdx)ImMin(columns, table.ColumnsCount) : 0;
     table.FreezeColumnsCount = (table.InnerWindow.Scroll.x != 0.0f) ? table.FreezeColumnsRequest : 0;
     table.FreezeRowsRequest = (table.Flags & ImGuiTableFlags.ScrollY) ? cast(ImGuiTableColumnIdx)rows : 0;
     table.FreezeRowsCount = (table.InnerWindow.Scroll.y != 0.0f) ? table.FreezeRowsRequest : 0;
     table.IsUnfrozenRows = (table.FreezeRowsCount == 0); // Make sure this is set before TableUpdateLayout() so ImGuiListClipper can benefit from it.b
+
+    // Ensure frozen columns are ordered in their section. We still allow multiple frozen columns to be reordered.
+    for (int column_n = 0; column_n < table.FreezeColumnsRequest; column_n++)
+    {
+        int order_n = table.DisplayOrderToIndex[column_n];
+        if (order_n != column_n && order_n >= table.FreezeColumnsRequest)
+        {
+            ImSwap(table.Columns[table.DisplayOrderToIndex[order_n]].DisplayOrder, table.Columns[table.DisplayOrderToIndex[column_n]].DisplayOrder);
+            ImSwap(table.DisplayOrderToIndex[order_n], table.DisplayOrderToIndex[column_n]);
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1506,7 +1513,7 @@ void TableSetupScrollFreeze(int columns, int rows)
 // - TableGetColumnCount()
 // - TableGetColumnName()
 // - TableGetColumnName() [Internal]
-// - TableSetColumnEnabled() [Internal]
+// - TableSetColumnEnabled()
 // - TableGetColumnFlags()
 // - TableGetCellBgRect() [Internal]
 // - TableGetColumnResizeID() [Internal]
@@ -1542,10 +1549,12 @@ string TableGetColumnName(const ImGuiTable* table, int column_n)
     return ImCstring(&table.ColumnsNames.Buf[column.NameOffset]);
 }
 
-// Request enabling/disabling a column (often perceived as "showing/hiding" from users point of view)
+// Change user accessible enabled/disabled state of a column (often perceived as "showing/hiding" from users point of view)
 // Note that end-user can use the context menu to change this themselves (right-click in headers, or right-click in columns body with ImGuiTableFlags_ContextMenuInBody)
-// Request will be applied during next layout, which happens on the first call to TableNextRow() after BeginTable()
-// For the getter you can use (TableGetColumnFlags() & ImGuiTableColumnFlags_IsEnabled)
+// - Require table to have the ImGuiTableFlags_Hideable flag because we are manipulating user accessible state.
+// - Request will be applied during next layout, which happens on the first call to TableNextRow() after BeginTable().
+// - For the getter you can test (TableGetColumnFlags() & ImGuiTableColumnFlags_IsEnabled) != 0.
+// - Alternative: the ImGuiTableColumnFlags_Disabled is an overriding/master disable flag which will also hide the column from context menu.
 void TableSetColumnEnabled(int column_n, bool enabled)
 {
     ImGuiContext* g = GImGui;
@@ -1553,11 +1562,12 @@ void TableSetColumnEnabled(int column_n, bool enabled)
     IM_ASSERT(table != NULL);
     if (!table)
         return;
+    IM_ASSERT(table.Flags & ImGuiTableFlags.Hideable); // See comments above
     if (column_n < 0)
         column_n = table.CurrentColumn;
     IM_ASSERT(column_n >= 0 && column_n < table.ColumnsCount);
     ImGuiTableColumn* column = &table.Columns[column_n];
-    column.IsEnabledNextFrame = enabled;
+    column.IsUserEnabledNextFrame = enabled;
 }
 
 // We allow querying for an extra column in order to poll the IsHovered state of the right-most section
@@ -1963,8 +1973,9 @@ void TableBeginCell(ImGuiTable* table, int column_n)
     window.SkipItems = column.IsSkipItems;
     if (column.IsSkipItems)
     {
-        window.DC.LastItemId = 0;
-        window.DC.LastItemStatusFlags = ImGuiItemStatusFlags.None;
+        ImGuiContext* g = GImGui;
+        g.LastItemData.ID = 0;
+        g.LastItemData.StatusFlags = ImGuiItemStatusFlags.None;
     }
 
     if (table.Flags & ImGuiTableFlags.NoClip)
@@ -2030,6 +2041,7 @@ float TableGetMaxColumnWidth(const ImGuiTable* table, int column_n)
     if (table.Flags & ImGuiTableFlags.ScrollX)
     {
         // Frozen columns can't reach beyond visible width else scrolling will naturally break.
+        // (we use DisplayOrder as within a set of multiple frozen column reordering is possible)
         if (column.DisplayOrder < table.FreezeColumnsRequest)
         {
             max_width = (table.InnerClipRect.Max.x - (table.FreezeColumnsRequest - column.DisplayOrder) * min_column_distance) - column.MinX;
@@ -2518,7 +2530,7 @@ void TableDrawBorders(ImGuiTable* table)
             const bool is_hovered = (table.HoveredColumnBorder == column_n);
             const bool is_resized = (table.ResizedColumn == column_n) && (table.InstanceInteracted == table.InstanceCurrent);
             const bool is_resizable = (column.Flags & (ImGuiTableColumnFlags.NoResize | ImGuiTableColumnFlags.NoDirectResize_)) == 0;
-            const bool is_frozen_separator = (table.FreezeColumnsCount != -1 && table.FreezeColumnsCount == order_n + 1);
+            const bool is_frozen_separator = (table.FreezeColumnsCount == order_n + 1);
             if (column.MaxX > table.InnerClipRect.Max.x && !is_resized)
                 continue;
 
@@ -2614,8 +2626,7 @@ ImGuiTableSortSpecs* TableGetSortSpecs()
     if (!table.IsLayoutLocked)
         TableUpdateLayout(table);
 
-    if (table.IsSortSpecsDirty)
-        TableSortSpecsBuild(table);
+    TableSortSpecsBuild(table);
 
     return &table.SortSpecs;
 }
@@ -2754,14 +2765,18 @@ void TableSortSpecsSanitize(ImGuiTable* table)
 
 void TableSortSpecsBuild(ImGuiTable* table)
 {
-    IM_ASSERT(table.IsSortSpecsDirty);
-    TableSortSpecsSanitize(table);
+    bool dirty = table.IsSortSpecsDirty;
+    if (dirty)
+    {
+        TableSortSpecsSanitize(table);
+        table.SortSpecsMulti.resize(table.SortSpecsCount <= 1 ? 0 : table.SortSpecsCount);
+        table.SortSpecs.SpecsDirty = true; // Mark as dirty for user
+        table.IsSortSpecsDirty = false; // Mark as not dirty for us
+    }
 
     // Write output
-    ImGuiTableTempData* temp_data = table.TempData;
-    temp_data.SortSpecsMulti.resize(table.SortSpecsCount <= 1 ? 0 : table.SortSpecsCount);
-    ImGuiTableColumnSortSpecs* sort_specs = (table.SortSpecsCount == 0) ? NULL : (table.SortSpecsCount == 1) ? &temp_data.SortSpecsSingle : temp_data.SortSpecsMulti.Data;
-    if (sort_specs != NULL)
+    ImGuiTableColumnSortSpecs* sort_specs = (table.SortSpecsCount == 0) ? NULL : (table.SortSpecsCount == 1) ? &table.SortSpecsSingle : table.SortSpecsMulti.Data;
+    if (dirty && sort_specs != NULL)
         for (int column_n = 0; column_n < table.ColumnsCount; column_n++)
         {
             ImGuiTableColumn* column = &table.Columns[column_n];
@@ -2774,10 +2789,9 @@ void TableSortSpecsBuild(ImGuiTable* table)
             sort_spec.SortOrder = cast(ImGuiTableColumnIdx)column.SortOrder;
             sort_spec.SortDirection = cast(ImGuiSortDirection)column.SortDirection;
         }
+
     table.SortSpecs.Specs = sort_specs;
     table.SortSpecs.SpecsCount = table.SortSpecsCount;
-    table.SortSpecs.SpecsDirty = true; // Mark as dirty for user
-    table.IsSortSpecsDirty = false; // Mark as not dirty for us
 }
 
 //-------------------------------------------------------------------------
@@ -2797,8 +2811,11 @@ float TableGetHeaderRowHeight()
     float row_height = GetTextLineHeight();
     int columns_count = TableGetColumnCount();
     for (int column_n = 0; column_n < columns_count; column_n++)
-        if (TableGetColumnFlags(column_n) & ImGuiTableColumnFlags.IsEnabled)
+    {
+        ImGuiTableColumnFlags flags = TableGetColumnFlags(column_n);
+        if ((flags & ImGuiTableColumnFlags.IsEnabled) && !(flags & ImGuiTableColumnFlags.NoHeaderLabel))
             row_height = ImMax(row_height, CalcTextSize(TableGetColumnName(column_n)).y);
+    }
     row_height += GetStyle().CellPadding.y * 2.0f;
     return row_height;
 }
@@ -2835,7 +2852,7 @@ void TableHeadersRow()
         // Push an id to allow unnamed labels (generally accidental, but let's behave nicely with them)
         // - in your own code you may omit the PushID/PopID all-together, provided you know they won't collide
         // - table->InstanceCurrent is only >0 when we use multiple BeginTable/EndTable calls with same identifier.
-        string name = TableGetColumnName(column_n);
+        string name = (TableGetColumnFlags(column_n) & ImGuiTableColumnFlags.NoHeaderLabel) ? "" : TableGetColumnName(column_n);
         PushID(table.InstanceCurrent * table.ColumnsCount + column_n);
         TableHeader(name);
         PopID();
@@ -2917,7 +2934,6 @@ void TableHeader(string label)
         const ImU32 col = GetColorU32(held ? ImGuiCol.HeaderActive : hovered ? ImGuiCol.HeaderHovered : ImGuiCol.Header);
         //RenderFrame(bb.Min, bb.Max, col, false, 0.0f);
         TableSetBgColor(ImGuiTableBgTarget.CellBg, col, table.CurrentColumn);
-        RenderNavHighlight(bb, id, ImGuiNavHighlightFlags.TypeThin | ImGuiNavHighlightFlags.NoRounding);
     }
     else
     {
@@ -2925,6 +2941,7 @@ void TableHeader(string label)
         if ((table.RowFlags & ImGuiTableRowFlags.Headers) == 0)
             TableSetBgColor(ImGuiTableBgTarget.CellBg, GetColorU32(ImGuiCol.TableHeaderBg), table.CurrentColumn);
     }
+    RenderNavHighlight(bb, id, ImGuiNavHighlightFlags.TypeThin | ImGuiNavHighlightFlags.NoRounding);
     if (held)
         table.HeldHeaderColumn = cast(ImGuiTableColumnIdx)column_n;
     window.DC.CursorPos.y -= g.Style.ItemSpacing.y * 0.5f;
@@ -3090,16 +3107,19 @@ static if (false) {
         for (int other_column_n = 0; other_column_n < table.ColumnsCount; other_column_n++)
         {
             ImGuiTableColumn* other_column = &table.Columns[other_column_n];
+            if (other_column.Flags & ImGuiTableColumnFlags.Disabled)
+                continue;
+
             string name = TableGetColumnName(table, other_column_n);
             if (name == NULL || name[0] == 0)
                 name = "<Unknown>";
 
             // Make sure we can't hide the last active column
             bool menu_item_active = (other_column.Flags & ImGuiTableColumnFlags.NoHide) ? false : true;
-            if (other_column.IsEnabled && table.ColumnsEnabledCount <= 1)
+            if (other_column.IsUserEnabled && table.ColumnsEnabledCount <= 1)
                 menu_item_active = false;
-            if (MenuItem(name, NULL, other_column.IsEnabled, menu_item_active))
-                other_column.IsEnabledNextFrame = !other_column.IsEnabled;
+            if (MenuItem(name, NULL, other_column.IsUserEnabled, menu_item_active))
+                other_column.IsUserEnabledNextFrame = !other_column.IsUserEnabled;
         }
         PopItemFlag();
     }
@@ -3224,7 +3244,7 @@ void TableSaveSettings(ImGuiTable* table)
         column_settings.DisplayOrder = column.DisplayOrder;
         column_settings.SortOrder = column.SortOrder;
         column_settings.SortDirection = column.SortDirection;
-        column_settings.IsEnabled = column.IsEnabled;
+        column_settings.IsEnabled = column.IsUserEnabled;
         column_settings.IsStretch = (column.Flags & ImGuiTableColumnFlags.WidthStretch) ? 1 : 0;
         if ((column.Flags & ImGuiTableColumnFlags.WidthStretch) == 0)
             save_ref_scale = true;
@@ -3238,7 +3258,7 @@ void TableSaveSettings(ImGuiTable* table)
             settings.SaveFlags |= ImGuiTableFlags.Reorderable;
         if (column.SortOrder != -1)
             settings.SaveFlags |= ImGuiTableFlags.Sortable;
-        if (column.IsEnabled != ((column.Flags & ImGuiTableColumnFlags.DefaultHide) == 0))
+        if (column.IsUserEnabled != ((column.Flags & ImGuiTableColumnFlags.DefaultHide) == 0))
             settings.SaveFlags |= ImGuiTableFlags.Hideable;
     }
     settings.SaveFlags &= table.Flags;
@@ -3296,7 +3316,7 @@ void TableLoadSettings(ImGuiTable* table)
         else
             column.DisplayOrder = cast(ImGuiTableColumnIdx)column_n;
         display_order_mask |= cast(ImU64)1 << column.DisplayOrder;
-        column.IsEnabled = column.IsEnabledNextFrame = cast(bool)column_settings.IsEnabled;
+        column.IsUserEnabled = column.IsUserEnabledNextFrame = cast(bool)column_settings.IsEnabled;
         column.SortOrder = column_settings.SortOrder;
         column.SortDirection = column_settings.SortDirection;
     }
@@ -3315,8 +3335,9 @@ void TableLoadSettings(ImGuiTable* table)
 static void TableSettingsHandler_ClearAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
 {
     ImGuiContext* g = ctx;
-    for (int i = 0; i != g.Tables.GetSize(); i++)
-        g.Tables.GetByIndex(i).SettingsOffset = -1;
+    for (int i = 0; i != g.Tables.GetMapSize(); i++)
+        if (ImGuiTable* table = g.Tables.TryGetMapData(i))
+            table.SettingsOffset = -1;
     g.SettingsTables.clear();
 }
 
@@ -3324,12 +3345,12 @@ static void TableSettingsHandler_ClearAll(ImGuiContext* ctx, ImGuiSettingsHandle
 static void TableSettingsHandler_ApplyAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
 {
     ImGuiContext* g = ctx;
-    for (int i = 0; i != g.Tables.GetSize(); i++)
-    {
-        ImGuiTable* table = g.Tables.GetByIndex(i);
-        table.IsSettingsRequestLoad = true;
-        table.SettingsOffset = -1;
-    }
+    for (int i = 0; i != g.Tables.GetMapSize(); i++)
+        if (ImGuiTable* table = g.Tables.TryGetMapData(i))
+        {
+            table.IsSettingsRequestLoad = true;
+            table.SettingsOffset = -1;
+        }
 }
 
 static void* TableSettingsHandler_ReadOpen(ImGuiContext*, ImGuiSettingsHandler*, string name)
@@ -3459,7 +3480,8 @@ void TableGcCompactTransientBuffers(ImGuiTable* table)
     ImGuiContext* g = GImGui;
     IM_ASSERT(table.MemoryCompacted == false);
     table.SortSpecs.Specs = NULL;
-    table.IsSortSpecsDirty = true;
+    table.SortSpecsMulti.clear();
+    table.IsSortSpecsDirty = true; // FIXME: shouldn't have to leak into user performing a sort
     table.ColumnsNames.clear();
     table.MemoryCompacted = true;
     for (int n = 0; n < table.ColumnsCount; n++)
@@ -3470,7 +3492,6 @@ void TableGcCompactTransientBuffers(ImGuiTable* table)
 void TableGcCompactTransientBuffers(ImGuiTableTempData* temp_data)
 {
     temp_data.DrawSplitter.ClearFreeMemory();
-    temp_data.SortSpecsMulti.clear();
     temp_data.LastTimeActive = -1.0f;
 }
 

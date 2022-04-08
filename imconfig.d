@@ -35,11 +35,12 @@ enum IMGUI_DISABLE_OBSOLETE_FUNCTIONS = false;
 enum IMGUI_DISABLE_DEMO_WINDOWS = false;                        // Disable demo windows: ShowDemoWindow()/ShowStyleEditor() will be empty. Not recommended.
 enum IMGUI_DISABLE_METRICS_WINDOW = false;                     // Disable metrics/debugger window: ShowMetricsWindow() will be empty.
 
-//---- Don't implement some OS-functions to reduce linkage requirements.
+//---- Don't implement some functions to reduce linkage requirements.
 enum IMGUI_DISABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS = false;   // [Win32] Don't implement default clipboard handler. Won't use and link with OpenClipboard/GetClipboardData/CloseClipboard etc. (user32.lib/.a, kernel32.lib/.a)
 enum IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS = false;         // [Win32] Don't implement default IME handler. Won't use and link with ImmGetContext/ImmSetCompositionWindow. (imm32.lib/.a)
 enum IMGUI_DISABLE_WIN32_FUNCTIONS = false;                     // [Win32] Won't use and link with any Win32 function (clipboard, ime).
 enum IMGUI_ENABLE_OSX_DEFAULT_CLIPBOARD_FUNCTIONS = false;      // [OSX] Implement default OSX clipboard handler (need to link with '-framework ApplicationServices', this is why this is not the default).
+//#define IMGUI_DISABLE_SSE                                 // Disable use of SSE intrinsics even if available
 
 //---- Don't provide certain default implementations using the C standard library.
 
