@@ -89,9 +89,11 @@
 
 nothrow @nogc:
 
-//#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
-//#define _CRT_SECURE_NO_WARNINGS
-//#endif
+/+
+#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
+#define _CRT_SECURE_NO_WARNINGS
+#endif
++/
 
 import ImGui = d_imgui.imgui;
 import d_imgui.imgui_h;
@@ -116,6 +118,9 @@ import core.stdc.string : strcpy, strcat, strcmp;
 #include <GLES2/gl2ext.h>
 #endif
 #elif defined(IMGUI_IMPL_OPENGL_ES3)
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 #if (defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV))
 #include <OpenGLES/ES3/gl.h>    // Use GL ES 3
 #else
@@ -153,9 +158,11 @@ enum IMGUI_IMPL_OPENGL_LOADER_CUSTOM = false;
 enum IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY = !IMGUI_IMPL_OPENGL_ES2;
 
 // Desktop GL 2.0+ has glPolygonMode() which GL ES and WebGL don't have.
-//#ifdef GL_POLYGON_MODE
-//#define IMGUI_IMPL_HAS_POLYGON_MODE
-//#endif
+/+
+#ifdef GL_POLYGON_MODE
+#define IMGUI_IMPL_HAS_POLYGON_MODE
+#endif
++/
 enum IMGUI_IMPL_HAS_POLYGON_MODE = glSupport >= 20;
 
 // Desktop GL 3.2+ has glDrawElementsBaseVertex() which GL ES and WebGL don't have.
@@ -205,7 +212,7 @@ struct ImGui_ImplOpenGL3_Data
     uint    VboHandle, ElementsHandle;
     bool            HasClipOrigin;
 
-    //ImGui_ImplOpenGL3_Data() { memset(this, 0, sizeof(*this)); }
+    //ImGui_ImplOpenGL3_Data() { memset(&this, 0, sizeof(this)); }
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
@@ -298,8 +305,9 @@ static if (IMGUI_IMPL_OPENGL_MAY_HAVE_EXTENSIONS) {
 
 void    ImGui_ImplOpenGL3_Shutdown()
 {
-    ImGuiIO* io = &ImGui.GetIO();
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
+    IM_ASSERT(bd != NULL, "No renderer backend to shutdown, or already shutdown?");
+    ImGuiIO* io = &ImGui.GetIO();
 
     ImGui_ImplOpenGL3_DestroyDeviceObjects();
     io.BackendRendererName = NULL;
@@ -310,7 +318,7 @@ void    ImGui_ImplOpenGL3_Shutdown()
 void    ImGui_ImplOpenGL3_NewFrame()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
-    IM_ASSERT(bd != NULL,  "Did you call ImGui_ImplOpenGL3_Init()?");
+    IM_ASSERT(bd != NULL, "Did you call ImGui_ImplOpenGL3_Init()?");
 
     if (!bd.ShaderHandle)
         ImGui_ImplOpenGL3_CreateDeviceObjects();
@@ -471,27 +479,23 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
             else
             {
                 // Project scissor/clipping rectangles into framebuffer space
-                ImVec4 clip_rect;
-                clip_rect.x = (pcmd.ClipRect.x - clip_off.x) * clip_scale.x;
-                clip_rect.y = (pcmd.ClipRect.y - clip_off.y) * clip_scale.y;
-                clip_rect.z = (pcmd.ClipRect.z - clip_off.x) * clip_scale.x;
-                clip_rect.w = (pcmd.ClipRect.w - clip_off.y) * clip_scale.y;
+                ImVec2 clip_min = ImVec2((pcmd.ClipRect.x - clip_off.x) * clip_scale.x, (pcmd.ClipRect.y - clip_off.y) * clip_scale.y);
+                ImVec2 clip_max = ImVec2((pcmd.ClipRect.z - clip_off.x) * clip_scale.x, (pcmd.ClipRect.w - clip_off.y) * clip_scale.y);
+                if (clip_max.x < clip_min.x || clip_max.y < clip_min.y)
+                    continue;
 
-                if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f)
-                {
-                    // Apply scissor/clipping rectangle
-                    glScissor(cast(int)clip_rect.x, cast(int)(fb_height - clip_rect.w), cast(int)(clip_rect.z - clip_rect.x), cast(int)(clip_rect.w - clip_rect.y));
+                // Apply scissor/clipping rectangle (Y is inverted in OpenGL)
+                glScissor(cast(int)clip_min.x, cast(int)(fb_height - clip_max.y), cast(int)(clip_max.x - clip_min.x), cast(int)(clip_max.y - clip_min.y));
 
-                    // Bind texture, Draw
-                    glBindTexture(GL_TEXTURE_2D, cast(GLuint)cast(intptr_t)pcmd.GetTexID());
+                // Bind texture, Draw
+                glBindTexture(GL_TEXTURE_2D, cast(GLuint)cast(intptr_t)pcmd.GetTexID());
 static if (IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET) {
-                    if (bd.GlVersion >= 320)
-                        glDrawElementsBaseVertex(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)), cast(GLint)pcmd.VtxOffset);
-                    else
+                if (bd.GlVersion >= 320)
+                    glDrawElementsBaseVertex(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)), cast(GLint)pcmd.VtxOffset);
+                else
                     glDrawElements(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
-} else
-                    glDrawElements(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
-                }
+}
+                glDrawElements(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
             }
         }
     }
@@ -529,6 +533,7 @@ static if (IMGUI_IMPL_HAS_POLYGON_MODE) {
 }
     glViewport(last_viewport[0], last_viewport[1], cast(GLsizei)last_viewport[2], cast(GLsizei)last_viewport[3]);
     glScissor(last_scissor_box[0], last_scissor_box[1], cast(GLsizei)last_scissor_box[2], cast(GLsizei)last_scissor_box[3]);
+    //(void)bd; // Not all compilation paths use this
 }
 
 bool ImGui_ImplOpenGL3_CreateFontsTexture()
@@ -768,6 +773,7 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
     glCompileShader(frag_handle);
     CheckShader(frag_handle, "fragment shader");
 
+    // Link
     bd.ShaderHandle = glCreateProgram();
     glAttachShader(bd.ShaderHandle, vert_handle);
     glAttachShader(bd.ShaderHandle, frag_handle);
@@ -807,6 +813,5 @@ void    ImGui_ImplOpenGL3_DestroyDeviceObjects()
     if (bd.VboHandle)      { glDeleteBuffers(1, &bd.VboHandle); bd.VboHandle = 0; }
     if (bd.ElementsHandle) { glDeleteBuffers(1, &bd.ElementsHandle); bd.ElementsHandle = 0; }
     if (bd.ShaderHandle)   { glDeleteProgram(bd.ShaderHandle); bd.ShaderHandle = 0; }
-
     ImGui_ImplOpenGL3_DestroyFontsTexture();
 }

@@ -1,4 +1,4 @@
-// dear imgui, v1.84
+// dear imgui, v1.85
 // (drawing and font code)
 module d_imgui.imgui_draw;
 
@@ -2083,7 +2083,7 @@ void    ClearInputData()
     ConfigData.clear();
     CustomRects.clear();
     PackIdMouseCursors = PackIdLines = -1;
-    TexReady = false;
+    // Important: we leave TexReady untouched
 }
 
 void    ClearTexData()

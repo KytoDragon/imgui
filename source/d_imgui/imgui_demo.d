@@ -1,4 +1,4 @@
-// dear imgui, v1.84
+// dear imgui, v1.85
 // (demo code)
 module d_imgui.imgui_demo;
 
@@ -313,10 +313,12 @@ void ShowDemoWindow(bool* p_open = NULL)
 
     // Dear ImGui Apps (accessible from the "Tools" menu)
     __gshared bool show_app_metrics = false;
+    __gshared bool show_app_stack_tool = false;
     __gshared bool show_app_style_editor = false;
     __gshared bool show_app_about = false;
 
     if (show_app_metrics)       { ImGui.ShowMetricsWindow(&show_app_metrics); }
+    if (show_app_stack_tool)    { ImGui.ShowStackToolWindow(&show_app_stack_tool); }
     if (show_app_about)         { ImGui.ShowAboutWindow(&show_app_about); }
     if (show_app_style_editor)
     {
@@ -398,9 +400,13 @@ void ShowDemoWindow(bool* p_open = NULL)
             ImGui.MenuItem("Documents", NULL, &show_app_documents);
             ImGui.EndMenu();
         }
+        //if (ImGui::MenuItem("MenuItem")) {} // You can also use MenuItem() inside a menu bar!
         if (ImGui.BeginMenu("Tools"))
         {
+static if (!IMGUI_DISABLE_METRICS_WINDOW) {
             ImGui.MenuItem("Metrics/Debugger", NULL, &show_app_metrics);
+            ImGui.MenuItem("Stack Tool", NULL, &show_app_stack_tool);
+}
             ImGui.MenuItem("Style Editor", NULL, &show_app_style_editor);
             ImGui.MenuItem("About Dear ImGui", NULL, &show_app_about);
             ImGui.EndMenu();
@@ -1586,16 +1592,17 @@ private void ShowDemoWindowWidgets()
     }
 
     // Plot/Graph widgets are not very good.
-    // Consider writing your own, or using a third-party one, see:
-    // - ImPlot https://github.com/epezent/implot
-    // - others https://github.com/ocornut/imgui/wiki/Useful-Extensions
+    // Consider using a third-party library such as ImPlot: https://github.com/epezent/implot
+    // (see others https://github.com/ocornut/imgui/wiki/Useful-Extensions)
     if (ImGui.TreeNode("Plots Widgets"))
     {
         __gshared bool animate = true;
         ImGui.Checkbox("Animate", &animate);
 
+        // Plot as lines and plot as histogram
         __gshared float[7] arr = [ 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f ];
-        ImGui.PlotLines("Frame Times", arr, IM_ARRAYSIZE(arr));
+        ImGui.PlotLines("Frame Times", arr);
+        ImGui.PlotHistogram("Histogram", arr, 0, NULL, 0.0f, 1.0f, ImVec2(0, 80.0f));
 
         // Fill an array of contiguous float values to plot
         // Tip: If your float aren't contiguous but part of a structure, you can pass a pointer to your first float
@@ -1625,7 +1632,6 @@ private void ShowDemoWindowWidgets()
             sprintf(overlay, "avg %f", average);
             ImGui.PlotLines("Lines", values, values_offset, ImCstring(overlay), -1.0f, 1.0f, ImVec2(0, 80.0f));
         }
-        ImGui.PlotHistogram("Histogram", arr, 0, NULL, 0.0f, 1.0f, ImVec2(0, 80.0f));
 
         // Use functions to generate output
         // FIXME: This is rather awkward because current plot API only pass in indices.
@@ -2216,7 +2222,7 @@ private void ShowDemoWindowWidgets()
         ImGui.TreePop();
     }
 
-    if (ImGui.TreeNode("Querying Status (Edited/Active/Hovered etc.)"))
+    if (ImGui.TreeNode("Querying Item Status (Edited/Active/Hovered etc.)"))
     {
         // Select an item type
         string[15] item_names =
@@ -2302,43 +2308,63 @@ private void ShowDemoWindowWidgets()
         if (item_disabled)
             ImGui.EndDisabled();
 
+        char[1] buf = "";
+        ImGui.InputText("unused", buf, ImGuiInputTextFlags.ReadOnly);
+        ImGui.SameLine();
+        HelpMarker("This widget is only here to be able to tab-out of the widgets above and see e.g. Deactivated() status.");
+
+        ImGui.TreePop();
+    }
+
+    if (ImGui.TreeNode("Querying Window Status (Focused/Hovered etc.)"))
+    {
         __gshared bool embed_all_inside_a_child_window = false;
-        ImGui.Checkbox("Embed everything inside a child window (for additional testing)", &embed_all_inside_a_child_window);
+        ImGui.Checkbox("Embed everything inside a child window for testing _RootWindow flag.", &embed_all_inside_a_child_window);
         if (embed_all_inside_a_child_window)
             ImGui.BeginChild("outer_child", ImVec2(0, ImGui.GetFontSize() * 20.0f), true);
 
         // Testing IsWindowFocused() function with its various flags.
-        // Note that the ImGuiFocusedFlags_XXX flags can be combined.
         ImGui.BulletText(
             "IsWindowFocused() = %d\n"
             ~"IsWindowFocused(_ChildWindows) = %d\n"
+            ~"IsWindowFocused(_ChildWindows|_NoPopupHierarchy) = %d\n"
             ~"IsWindowFocused(_ChildWindows|_RootWindow) = %d\n"
+            ~"IsWindowFocused(_ChildWindows|_RootWindow|_NoPopupHierarchy) = %d\n"
             ~"IsWindowFocused(_RootWindow) = %d\n"
+            ~"IsWindowFocused(_RootWindow|_NoPopupHierarchy) = %d\n"
             ~"IsWindowFocused(_AnyWindow) = %d\n",
             ImGui.IsWindowFocused(),
             ImGui.IsWindowFocused(ImGuiFocusedFlags.ChildWindows),
+            ImGui.IsWindowFocused(ImGuiFocusedFlags.ChildWindows | ImGuiFocusedFlags.NoPopupHierarchy),
             ImGui.IsWindowFocused(ImGuiFocusedFlags.ChildWindows | ImGuiFocusedFlags.RootWindow),
+            ImGui.IsWindowFocused(ImGuiFocusedFlags.ChildWindows | ImGuiFocusedFlags.RootWindow | ImGuiFocusedFlags.NoPopupHierarchy),
             ImGui.IsWindowFocused(ImGuiFocusedFlags.RootWindow),
+            ImGui.IsWindowFocused(ImGuiFocusedFlags.RootWindow | ImGuiFocusedFlags.NoPopupHierarchy),
             ImGui.IsWindowFocused(ImGuiFocusedFlags.AnyWindow));
 
         // Testing IsWindowHovered() function with its various flags.
-        // Note that the ImGuiHoveredFlags_XXX flags can be combined.
         ImGui.BulletText(
             "IsWindowHovered() = %d\n"
             ~"IsWindowHovered(_AllowWhenBlockedByPopup) = %d\n"
             ~"IsWindowHovered(_AllowWhenBlockedByActiveItem) = %d\n"
             ~"IsWindowHovered(_ChildWindows) = %d\n"
+            ~"IsWindowHovered(_ChildWindows|_NoPopupHierarchy) = %d\n"
             ~"IsWindowHovered(_ChildWindows|_RootWindow) = %d\n"
-            ~"IsWindowHovered(_ChildWindows|_AllowWhenBlockedByPopup) = %d\n"
+            ~"IsWindowHovered(_ChildWindows|_RootWindow|_NoPopupHierarchy) = %d\n"
             ~"IsWindowHovered(_RootWindow) = %d\n"
+            ~"IsWindowHovered(_RootWindow|_NoPopupHierarchy) = %d\n"
+            ~"IsWindowHovered(_ChildWindows|_AllowWhenBlockedByPopup) = %d\n"
             ~"IsWindowHovered(_AnyWindow) = %d\n",
             ImGui.IsWindowHovered(),
             ImGui.IsWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup),
             ImGui.IsWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem),
             ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows),
+            ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.NoPopupHierarchy),
             ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.RootWindow),
-            ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.AllowWhenBlockedByPopup),
+            ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.RootWindow | ImGuiHoveredFlags.NoPopupHierarchy),
             ImGui.IsWindowHovered(ImGuiHoveredFlags.RootWindow),
+            ImGui.IsWindowHovered(ImGuiHoveredFlags.RootWindow | ImGuiHoveredFlags.NoPopupHierarchy),
+            ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.AllowWhenBlockedByPopup),
             ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow));
 
         ImGui.BeginChild("child", ImVec2(0, 50), true);
@@ -2346,9 +2372,6 @@ private void ShowDemoWindowWidgets()
         ImGui.EndChild();
         if (embed_all_inside_a_child_window)
             ImGui.EndChild();
-
-        __gshared char[68] unused_str = "This widget is only here to be able to tab-out of the widgets above.";
-        ImGui.InputText("unused", unused_str, ImGuiInputTextFlags.ReadOnly);
 
         // Calling IsItemHovered() after begin returns the hovered status of the title bar.
         // This is useful in particular if you want to create a context menu associated to the title bar of a window.
@@ -2403,7 +2426,7 @@ private void ShowDemoWindowLayout()
             ImGuiWindowFlags window_flags = ImGuiWindowFlags.HorizontalScrollbar;
             if (disable_mouse_wheel)
                 window_flags |= ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.BeginChild("ChildL", ImVec2(ImGui.GetWindowContentRegionWidth() * 0.5f, 260), false, window_flags);
+            ImGui.BeginChild("ChildL", ImVec2(ImGui.GetContentRegionAvail().x * 0.5f, 260), false, window_flags);
             for (int i = 0; i < 100; i++)
                 ImGui.Text("%04d: scrollable region", i);
             ImGui.EndChild();
@@ -5524,6 +5547,7 @@ private void ShowDemoWindowMisc()
 
         // Display ImGuiIO output flags
         ImGui.Text("WantCaptureMouse: %d", io.WantCaptureMouse);
+        ImGui.Text("WantCaptureMouseUnlessPopupClose: %d", io.WantCaptureMouseUnlessPopupClose);
         ImGui.Text("WantCaptureKeyboard: %d", io.WantCaptureKeyboard);
         ImGui.Text("WantTextInput: %d", io.WantTextInput);
         ImGui.Text("WantSetMousePos: %d", io.WantSetMousePos);

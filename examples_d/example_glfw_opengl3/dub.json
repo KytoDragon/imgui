@@ -7,7 +7,7 @@
 	"description": "Port of Dear Imgui GLFW OpenGL 3 Backend",
 	"homepage": "https://github.com/KytoDragon/imgui/",
 	"license": "MIT",
-    "version": "1.84.2-beta1",
+    "version": "1.85-beta1",
 	"dflags": ["-preview=intpromote"],
 	"targetType": "executable",
 	"libs-windows" : ["Imm32", "User32"],

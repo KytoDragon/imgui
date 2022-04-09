@@ -32,8 +32,9 @@ enum IMGUI_DISABLE_OBSOLETE_FUNCTIONS = false;
 //---- Disable all of Dear ImGui or don't implement standard windows.
 // It is very strongly recommended to NOT disable the demo windows during development. Please read comments in imgui_demo.d.
 // D_IMGUI: Disabling everything is not supported.
+//#define IMGUI_DISABLE                                         // Disable everything: all headers and source files will be empty.
 enum IMGUI_DISABLE_DEMO_WINDOWS = false;                        // Disable demo windows: ShowDemoWindow()/ShowStyleEditor() will be empty. Not recommended.
-enum IMGUI_DISABLE_METRICS_WINDOW = false;                     // Disable metrics/debugger window: ShowMetricsWindow() will be empty.
+enum IMGUI_DISABLE_METRICS_WINDOW = false;                      // Disable metrics/debugger and other debug tools: ShowMetricsWindow() will be empty.
 
 //---- Don't implement some functions to reduce linkage requirements.
 enum IMGUI_DISABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS = false;   // [Win32] Don't implement default clipboard handler. Won't use and link with OpenClipboard/GetClipboardData/CloseClipboard etc. (user32.lib/.a, kernel32.lib/.a)

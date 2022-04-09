@@ -1,4 +1,4 @@
-// dear imgui, v1.84
+// dear imgui, v1.85
 // (tables and columns code)
 module d_imgui.imgui_tables;
 
@@ -340,7 +340,7 @@ bool    BeginTableEx(string name, ImGuiID id, int columns_count, ImGuiTableFlags
     const ImVec2 avail_size = GetContentRegionAvail();
     ImVec2 actual_outer_size = CalcItemSize(outer_size, ImMax(avail_size.x, 1.0f), use_child_window ? ImMax(avail_size.y, 1.0f) : 0.0f);
     ImRect outer_rect = ImRect(outer_window.DC.CursorPos, outer_window.DC.CursorPos + actual_outer_size);
-    if (use_child_window && IsClippedEx(outer_rect, 0, false))
+    if (use_child_window && IsClippedEx(outer_rect, 0))
     {
         ItemSize(outer_rect);
         return false;
@@ -580,6 +580,7 @@ bool    BeginTableEx(string name, ImGuiID id, int columns_count, ImGuiTableFlags
 // + 0 (for ImGuiTable instance, we are pooling allocations in g.Tables)
 // + 1 (for table->RawData allocated below)
 // + 1 (for table->ColumnsNames, if names are used)
+// Shared allocations per number of nested tables
 // + 1 (for table->Splitter._Channels)
 // + 2 * active_channels_count (for ImDrawCmd and ImDrawIdx buffers inside channels)
 // Where active_channels_count is variable but often == columns_count or columns_count + 1, see TableSetupDrawChannels() for details.
@@ -1186,7 +1187,7 @@ void TableUpdateBorders(ImGuiTable* table)
         KeepAliveID(column_id);
 
         bool hovered = false, held = false;
-        bool pressed = ButtonBehavior(hit_rect, column_id, &hovered, &held, ImGuiButtonFlags.FlattenChildren | ImGuiButtonFlags.AllowItemOverlap | ImGuiButtonFlags.PressedOnClick | ImGuiButtonFlags.PressedOnDoubleClick);
+        bool pressed = ButtonBehavior(hit_rect, column_id, &hovered, &held, ImGuiButtonFlags.FlattenChildren | ImGuiButtonFlags.AllowItemOverlap | ImGuiButtonFlags.PressedOnClick | ImGuiButtonFlags.PressedOnDoubleClick | ImGuiButtonFlags.NoNavFocus);
         if (pressed && IsMouseDoubleClicked(ImGuiMouseButton.Left))
         {
             TableSetColumnWidthAutoSingle(table, column_n);
@@ -1496,6 +1497,7 @@ void TableSetupScrollFreeze(int columns, int rows)
     table.IsUnfrozenRows = (table.FreezeRowsCount == 0); // Make sure this is set before TableUpdateLayout() so ImGuiListClipper can benefit from it.b
 
     // Ensure frozen columns are ordered in their section. We still allow multiple frozen columns to be reordered.
+    // FIXME-TABLE: This work for preserving 2143 into 21|43. How about 4321 turning into 21|43? (preserve relative order in each section)
     for (int column_n = 0; column_n < table.FreezeColumnsRequest; column_n++)
     {
         int order_n = table.DisplayOrderToIndex[column_n];
@@ -4004,7 +4006,7 @@ void EndColumns()
             const float column_hit_hw = COLUMNS_HIT_RECT_HALF_WIDTH;
             const ImRect column_hit_rect = ImRect(ImVec2(x - column_hit_hw, y1), ImVec2(x + column_hit_hw, y2));
             KeepAliveID(column_id);
-            if (IsClippedEx(column_hit_rect, column_id, false))
+            if (IsClippedEx(column_hit_rect, column_id)) // FIXME: Can be removed or replaced with a lower-level test
                 continue;
 
             bool hovered = false, held = false;
