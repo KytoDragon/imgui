@@ -1308,7 +1308,7 @@ static void PathBezierCubicCurveToCasteljau(ImVector!ImVec2* path, float x1, flo
     }
 }
 
-static void PathBezierQuadraticCurveToCasteljau(ImVector!(ImVec2)* path, float x1, float y1, float x2, float y2, float x3, float y3, float tess_tol, int level)
+static void PathBezierQuadraticCurveToCasteljau(ImVector!ImVec2* path, float x1, float y1, float x2, float y2, float x3, float y3, float tess_tol, int level)
 {
     float dx = x3 - x1, dy = y3 - y1;
     float det = (x2 - x3) * dy - (y2 - y3) * dx;
@@ -2425,7 +2425,7 @@ struct ImFontBuildDstData
     }
 }
 
-void UnpackBitVectorToFlatIndexList(const ImBitVector* _in, ImVector!int* _out)
+static void UnpackBitVectorToFlatIndexList(const ImBitVector* _in, ImVector!int* _out)
 {
     IM_ASSERT(sizeof(_in.Storage.Data[0]) == sizeof!(int));
     const ImU32* it_begin = _in.Storage.begin();
@@ -2437,7 +2437,7 @@ void UnpackBitVectorToFlatIndexList(const ImBitVector* _in, ImVector!int* _out)
                     _out.push_back(cast(int)(((it - it_begin) << 5) + bit_n));
 }
 
-bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
+static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
 {
     IM_ASSERT(atlas.ConfigData.Size > 0);
 
@@ -2722,7 +2722,7 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, void* stbrp_context_opa
     stbrp_context* pack_context = cast(stbrp_context*)stbrp_context_opaque;
     IM_ASSERT(pack_context != NULL);
 
-    ImVector!(ImFontAtlasCustomRect)* user_rects = &atlas.CustomRects;
+    ImVector!ImFontAtlasCustomRect* user_rects = &atlas.CustomRects;
     IM_ASSERT(user_rects.Size >= 1); // We expect at least the default custom rects to be registered, else something went wrong.
 
     ImVector!stbrp_rect pack_rects;
@@ -2767,7 +2767,7 @@ void ImFontAtlasBuildRender32bppRectFromString(ImFontAtlas* atlas, int x, int y,
             out_pixel[off_x] = (in_str[index + off_x] == in_marker_char) ? in_marker_pixel_value : IM_COL32_BLACK_TRANS;
 }
 
-void ImFontAtlasBuildRenderDefaultTexData(ImFontAtlas* atlas)
+static void ImFontAtlasBuildRenderDefaultTexData(ImFontAtlas* atlas)
 {
     ImFontAtlasCustomRect* r = atlas.GetCustomRectByIndex(atlas.PackIdMouseCursors);
     IM_ASSERT(r.IsPacked());
@@ -2807,7 +2807,7 @@ void ImFontAtlasBuildRenderDefaultTexData(ImFontAtlas* atlas)
     atlas.TexUvWhitePixel = ImVec2((r.X + 0.5f) * atlas.TexUvScale.x, (r.Y + 0.5f) * atlas.TexUvScale.y);
 }
 
-void ImFontAtlasBuildRenderLinesTexData(ImFontAtlas* atlas)
+static void ImFontAtlasBuildRenderLinesTexData(ImFontAtlas* atlas)
 {
     if (atlas.Flags & ImFontAtlasFlags.NoBakedLines)
         return;
@@ -2958,7 +2958,7 @@ const (ImWchar)*  GetGlyphRangesChineseFull()
     return &ranges[0];
 }
 
-void UnpackAccumulativeOffsetsIntoRanges(int base_codepoint, const short* accumulative_offsets, int accumulative_offsets_count, ImWchar* out_ranges)
+static void UnpackAccumulativeOffsetsIntoRanges(int base_codepoint, const short* accumulative_offsets, int accumulative_offsets_count, ImWchar* out_ranges)
 {
     for (int n = 0; n < accumulative_offsets_count; n++, out_ranges += 2)
     {
@@ -3273,7 +3273,7 @@ void    ClearOutputData()
     MetricsTotalSurface = 0;
 }
 
-private ImWchar FindFirstExistingGlyph(ImFont* font, const ImWchar[] candidate_chars)
+static ImWchar FindFirstExistingGlyph(ImFont* font, const ImWchar[] candidate_chars)
 {
     for (int n = 0; n < candidate_chars.length; n++)
         if (font.FindGlyphNoFallback(candidate_chars[n]) != NULL)
@@ -3965,7 +3965,7 @@ void RenderArrowPointingAt(ImDrawList* draw_list, ImVec2 pos, ImVec2 half_sz, Im
     }
 }
 
-pragma(inline, true) float ImAcos01(float x)
+static pragma(inline, true) float ImAcos01(float x)
 {
     if (x <= 0.0f) return IM_PI * 0.5f;
     if (x >= 1.0f) return 0.0f;
@@ -4136,7 +4136,7 @@ pragma(inline, true) int stb__in4(const (ubyte) *i, int x) {
     return ((i[x] << 24) + stb__in3(i, (x)+1));
 }
 
-const (ubyte) *stb_decompress_token(const (ubyte) *i)
+static const (ubyte) *stb_decompress_token(const (ubyte) *i)
 {
     if (*i >= 0x20) { // use fewer if's for cases that expand small
         if (*i >= 0x80)       stb__match(stb__dout-i[1]-1, i[0] - 0x80 + 1), i += 2;
@@ -4153,7 +4153,7 @@ const (ubyte) *stb_decompress_token(const (ubyte) *i)
     return i;
 }
 
-uint stb_adler32(uint adler32, ubyte *buffer, uint buflen)
+static uint stb_adler32(uint adler32, ubyte *buffer, uint buflen)
 {
     const ulong ADLER_MOD = 65521;
     ulong s1 = adler32 & 0xffff, s2 = adler32 >> 16;
@@ -4184,7 +4184,7 @@ uint stb_adler32(uint adler32, ubyte *buffer, uint buflen)
     return cast(uint)(s2 << 16) + cast(uint)s1;
 }
 
-uint stb_decompress(ubyte *output, const (ubyte) *i, uint /*length*/)
+static uint stb_decompress(ubyte *output, const (ubyte) *i, uint /*length*/)
 {
     if (stb__in4(i, 0) != 0x57bC0000) return 0;
     if (stb__in4(i, 4) != 0)          return 0; // error! stream is > 4GB
@@ -4318,7 +4318,7 @@ __gshared immutable(string) proggy_clean_ttf_compressed_data_base85 =
 
 static assert(proggy_clean_ttf_compressed_data_base85.length == 11980);
 
-string GetDefaultCompressedFontDataTTFBase85()
+static string GetDefaultCompressedFontDataTTFBase85()
 {
     return proggy_clean_ttf_compressed_data_base85;
 }

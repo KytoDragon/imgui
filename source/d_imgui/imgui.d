@@ -1844,7 +1844,7 @@ int ImTextCountCharsFromUtf8(string in_text)
 }
 
 // Based on stb_to_utf8() from github.com/nothings/stb/
-pragma(inline, true) int ImTextCharToUtf8_inline(char* buf, int buf_size, uint c)
+static pragma(inline, true) int ImTextCharToUtf8_inline(char* buf, int buf_size, uint c)
 {
     if (c < 0x80)
     {
@@ -1893,7 +1893,7 @@ int ImTextCountUtf8BytesFromChar(string in_text)
     return ImTextCharFromUtf8(&unused, in_text);
 }
 
-pragma(inline, true) int ImTextCountUtf8BytesFromChar(uint c)
+static pragma(inline, true) int ImTextCountUtf8BytesFromChar(uint c)
 {
     if (c < 0x80) return 1;
     if (c < 0x800) return 2;
@@ -2023,7 +2023,7 @@ void ColorConvertHSVtoRGB(float h, float s, float v, ref float out_r, ref float 
 //-----------------------------------------------------------------------------
 
 // std::lower_bound but without the bullshit
-inout (ImGuiStorage.ImGuiStoragePair)* LowerBound(inout ImVector!(ImGuiStorage.ImGuiStoragePair)* data, ImGuiID key)
+static inout (ImGuiStorage.ImGuiStoragePair)* LowerBound(inout ImVector!(ImGuiStorage.ImGuiStoragePair)* data, ImGuiID key)
 {
     inout (ImGuiStorage.ImGuiStoragePair)* first = data.Data;
     inout (ImGuiStorage.ImGuiStoragePair)* last = data.Data + data.Size;
@@ -2392,7 +2392,7 @@ void appendfv(string fmt, va_list va_args)
 
 // FIXME-TABLE: This prevents us from using ImGuiListClipper _inside_ a table cell.
 // The problem we have is that without a Begin/End scheme for rows using the clipper is ambiguous.
-bool GetSkipItemForListClipping()
+static bool GetSkipItemForListClipping()
 {
     ImGuiContext* g = GImGui;
     return (g.CurrentTable ? g.CurrentTable.HostSkipItems : g.CurrentWindow.SkipItems);
@@ -2441,7 +2441,7 @@ void CalcListClipping(int items_count, float items_height, int* out_items_displa
     *out_items_display_end = end;
 }
 
-void SetCursorPosYAndSetupForPrevLine(float pos_y, float line_height)
+static void SetCursorPosYAndSetupForPrevLine(float pos_y, float line_height)
 {
     // Set cursor position and a few other things so that SetScrollHereY() and Columns() can work when seeking cursor.
     // FIXME: It is problematic that we have to do that here, because custom/equivalent end-user code would stumble on the same issue.
@@ -2742,7 +2742,7 @@ __gshared const ImGuiStyleVarInfo[ImGuiStyleVar.COUNT] GStyleVarInfo =
     { ImGuiDataType.Float, 2, cast(ImU32)ImGuiStyle.SelectableTextAlign.offsetof }, // ImGuiStyleVar_SelectableTextAlign
 ];
 
-const (ImGuiStyleVarInfo)* GetStyleVarInfo(ImGuiStyleVar idx)
+static const (ImGuiStyleVarInfo)* GetStyleVarInfo(ImGuiStyleVar idx)
 {
     IM_ASSERT(idx >= 0 && idx < ImGuiStyleVar.COUNT);
     IM_ASSERT(IM_ARRAYSIZE(GStyleVarInfo) == ImGuiStyleVar.COUNT);
@@ -3218,7 +3218,7 @@ ImGuiID GetIDFromRectangle(const ImRect/*&*/ r_abs)
 
 }
 
-void SetCurrentWindow(ImGuiWindow* window)
+static void SetCurrentWindow(ImGuiWindow* window)
 {
     ImGuiContext* g = GImGui;
     g.CurrentWindow = window;
@@ -3339,7 +3339,7 @@ void MarkItemEdited(ImGuiID id)
     g.LastItemData.StatusFlags |= ImGuiItemStatusFlags.Edited;
 }
 
-pragma(inline, true) bool IsWindowContentHoverable(ImGuiWindow* window, ImGuiHoveredFlags flags)
+static pragma(inline, true) bool IsWindowContentHoverable(ImGuiWindow* window, ImGuiHoveredFlags flags)
 {
     // An active popup disable hovering on other windows (apart from its own children)
     // FIXME-OPT: This could be cached/stored within the window.
@@ -3689,7 +3689,7 @@ int GetFrameCount()
     return GImGui.FrameCount;
 }
 
-ImDrawList* GetViewportDrawList(ImGuiViewportP* viewport, size_t drawlist_no, string drawlist_name)
+static ImDrawList* GetViewportDrawList(ImGuiViewportP* viewport, size_t drawlist_no, string drawlist_name)
 {
     // Create the draw list on demand, because they are not frequently used for all viewports
     ImGuiContext* g = GImGui;
@@ -3857,12 +3857,12 @@ void UpdateMouseMovingWindowEndFrame()
     }
 }
 
-bool IsWindowActiveAndVisible(ImGuiWindow* window)
+static bool IsWindowActiveAndVisible(ImGuiWindow* window)
 {
     return (window.Active) && (!window.Hidden);
 }
 
-void UpdateMouseInputs()
+static void UpdateMouseInputs()
 {
     ImGuiContext* g = GImGui;
 
@@ -3921,7 +3921,7 @@ void UpdateMouseInputs()
     }
 }
 
-void StartLockWheelingWindow(ImGuiWindow* window)
+static void StartLockWheelingWindow(ImGuiWindow* window)
 {
     ImGuiContext* g = GImGui;
     if (g.WheelingWindow == window)
@@ -4461,7 +4461,7 @@ void Shutdown(ImGuiContext* context)
 }
 
 // FIXME: Add a more explicit sort order in the window structure.
-int ChildWindowComparer(ImGuiWindow** lhs, ImGuiWindow** rhs)
+static int ChildWindowComparer(ImGuiWindow** lhs, ImGuiWindow** rhs)
 {
     const (ImGuiWindow)* a = *cast(const ImGuiWindow**)lhs;
     const (ImGuiWindow)* b = *cast(const ImGuiWindow**)rhs;
@@ -4472,7 +4472,7 @@ int ChildWindowComparer(ImGuiWindow** lhs, ImGuiWindow** rhs)
     return (a.BeginOrderWithinParent - b.BeginOrderWithinParent);
 }
 
-void AddWindowToSortBuffer(ImVector!(ImGuiWindow*)* out_sorted_windows, ImGuiWindow* window)
+static void AddWindowToSortBuffer(ImVector!(ImGuiWindow*)* out_sorted_windows, ImGuiWindow* window)
 {
     out_sorted_windows.push_back(window);
     if (window.Active)
@@ -4489,7 +4489,7 @@ void AddWindowToSortBuffer(ImVector!(ImGuiWindow*)* out_sorted_windows, ImGuiWin
     }
 }
 
-void AddDrawListToDrawData(ImVector!(ImDrawList*)* out_list, ImDrawList* draw_list)
+static void AddDrawListToDrawData(ImVector!(ImDrawList*)* out_list, ImDrawList* draw_list)
 {
     // Remove trailing command if unused.
     // Technically we could return directly instead of popping, but this make things looks neat in Metrics/Debugger window as well.
@@ -4525,7 +4525,7 @@ void AddDrawListToDrawData(ImVector!(ImDrawList*)* out_list, ImDrawList* draw_li
     out_list.push_back(draw_list);
 }
 
-void AddWindowToDrawData(ImGuiWindow* window, int layer)
+static void AddWindowToDrawData(ImGuiWindow* window, int layer)
 {
     ImGuiContext* g = GImGui;
     ImGuiViewportP* viewport = g.Viewports[0];
@@ -4789,7 +4789,7 @@ ImVec2 CalcTextSize(string text, bool hide_text_after_double_hash = false, float
 // FIXME: Note that we have an inconsequential lag here: OuterRectClipped is updated in Begin(), so windows moved programmatically
 // with SetWindowPos() and not SetNextWindowPos() will have that rectangle lagging by a frame at the time FindHoveredWindow() is
 // called, aka before the next Begin(). Moving window isn't affected.
-void FindHoveredWindow()
+static void FindHoveredWindow()
 {
     ImGuiContext* g = GImGui;
 
@@ -5334,7 +5334,7 @@ void EndChildFrame()
     EndChild();
 }
 
-void SetWindowConditionAllowFlags(ImGuiWindow* window, ImGuiCond flags, bool enabled)
+static void SetWindowConditionAllowFlags(ImGuiWindow* window, ImGuiCond flags, bool enabled)
 {
     window.SetWindowPosAllowFlags       = enabled ? (window.SetWindowPosAllowFlags       | flags) : (window.SetWindowPosAllowFlags       & ~flags);
     window.SetWindowSizeAllowFlags      = enabled ? (window.SetWindowSizeAllowFlags      | flags) : (window.SetWindowSizeAllowFlags      & ~flags);
@@ -5353,7 +5353,7 @@ ImGuiWindow* FindWindowByName(string name)
     return FindWindowByID(id);
 }
 
-void ApplyWindowSettings(ImGuiWindow* window, ImGuiWindowSettings* settings)
+static void ApplyWindowSettings(ImGuiWindow* window, ImGuiWindowSettings* settings)
 {
     window.Pos = ImFloor(ImVec2(settings.Pos.x, settings.Pos.y));
     if (settings.Size.x > 0 && settings.Size.y > 0)
@@ -5361,7 +5361,7 @@ void ApplyWindowSettings(ImGuiWindow* window, ImGuiWindowSettings* settings)
     window.Collapsed = settings.Collapsed;
 }
 
-ImGuiWindow* CreateNewWindow(string name, ImGuiWindowFlags flags)
+static ImGuiWindow* CreateNewWindow(string name, ImGuiWindowFlags flags)
 {
     ImGuiContext* g = GImGui;
     //IMGUI_DEBUG_LOG("CreateNewWindow '%s', flags = 0x%08X\n", name, flags);
@@ -5413,7 +5413,7 @@ ImGuiWindow* CreateNewWindow(string name, ImGuiWindowFlags flags)
     return window;
 }
 
-ImVec2 CalcWindowSizeAfterConstraint(ImGuiWindow* window, const ImVec2/*&*/ size_desired)
+static ImVec2 CalcWindowSizeAfterConstraint(ImGuiWindow* window, const ImVec2/*&*/ size_desired)
 {
     ImGuiContext* g = GImGui;
     ImVec2 new_size = size_desired;
@@ -5448,7 +5448,7 @@ ImVec2 CalcWindowSizeAfterConstraint(ImGuiWindow* window, const ImVec2/*&*/ size
     return new_size;
 }
 
-void CalcWindowContentSizes(ImGuiWindow* window, ImVec2* content_size_current, ImVec2* content_size_ideal)
+static void CalcWindowContentSizes(ImGuiWindow* window, ImVec2* content_size_current, ImVec2* content_size_ideal)
 {
     bool preserve_old_content_sizes = false;
     if (window.Collapsed && window.AutoFitFramesX <= 0 && window.AutoFitFramesY <= 0)
@@ -5468,7 +5468,7 @@ void CalcWindowContentSizes(ImGuiWindow* window, ImVec2* content_size_current, I
     content_size_ideal.y = (window.ContentSizeExplicit.y != 0.0f) ? window.ContentSizeExplicit.y : IM_FLOOR(ImMax(window.DC.CursorMaxPos.y, window.DC.IdealMaxPos.y) - window.DC.CursorStartPos.y);
 }
 
-ImVec2 CalcWindowAutoFitSize(ImGuiWindow* window, const ImVec2/*&*/ size_contents)
+static ImVec2 CalcWindowAutoFitSize(ImGuiWindow* window, const ImVec2/*&*/ size_contents)
 {
     ImGuiContext* g = GImGui;
     ImGuiStyle* style = &g.Style;
@@ -5516,7 +5516,7 @@ ImVec2 CalcWindowNextAutoFitSize(ImGuiWindow* window)
     return size_final;
 }
 
-ImGuiCol GetWindowBgColorIdxFromFlags(ImGuiWindowFlags flags)
+static ImGuiCol GetWindowBgColorIdxFromFlags(ImGuiWindowFlags flags)
 {
     if (flags & (ImGuiWindowFlags.Tooltip | ImGuiWindowFlags.Popup))
         return ImGuiCol.PopupBg;
@@ -5525,7 +5525,7 @@ ImGuiCol GetWindowBgColorIdxFromFlags(ImGuiWindowFlags flags)
     return ImGuiCol.WindowBg;
 }
 
-void CalcResizePosSizeFromAnyCorner(ImGuiWindow* window, const ImVec2/*&*/ corner_target, const ImVec2/*&*/ corner_norm, ImVec2* out_pos, ImVec2* out_size)
+static void CalcResizePosSizeFromAnyCorner(ImGuiWindow* window, const ImVec2/*&*/ corner_target, const ImVec2/*&*/ corner_norm, ImVec2* out_pos, ImVec2* out_size)
 {
     ImVec2 pos_min = ImLerp(corner_target, window.Pos, corner_norm);                // Expected window upper-left
     ImVec2 pos_max = ImLerp(window.Pos + window.Size, corner_target, corner_norm); // Expected window lower-right
@@ -5569,7 +5569,7 @@ __gshared const ImGuiResizeBorderDef[4] resize_border_def =
     { ImVec2(0, -1), ImVec2(1, 1), ImVec2(0, 1), IM_PI * 0.50f }  // Down
 ];
 
-ImRect GetResizeBorderRect(ImGuiWindow* window, int border_n, float perp_padding, float thickness)
+static ImRect GetResizeBorderRect(ImGuiWindow* window, int border_n, float perp_padding, float thickness)
 {
     ImRect rect = window.Rect();
     if (thickness == 0.0f)
@@ -5605,7 +5605,7 @@ ImGuiID GetWindowResizeBorderID(ImGuiWindow* window, ImGuiDir dir)
 
 // Handle resize for: Resize Grips, Borders, Gamepad
 // Return true when using auto-fit (double click on resize grip)
-bool UpdateWindowManualResize(ImGuiWindow* window, const ImVec2/*&*/ size_auto_fit, int* border_held, int resize_grip_count, ImU32[/*4*/] resize_grip_col, const ImRect/*&*/ visibility_rect)
+static bool UpdateWindowManualResize(ImGuiWindow* window, const ImVec2/*&*/ size_auto_fit, int* border_held, int resize_grip_count, ImU32[/*4*/] resize_grip_col, const ImRect/*&*/ visibility_rect)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindowFlags flags = window.Flags;
@@ -5735,7 +5735,7 @@ bool UpdateWindowManualResize(ImGuiWindow* window, const ImVec2/*&*/ size_auto_f
     return ret_auto_fit;
 }
 
-pragma(inline, true) void ClampWindowRect(ImGuiWindow* window, const ImRect/*&*/ visibility_rect)
+static pragma(inline, true) void ClampWindowRect(ImGuiWindow* window, const ImRect/*&*/ visibility_rect)
 {
     ImGuiContext* g = GImGui;
     ImVec2 size_for_clamping = window.Size;
@@ -5744,7 +5744,7 @@ pragma(inline, true) void ClampWindowRect(ImGuiWindow* window, const ImRect/*&*/
     window.Pos = ImClamp(window.Pos, visibility_rect.Min - size_for_clamping, visibility_rect.Max);
 }
 
-void RenderWindowOuterBorders(ImGuiWindow* window)
+static void RenderWindowOuterBorders(ImGuiWindow* window)
 {
     ImGuiContext* g = GImGui;
     float rounding = window.WindowRounding;
@@ -7429,7 +7429,7 @@ bool DebugCheckVersionAndDataLayout(string _version, size_t sz_io, size_t sz_sty
     return !error;
 }
 
-void ErrorCheckNewFrameSanityChecks()
+static void ErrorCheckNewFrameSanityChecks()
 {
     ImGuiContext* g = GImGui;
 
@@ -7465,7 +7465,7 @@ void ErrorCheckNewFrameSanityChecks()
         g.IO.ConfigWindowsResizeFromEdges = false;
 }
 
-void ErrorCheckEndFrameSanityChecks()
+static void ErrorCheckEndFrameSanityChecks()
 {
     ImGuiContext* g = GImGui;
 
@@ -8148,7 +8148,7 @@ void EndGroup()
 // So the difference between WindowPadding and ItemSpacing will be in the visible area after scrolling.
 // When we refactor the scrolling API this may be configurable with a flag?
 // Note that the effect for this won't be visible on X axis with default Style settings as WindowPadding.x == ItemSpacing.x by default.
-float CalcScrollEdgeSnap(float target, float snap_min, float snap_max, float snap_threshold, float center_ratio)
+static float CalcScrollEdgeSnap(float target, float snap_min, float snap_max, float snap_threshold, float center_ratio)
 {
     if (target <= snap_min + snap_threshold)
         return ImLerp(snap_min, target, center_ratio);
@@ -8157,7 +8157,7 @@ float CalcScrollEdgeSnap(float target, float snap_min, float snap_max, float sna
     return target;
 }
 
-ImVec2 CalcNextScrollFromScrollTargetAndClamp(ImGuiWindow* window)
+static ImVec2 CalcNextScrollFromScrollTargetAndClamp(ImGuiWindow* window)
 {
     ImVec2 scroll = window.Scroll;
     if (window.ScrollTarget.x < FLT_MAX)
@@ -9031,7 +9031,7 @@ ImGuiDir ImGetDirQuadrantFromDelta(float dx, float dy)
     return (dy > 0.0f) ? ImGuiDir.Down : ImGuiDir.Up;
 }
 
-pragma(inline, true) float NavScoreItemDistInterval(float a0, float a1, float b0, float b1)
+static pragma(inline, true) float NavScoreItemDistInterval(float a0, float a1, float b0, float b1)
 {
     if (a1 < b0)
         return a1 - b0;
@@ -9040,7 +9040,7 @@ pragma(inline, true) float NavScoreItemDistInterval(float a0, float a1, float b0
     return 0.0f;
 }
 
-pragma(inline, true) void NavClampRectToVisibleAreaForMoveDir(ImGuiDir move_dir, ref ImRect r, const ImRect/*&*/ clip_rect)
+static pragma(inline, true) void NavClampRectToVisibleAreaForMoveDir(ImGuiDir move_dir, ref ImRect r, const ImRect/*&*/ clip_rect)
 {
     if (move_dir == ImGuiDir.Left || move_dir == ImGuiDir.Right)
     {
@@ -9339,7 +9339,7 @@ void NavMoveRequestTryWrapping(ImGuiWindow* window, ImGuiNavMoveFlags wrap_flags
 
 // FIXME: This could be replaced by updating a frame number in each window when (window == NavWindow) and (NavLayer == 0).
 // This way we could find the last focused window among our children. It would be much less confusing this way?
-void NavSaveLastChildNavWindowIntoParent(ImGuiWindow* nav_window)
+static void NavSaveLastChildNavWindowIntoParent(ImGuiWindow* nav_window)
 {
     ImGuiWindow* parent = nav_window;
     while (parent && parent.RootWindow != parent && (parent.Flags & (ImGuiWindowFlags.Popup | ImGuiWindowFlags.ChildMenu)) == 0)
@@ -9350,7 +9350,7 @@ void NavSaveLastChildNavWindowIntoParent(ImGuiWindow* nav_window)
 
 // Restore the last focused child.
 // Call when we are expected to land on the Main Layer (0) after FocusWindow()
-ImGuiWindow* NavRestoreLastChildNavWindow(ImGuiWindow* window)
+static ImGuiWindow* NavRestoreLastChildNavWindow(ImGuiWindow* window)
 {
     if (window.NavLastChildNavWindow && window.NavLastChildNavWindow.WasActive)
         return window.NavLastChildNavWindow;
@@ -9376,7 +9376,7 @@ void NavRestoreLayer(ImGuiNavLayer layer)
     g.NavDisableMouseHover = g.NavMousePosDirty = true;
 }
 
-pragma(inline, true) void NavUpdateAnyRequestFlag()
+static pragma(inline, true) void NavUpdateAnyRequestFlag()
 {
     ImGuiContext* g = GImGui;
     g.NavAnyRequest = g.NavMoveScoringItems || g.NavInitRequest || (IMGUI_DEBUG_NAV_SCORING && g.NavWindow != NULL);
@@ -9416,7 +9416,7 @@ void NavInitWindow(ImGuiWindow* window, bool force_reinit)
     }
 }
 
-ImVec2 NavCalcPreferredRefPos()
+static ImVec2 NavCalcPreferredRefPos()
 {
     ImGuiContext* g = GImGui;
     if (g.NavDisableHighlight || !g.NavDisableMouseHover || !g.NavWindow)
@@ -9474,7 +9474,7 @@ ImVec2 GetNavInputAmount2d(ImGuiNavDirSourceFlags dir_sources, ImGuiInputReadMod
     return delta;
 }
 
-void NavUpdate()
+static void NavUpdate()
 {
     ImGuiContext* g = GImGui;
     ImGuiIO* io = &g.IO;
@@ -10058,7 +10058,7 @@ static int FindWindowFocusIndex(ImGuiWindow* window)
     return order;
 }
 
-ImGuiWindow* FindWindowNavFocusable(int i_start, int i_stop, int dir) // FIXME-OPT O(N)
+static ImGuiWindow* FindWindowNavFocusable(int i_start, int i_stop, int dir) // FIXME-OPT O(N)
 {
     ImGuiContext* g = GImGui;
     for (int i = i_start; i >= 0 && i < g.WindowsFocusOrder.Size && i != i_stop; i += dir)
@@ -10067,7 +10067,7 @@ ImGuiWindow* FindWindowNavFocusable(int i_start, int i_stop, int dir) // FIXME-O
     return NULL;
 }
 
-void NavUpdateWindowingHighlightWindow(int focus_change_dir)
+static void NavUpdateWindowingHighlightWindow(int focus_change_dir)
 {
     ImGuiContext* g = GImGui;
     IM_ASSERT(g.NavWindowingTarget);
@@ -10086,7 +10086,7 @@ void NavUpdateWindowingHighlightWindow(int focus_change_dir)
 // Windowing management mode
 // Keyboard: CTRL+Tab (change focus/move/resize), Alt (toggle menu layer)
 // Gamepad:  Hold Menu/Square (change focus/move/resize), Tap Menu/Square (toggle menu layer)
-void NavUpdateWindowing()
+static void NavUpdateWindowing()
 {
     ImGuiContext* g = GImGui;
     ImGuiIO* io = &g.IO;
@@ -10260,7 +10260,7 @@ void NavUpdateWindowing()
 }
 
 // Window has already passed the IsWindowNavFocusable()
-string GetFallbackWindowNameForWindowingList(ImGuiWindow* window)
+static string GetFallbackWindowNameForWindowingList(ImGuiWindow* window)
 {
     if (window.Flags & ImGuiWindowFlags.Popup)
         return "(Popup)";
@@ -10616,7 +10616,7 @@ void EndDragDropTarget()
 //-----------------------------------------------------------------------------
 
 // Pass text data straight to log (without being displayed)
-pragma(inline, true) void LogTextV(ImGuiContext* g, string fmt, va_list args)
+static pragma(inline, true) void LogTextV(ImGuiContext* g, string fmt, va_list args)
 {
     if (g.LogFile)
     {
@@ -11083,7 +11083,7 @@ string SaveIniSettingsToMemory()
     return g.SettingsIniData.c_str();
 }
 
-void WindowSettingsHandler_ClearAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
+static void WindowSettingsHandler_ClearAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
 {
     ImGuiContext* g = ctx;
     for (int i = 0; i != g.Windows.Size; i++)
@@ -11091,7 +11091,7 @@ void WindowSettingsHandler_ClearAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
     g.SettingsWindows.clear();
 }
 
-void* WindowSettingsHandler_ReadOpen(ImGuiContext*, ImGuiSettingsHandler*, string name)
+static void* WindowSettingsHandler_ReadOpen(ImGuiContext*, ImGuiSettingsHandler*, string name)
 {
     ImGuiWindowSettings* settings = FindOrCreateWindowSettings(name);
     ImGuiID id = settings.ID;
@@ -11101,7 +11101,7 @@ void* WindowSettingsHandler_ReadOpen(ImGuiContext*, ImGuiSettingsHandler*, strin
     return cast(void*)settings;
 }
 
-void WindowSettingsHandler_ReadLine(ImGuiContext*, ImGuiSettingsHandler*, void* entry, string line)
+static void WindowSettingsHandler_ReadLine(ImGuiContext*, ImGuiSettingsHandler*, void* entry, string line)
 {
     ImGuiWindowSettings* settings = cast(ImGuiWindowSettings*)entry;
     int x, y;
@@ -11112,7 +11112,7 @@ void WindowSettingsHandler_ReadLine(ImGuiContext*, ImGuiSettingsHandler*, void* 
 }
 
 // Apply to existing windows (if any)
-void WindowSettingsHandler_ApplyAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
+static void WindowSettingsHandler_ApplyAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
 {
     ImGuiContext* g = ctx;
     for (ImGuiWindowSettings* settings = g.SettingsWindows.begin(); settings != NULL; settings = g.SettingsWindows.next_chunk(settings))
@@ -11124,7 +11124,7 @@ void WindowSettingsHandler_ApplyAll(ImGuiContext* ctx, ImGuiSettingsHandler*)
         }
 }
 
-void WindowSettingsHandler_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf)
+static void WindowSettingsHandler_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf)
 {
     // Gather data from windows that were active during this session
     // (if a window wasn't opened in this session we preserve its settings)
@@ -11177,7 +11177,7 @@ ImGuiViewport* GetMainViewport()
 }
 
 // Update viewports and monitor infos
-void UpdateViewportsNewFrame()
+static void UpdateViewportsNewFrame()
 {
     ImGuiContext* g = GImGui;
     IM_ASSERT(g.Viewports.Size == 1);
@@ -11222,7 +11222,7 @@ import core.sys.windows.windows : HANDLE, OpenClipboard, GetClipboardData, SetCl
 
 // Win32 clipboard implementation
 // We use g.ClipboardHandlerData for temporary storage to ensure it is freed on Shutdown()
-string GetClipboardTextFn_DefaultImpl(void*)
+static string GetClipboardTextFn_DefaultImpl(void*)
 {
     ImGuiContext* g = GImGui;
     g.ClipboardHandlerData.clear();
@@ -11247,7 +11247,7 @@ string GetClipboardTextFn_DefaultImpl(void*)
     return cast(string)g.ClipboardHandlerData.asArray();
 }
 
-void SetClipboardTextFn_DefaultImpl(void*, string text)
+static void SetClipboardTextFn_DefaultImpl(void*, string text)
 {
     if (!OpenClipboard(NULL))
         return;
@@ -11275,7 +11275,7 @@ __gshared PasteboardRef main_clipboard = 0;
 
 // OSX clipboard implementation
 // If you enable this you will need to add '-framework ApplicationServices' to your linker command-line!
-void SetClipboardTextFn_DefaultImpl(void*, string text)
+static void SetClipboardTextFn_DefaultImpl(void*, string text)
 {
     if (!main_clipboard)
         PasteboardCreate(kPasteboardClipboard, &main_clipboard);
@@ -11288,7 +11288,7 @@ void SetClipboardTextFn_DefaultImpl(void*, string text)
     }
 }
 
-string GetClipboardTextFn_DefaultImpl(void*)
+static string GetClipboardTextFn_DefaultImpl(void*)
 {
     if (!main_clipboard)
         PasteboardCreate(kPasteboardClipboard, &main_clipboard);
@@ -11324,13 +11324,13 @@ string GetClipboardTextFn_DefaultImpl(void*)
 } else {
 
 // Local Dear ImGui-only clipboard implementation, if user hasn't defined better clipboard handlers.
-string GetClipboardTextFn_DefaultImpl(void*)
+static string GetClipboardTextFn_DefaultImpl(void*)
 {
     ImGuiContext* g = GImGui;
     return g.ClipboardHandlerData.empty() ? NULL : cast(string)g.ClipboardHandlerData.asArray();
 }
 
-void SetClipboardTextFn_DefaultImpl(void*, string text)
+static void SetClipboardTextFn_DefaultImpl(void*, string text)
 {
     ImGuiContext* g = GImGui;
     g.ClipboardHandlerData.clear();
@@ -11374,7 +11374,7 @@ void ImeSetInputScreenPosFn_DefaultImpl(int x, int y)
 
 } else {
 
-void ImeSetInputScreenPosFn_DefaultImpl(int, int) {}
+static void ImeSetInputScreenPosFn_DefaultImpl(int, int) {}
 
 }
 
@@ -11428,7 +11428,7 @@ void DebugRenderViewportThumbnail(ImDrawList* draw_list, ImGuiViewportP* viewpor
     draw_list.AddRect(bb.Min, bb.Max, GetColorU32(ImGuiCol.Border, alpha_mul));
 }
 
-void RenderViewportsThumbnails()
+static void RenderViewportsThumbnails()
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -11450,7 +11450,7 @@ void RenderViewportsThumbnails()
 }
 
 // Avoid naming collision with imgui_demo.cpp's HelpMarker() for unity builds.
-void MetricsHelpMarker(string desc)
+static void MetricsHelpMarker(string desc)
 {
     TextDisabled("(?)");
     if (IsItemHovered())

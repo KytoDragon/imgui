@@ -3524,7 +3524,7 @@ void TableGcCompactSettings()
 
 static if (!IMGUI_DISABLE_METRICS_WINDOW) {
 
-private string DebugNodeTableGetSizingPolicyDesc(ImGuiTableFlags sizing_policy)
+static string DebugNodeTableGetSizingPolicyDesc(ImGuiTableFlags sizing_policy)
 {
     sizing_policy &= ImGuiTableFlags.SizingMask_;
     if (sizing_policy == ImGuiTableFlags.SizingFixedFit)    { return "FixedFit"; }

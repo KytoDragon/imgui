@@ -300,7 +300,7 @@ void stbrp_init_target(stbrp_context *context, int width, int height, stbrp_node
 }
 
 // find minimum y position if it starts at x1
-private int stbrp__skyline_find_min_y(stbrp_context *c, stbrp_node *first, int x0, int width, int *pwaste)
+static int stbrp__skyline_find_min_y(stbrp_context *c, stbrp_node *first, int x0, int width, int *pwaste)
 {
    stbrp_node *node = first;
    int x1 = x0 + width;
@@ -356,7 +356,7 @@ struct stbrp__findresult
    stbrp_node **prev_link;
 }
 
-private stbrp__findresult stbrp__skyline_find_best_pos(stbrp_context *c, int width, int height)
+static stbrp__findresult stbrp__skyline_find_best_pos(stbrp_context *c, int width, int height)
 {
    int best_waste = (1<<30), best_x, best_y = (1 << 30);
    stbrp__findresult fr;
@@ -459,7 +459,7 @@ private stbrp__findresult stbrp__skyline_find_best_pos(stbrp_context *c, int wid
    return fr;
 }
 
-private stbrp__findresult stbrp__skyline_pack_rectangle(stbrp_context *context, int width, int height)
+static stbrp__findresult stbrp__skyline_pack_rectangle(stbrp_context *context, int width, int height)
 {
    // find best position according to heuristic
    stbrp__findresult res = stbrp__skyline_find_best_pos(context, width, height);
@@ -539,7 +539,7 @@ private stbrp__findresult stbrp__skyline_pack_rectangle(stbrp_context *context, 
 }
 
 // [DEAR IMGUI] Added STBRP__CDECL
-private int rect_height_compare(const stbrp_rect *p, const stbrp_rect *q)
+static int rect_height_compare(const stbrp_rect *p, const stbrp_rect *q)
 {
    if (p.h > q.h)
       return -1;
@@ -549,7 +549,7 @@ private int rect_height_compare(const stbrp_rect *p, const stbrp_rect *q)
 }
 
 // [DEAR IMGUI] Added STBRP__CDECL
-private int rect_original_order(const stbrp_rect *p, const stbrp_rect *q)
+static int rect_original_order(const stbrp_rect *p, const stbrp_rect *q)
 {
    return (p.was_packed < q.was_packed) ? -1 : (p.was_packed > q.was_packed);
 }

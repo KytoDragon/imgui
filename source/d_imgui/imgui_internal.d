@@ -385,9 +385,9 @@ static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 // IMGUI_API ImU32         ImAlphaBlendColors(ImU32 col_a, ImU32 col_b);
 
 // Helpers: Bit manipulation
-pragma(inline, true) bool      ImIsPowerOfTwo(int v)           { return v != 0 && (v & (v - 1)) == 0; }
-pragma(inline, true) bool      ImIsPowerOfTwo(ImU64 v)         { return v != 0 && (v & (v - 1)) == 0; }
-pragma(inline, true) int       ImUpperPowerOfTwo(int v)        { v--; v |= v >> 1; v |= v >> 2; v |= v >> 4; v |= v >> 8; v |= v >> 16; v++; return v; }
+static pragma(inline, true) bool      ImIsPowerOfTwo(int v)           { return v != 0 && (v & (v - 1)) == 0; }
+static pragma(inline, true) bool      ImIsPowerOfTwo(ImU64 v)         { return v != 0 && (v & (v - 1)) == 0; }
+static pragma(inline, true) int       ImUpperPowerOfTwo(int v)        { v--; v |= v >> 1; v |= v >> 2; v |= v >> 4; v |= v >> 8; v |= v >> 16; v++; return v; }
 
 // Helpers: String, Formatting
 /+
@@ -410,8 +410,8 @@ string   ImParseFormatFindEnd(string format);
 string   ImParseFormatTrimDecorations(string format, char* buf, size_t buf_size);
 int           ImParseFormatPrecision(string format, int default_value);
 +/
-pragma(inline, true) bool      ImCharIsBlankA(char c)          { return c == ' ' || c == '\t'; }
-pragma(inline, true) bool      ImCharIsBlankW(uint c)  { return c == ' ' || c == '\t' || c == 0x3000; }
+static pragma(inline, true) bool      ImCharIsBlankA(char c)          { return c == ' ' || c == '\t'; }
+static pragma(inline, true) bool      ImCharIsBlankW(uint c)  { return c == ' ' || c == '\t' || c == 0x3000; }
 
 // Helpers: UTF-8 <> wchar conversions
 /+
@@ -454,11 +454,11 @@ IM_MSVC_RUNTIME_CHECKS_RESTORE
 version (IMGUI_DISABLE_FILE_FUNCTIONS) {
     // version = IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS;
     alias ImFileHandle = void*;
-    pragma(inline, true) ImFileHandle  ImFileOpen(string, string)                    { return NULL; }
-    pragma(inline, true) bool          ImFileClose(ImFileHandle)                               { return false; }
-    pragma(inline, true) ImU64         ImFileGetSize(ImFileHandle)                             { return (ImU64)-1; }
-    pragma(inline, true) ImU64         ImFileRead(void*, ImU64, ImFileHandle)           { return 0; }
-    pragma(inline, true) ImU64         ImFileWrite(const void*, ImU64, ImFileHandle)    { return 0; }
+	static pragma(inline, true) ImFileHandle  ImFileOpen(string, string)                    { return NULL; }
+	static pragma(inline, true) bool          ImFileClose(ImFileHandle)                               { return false; }
+	static pragma(inline, true) ImU64         ImFileGetSize(ImFileHandle)                             { return (ImU64)-1; }
+	static pragma(inline, true) ImU64         ImFileRead(void*, ImU64, ImFileHandle)           { return 0; }
+	static pragma(inline, true) ImU64         ImFileWrite(const void*, ImU64, ImFileHandle)    { return 0; }
     // D_IMGUI: Encapsulate console handling.
     pragma(inline, true) ImFileHandle  ImGetStdout()                                           { return NULL; }
     pragma(inline, true) bool          ImFlushConsole(ImFileHandle)                            { return false; }
@@ -498,21 +498,21 @@ double ImAtof(string str) {
 }
 pragma(inline, true) float  ImFloorStd(float X)     { return floorf(X); }           // We use our own, see ImFloor() and ImFloorSigned()
 alias ImCeil = ceilf;
-pragma(inline, true) float  ImPow(float x, float y)    { return powf(x, y); }          // DragBehaviorT/SliderBehaviorT uses ImPow with either float/double and need the precision
-pragma(inline, true) double ImPow(double x, double y)  { return pow(x, y); } // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
-pragma(inline, true) float  ImLog(float x)             { return logf(x); }             // DragBehaviorT/SliderBehaviorT uses ImLog with either float/double and need the precision
-pragma(inline, true) double ImLog(double x)            { return log(x); }
-pragma(inline, true) int  ImAbs(int x)             { return x < 0 ? -x : x; }
-pragma(inline, true) float  ImAbs(float x)             { return fabsf(x); }
-pragma(inline, true) double ImAbs(double x)            { return fabs(x); }
-pragma(inline, true) float  ImSign(float x)            { return (x < 0.0f) ? -1.0f : ((x > 0.0f) ? 1.0f : 0.0f); } // Sign operator - returns -1, 0 or 1 based on sign of argument
-pragma(inline, true) double ImSign(double x)           { return (x < 0.0) ? -1.0 : ((x > 0.0) ? 1.0 : 0.0); }
+static pragma(inline, true) float  ImPow(float x, float y)    { return powf(x, y); }          // DragBehaviorT/SliderBehaviorT uses ImPow with either float/double and need the precision
+static pragma(inline, true) double ImPow(double x, double y)  { return pow(x, y); } // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
+static pragma(inline, true) float  ImLog(float x)             { return logf(x); }             // DragBehaviorT/SliderBehaviorT uses ImLog with either float/double and need the precision
+static pragma(inline, true) double ImLog(double x)            { return log(x); }
+static pragma(inline, true) int    ImAbs(int x)               { return x < 0 ? -x : x; }
+static pragma(inline, true) float  ImAbs(float x)             { return fabsf(x); }
+static pragma(inline, true) double ImAbs(double x)            { return fabs(x); }
+static pragma(inline, true) float  ImSign(float x)            { return (x < 0.0f) ? -1.0f : ((x > 0.0f) ? 1.0f : 0.0f); } // Sign operator - returns -1, 0 or 1 based on sign of argument
+static pragma(inline, true) double ImSign(double x)           { return (x < 0.0) ? -1.0 : ((x > 0.0) ? 1.0 : 0.0); }
 version (IMGUI_ENABLE_SSE) {
-pragma(inline, true) float  ImRsqrt(float x)           { return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(x))); }
+static pragma(inline, true) float  ImRsqrt(float x)           { return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(x))); }
 } else {
-pragma(inline, true) float  ImRsqrt(float x)           { return 1.0f / sqrtf(x); }
+static pragma(inline, true) float  ImRsqrt(float x)           { return 1.0f / sqrtf(x); }
 }
-pragma(inline, true) double ImRsqrt(double x)          { return 1.0 / sqrt(x); }
+static pragma(inline, true) double ImRsqrt(double x)          { return 1.0 / sqrt(x); }
 
 // D_IMGUI: We use our own code to parse integers and doubles since C's sscanf needs zero termination and D's conv-functions are not @nogc.
 int sscanf(A...)(string str, string fmt, A a) {
@@ -711,32 +711,32 @@ int sscanf(string str, string fmt, va_list va_args) {
 
 // - ImMin/ImMax/ImClamp/ImLerp/ImSwap are used by widgets which support variety of types: signed/unsigned int/long long float/double
 // (Exceptionally using templates here but we could also redefine them for those types)
-pragma(inline, true) T ImMin(T)(T lhs, T rhs)                        { return lhs < rhs ? lhs : rhs; }
-pragma(inline, true) T ImMax(T)(T lhs, T rhs)                        { return lhs >= rhs ? lhs : rhs; }
-pragma(inline, true) T ImClamp(T)(T v, T mn, T mx)                   { return (v < mn) ? mn : (v > mx) ? mx : v; }
-pragma(inline, true) T ImLerp(T)(T a, T b, float t)                  { return cast(T)(a + (b - a) * t); }
-pragma(inline, true) void ImSwap(T)(ref T a, ref T b)                      { T tmp = a; a = b; b = tmp; }
-pragma(inline, true) T ImAddClampOverflow(T)(T a, T b, T mn, T mx)   { if (b < 0 && (a < mn - b)) return mn; if (b > 0 && (a > mx - b)) return mx; return cast(T)(a + b); }
-pragma(inline, true) T ImSubClampOverflow(T)(T a, T b, T mn, T mx)   { if (b > 0 && (a < mn + b)) return mn; if (b < 0 && (a > mx + b)) return mx; return cast(T)(a - b); }
+static pragma(inline, true) T ImMin(T)(T lhs, T rhs)                        { return lhs < rhs ? lhs : rhs; }
+static pragma(inline, true) T ImMax(T)(T lhs, T rhs)                        { return lhs >= rhs ? lhs : rhs; }
+static pragma(inline, true) T ImClamp(T)(T v, T mn, T mx)                   { return (v < mn) ? mn : (v > mx) ? mx : v; }
+static pragma(inline, true) T ImLerp(T)(T a, T b, float t)                  { return cast(T)(a + (b - a) * t); }
+static pragma(inline, true) void ImSwap(T)(ref T a, ref T b)                      { T tmp = a; a = b; b = tmp; }
+static pragma(inline, true) T ImAddClampOverflow(T)(T a, T b, T mn, T mx)   { if (b < 0 && (a < mn - b)) return mn; if (b > 0 && (a > mx - b)) return mx; return cast(T)(a + b); }
+static pragma(inline, true) T ImSubClampOverflow(T)(T a, T b, T mn, T mx)   { if (b > 0 && (a < mn + b)) return mn; if (b < 0 && (a > mx + b)) return mx; return cast(T)(a - b); }
 // - Misc maths helpers
-pragma(inline, true) ImVec2 ImMin(const ImVec2/*&*/ lhs, const ImVec2/*&*/ rhs)                { return ImVec2(lhs.x < rhs.x ? lhs.x : rhs.x, lhs.y < rhs.y ? lhs.y : rhs.y); }
-pragma(inline, true) ImVec2 ImMax(const ImVec2/*&*/ lhs, const ImVec2/*&*/ rhs)                { return ImVec2(lhs.x >= rhs.x ? lhs.x : rhs.x, lhs.y >= rhs.y ? lhs.y : rhs.y); }
-pragma(inline, true) ImVec2 ImClamp(const ImVec2/*&*/ v, const ImVec2/*&*/ mn, ImVec2 mx)      { return ImVec2((v.x < mn.x) ? mn.x : (v.x > mx.x) ? mx.x : v.x, (v.y < mn.y) ? mn.y : (v.y > mx.y) ? mx.y : v.y); }
-pragma(inline, true) ImVec2 ImLerp(const ImVec2/*&*/ a, const ImVec2/*&*/ b, float t)          { return ImVec2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t); }
-pragma(inline, true) ImVec2 ImLerp(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ t)  { return ImVec2(a.x + (b.x - a.x) * t.x, a.y + (b.y - a.y) * t.y); }
-pragma(inline, true) ImVec4 ImLerp(const ImVec4/*&*/ a, const ImVec4/*&*/ b, float t)          { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t); }
-pragma(inline, true) float  ImSaturate(float f)                                        { return (f < 0.0f) ? 0.0f : (f > 1.0f) ? 1.0f : f; }
-pragma(inline, true) float  ImLengthSqr(const ImVec2/*&*/ lhs)                             { return (lhs.x * lhs.x) + (lhs.y * lhs.y); }
-pragma(inline, true) float  ImLengthSqr(const ImVec4/*&*/ lhs)                             { return (lhs.x * lhs.x) + (lhs.y * lhs.y) + (lhs.z * lhs.z) + (lhs.w * lhs.w); }
-pragma(inline, true) float  ImInvLength(const ImVec2/*&*/ lhs, float fail_value)           { float d = (lhs.x * lhs.x) + (lhs.y * lhs.y); if (d > 0.0f) return ImRsqrt(d); return fail_value; }
-pragma(inline, true) float  ImFloor(float f)                                           { return cast(float)cast(int)(f); }
-pragma(inline, true) float  ImFloorSigned(float f)                                     { return cast(float)((f >= 0 || cast(int)f == f) ? cast(int)f : cast(int)f - 1); } // Decent replacement for floorf()
-pragma(inline, true) ImVec2 ImFloor(const ImVec2/*&*/ v)                                   { return ImVec2(cast(float)cast(int)(v.x), cast(float)cast(int)(v.y)); }
-pragma(inline, true) int    ImModPositive(int a, int b)                                { return (a + b) % b; }
-pragma(inline, true) float  ImDot(const ImVec2/*&*/ a, const ImVec2/*&*/ b)                    { return a.x * b.x + a.y * b.y; }
-pragma(inline, true) ImVec2 ImRotate(const ImVec2/*&*/ v, float cos_a, float sin_a)        { return ImVec2(v.x * cos_a - v.y * sin_a, v.x * sin_a + v.y * cos_a); }
-pragma(inline, true) float  ImLinearSweep(float current, float target, float speed)    { if (current < target) return ImMin(current + speed, target); if (current > target) return ImMax(current - speed, target); return current; }
-pragma(inline, true) ImVec2 ImMul(const ImVec2/*&*/ lhs, const ImVec2/*&*/ rhs)                { return ImVec2(lhs.x * rhs.x, lhs.y * rhs.y); }
+static pragma(inline, true) ImVec2 ImMin(const ImVec2/*&*/ lhs, const ImVec2/*&*/ rhs)                { return ImVec2(lhs.x < rhs.x ? lhs.x : rhs.x, lhs.y < rhs.y ? lhs.y : rhs.y); }
+static pragma(inline, true) ImVec2 ImMax(const ImVec2/*&*/ lhs, const ImVec2/*&*/ rhs)                { return ImVec2(lhs.x >= rhs.x ? lhs.x : rhs.x, lhs.y >= rhs.y ? lhs.y : rhs.y); }
+static pragma(inline, true) ImVec2 ImClamp(const ImVec2/*&*/ v, const ImVec2/*&*/ mn, ImVec2 mx)      { return ImVec2((v.x < mn.x) ? mn.x : (v.x > mx.x) ? mx.x : v.x, (v.y < mn.y) ? mn.y : (v.y > mx.y) ? mx.y : v.y); }
+static pragma(inline, true) ImVec2 ImLerp(const ImVec2/*&*/ a, const ImVec2/*&*/ b, float t)          { return ImVec2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t); }
+static pragma(inline, true) ImVec2 ImLerp(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ t)  { return ImVec2(a.x + (b.x - a.x) * t.x, a.y + (b.y - a.y) * t.y); }
+static pragma(inline, true) ImVec4 ImLerp(const ImVec4/*&*/ a, const ImVec4/*&*/ b, float t)          { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t); }
+static pragma(inline, true) float  ImSaturate(float f)                                        { return (f < 0.0f) ? 0.0f : (f > 1.0f) ? 1.0f : f; }
+static pragma(inline, true) float  ImLengthSqr(const ImVec2/*&*/ lhs)                             { return (lhs.x * lhs.x) + (lhs.y * lhs.y); }
+static pragma(inline, true) float  ImLengthSqr(const ImVec4/*&*/ lhs)                             { return (lhs.x * lhs.x) + (lhs.y * lhs.y) + (lhs.z * lhs.z) + (lhs.w * lhs.w); }
+static pragma(inline, true) float  ImInvLength(const ImVec2/*&*/ lhs, float fail_value)           { float d = (lhs.x * lhs.x) + (lhs.y * lhs.y); if (d > 0.0f) return ImRsqrt(d); return fail_value; }
+static pragma(inline, true) float  ImFloor(float f)                                           { return cast(float)cast(int)(f); }
+static pragma(inline, true) float  ImFloorSigned(float f)                                     { return cast(float)((f >= 0 || cast(int)f == f) ? cast(int)f : cast(int)f - 1); } // Decent replacement for floorf()
+static pragma(inline, true) ImVec2 ImFloor(const ImVec2/*&*/ v)                                   { return ImVec2(cast(float)cast(int)(v.x), cast(float)cast(int)(v.y)); }
+static pragma(inline, true) int    ImModPositive(int a, int b)                                { return (a + b) % b; }
+static pragma(inline, true) float  ImDot(const ImVec2/*&*/ a, const ImVec2/*&*/ b)                    { return a.x * b.x + a.y * b.y; }
+static pragma(inline, true) ImVec2 ImRotate(const ImVec2/*&*/ v, float cos_a, float sin_a)        { return ImVec2(v.x * cos_a - v.y * sin_a, v.x * sin_a + v.y * cos_a); }
+static pragma(inline, true) float  ImLinearSweep(float current, float target, float speed)    { if (current < target) return ImMin(current + speed, target); if (current > target) return ImMax(current - speed, target); return current; }
+static pragma(inline, true) ImVec2 ImMul(const ImVec2/*&*/ lhs, const ImVec2/*&*/ rhs)                { return ImVec2(lhs.x * rhs.x, lhs.y * rhs.y); }
 //IM_MSVC_RUNTIME_CHECKS_RESTORE
 
 // Helpers: Geometry
@@ -771,7 +771,7 @@ struct ImVec2ih
     @nogc:
 
     short   x, y;
-    this(bool dummy)                           { x = y = 0; }
+    //ImVec2ih()                           { x = y = 0; }
     this(short _x, short _y)         { x = _x; y = _y; }
     this(const ImVec2/*&*/ rhs) { x = cast(short)rhs.x; y = cast(short)rhs.y; }
 }
@@ -786,7 +786,7 @@ struct ImRect
     ImVec2      Min;    // Upper-left
     ImVec2      Max;    // Lower-right
 
-    this(bool dummy)                                        { Min = ImVec2(0.0f, 0.0f); Max = ImVec2(0.0f, 0.0f); }
+    //ImRect()                                        : Min(0.0f, 0.0f), Max(0.0f, 0.0f)  {}
     this(const ImVec2/*&*/ min, const ImVec2/*&*/ max)    { Min = min; Max = max; }
     this(const ImVec4/*&*/ v)                         { Min = ImVec2(v.x, v.y); Max = ImVec2(v.z, v.w); }
     this(float x1, float y1, float x2, float y2)  { Min = ImVec2(x1, y1); Max = ImVec2(x2, y2); }
@@ -843,7 +843,7 @@ struct ImBitArray(int BITCOUNT)
     @nogc:
 
     ImU32[(BITCOUNT + 31) >> 5]           Storage;
-    this(bool dummy)                                { ClearAllBits(); }
+    //ImBitArray()                                { ClearAllBits(); }
     void            ClearAllBits()              { memset(&Storage, 0, sizeof(Storage)); }
     void            SetAllBits()                { memset(&Storage, 255, sizeof(Storage)); }
     bool            TestBit(int n) const        { IM_ASSERT(n < BITCOUNT); return ImBitArrayTestBit(Storage.ptr, n); }
@@ -1841,7 +1841,7 @@ struct ImGuiStackTool
     int                     LastActiveFrame;
     int                     StackLevel;                 // -1: query stack and resize Results, >= 0: individual stack level
     ImGuiID                 QueryId;                    // ID to query details for
-    ImVector!(ImGuiStackLevelInfo) Results;
+    ImVector!ImGuiStackLevelInfo Results;
 
     //ImGuiStackTool()        { memset(&this, 0, sizeof(this)); }
 }
@@ -1899,7 +1899,7 @@ struct ImGuiContext
     ImVector!(ImGuiWindow*)  Windows;                            // Windows, sorted in display order, back to front
     ImVector!(ImGuiWindow*)  WindowsFocusOrder;                  // Root windows, sorted in focus order, back to front.
     ImVector!(ImGuiWindow*)  WindowsTempSortBuffer;              // Temporary buffer used in EndFrame() to reorder windows so parents are kept before their child
-    ImVector!(ImGuiWindowStackData)  CurrentWindowStack;
+    ImVector!ImGuiWindowStackData CurrentWindowStack;
     ImGuiStorage            WindowsById;                        // Map window's ImGuiID to ImGuiWindow*
     int                     WindowsActiveCount;                 // Number of unique windows submitted by frame
     ImVec2                  WindowsHoverPadding;                // Padding around resizable windows for which hovering on counts as hovering the window == ImMax(style.TouchExtraPadding, WINDOWS_HOVER_PADDING)
@@ -2758,7 +2758,7 @@ struct ImGuiTable
     ImGuiTextBuffer             ColumnsNames;               // Contiguous buffer holding columns names
     ImDrawListSplitter*         DrawSplitter;               // Shortcut to TempData->DrawSplitter while in table. Isolate draw commands per columns to avoid switching clip rect constantly
     ImGuiTableColumnSortSpecs   SortSpecsSingle;
-    ImVector!(ImGuiTableColumnSortSpecs) SortSpecsMulti;     // FIXME-OPT: Using a small-vector pattern would be good.
+    ImVector!ImGuiTableColumnSortSpecs SortSpecsMulti;     // FIXME-OPT: Using a small-vector pattern would be good.
     ImGuiTableSortSpecs         SortSpecs;                  // Public facing sorts specs, this is what we return in TableGetSortSpecs()
     ImGuiTableColumnIdx         SortSpecsCount;
     ImGuiTableColumnIdx         ColumnsEnabledCount;        // Number of enabled columns (<= ColumnsCount)

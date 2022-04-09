@@ -1488,7 +1488,7 @@ bool SplitterBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiAxis axis, float* s
     return held;
 }
 
-int ShrinkWidthItemComparer(const ImGuiShrinkWidthItem* a, const ImGuiShrinkWidthItem* b)
+static int ShrinkWidthItemComparer(const ImGuiShrinkWidthItem* a, const ImGuiShrinkWidthItem* b)
 {
     if (int d = cast(int)(b.Width - a.Width))
         return d;
@@ -1547,7 +1547,7 @@ void ShrinkWidths(ImGuiShrinkWidthItem* items, int count, float width_excess)
 // - Combo()
 //-------------------------------------------------------------------------
 
-float CalcMaxPopupHeightFromItemCount(int items_count)
+static float CalcMaxPopupHeightFromItemCount(int items_count)
 {
     ImGuiContext* g = GImGui;
     if (items_count <= 0)
@@ -1746,7 +1746,7 @@ void EndComboPreview()
 }
 
 // Getter for the old Combo() API: const char*[]
-bool Items_ArrayGetter(void* data, int idx, string* out_text)
+static bool Items_ArrayGetter(void* data, int idx, string* out_text)
 {
     string[] items = *cast(string[]*)data;
     if (out_text)
@@ -1755,7 +1755,7 @@ bool Items_ArrayGetter(void* data, int idx, string* out_text)
 }
 
 // Getter for the old Combo() API: "item1\0item2\0item3\0"
-bool Items_SingleStringGetter(void* data, int idx, string* out_text)
+static bool Items_SingleStringGetter(void* data, int idx, string* out_text)
 {
     // FIXME-OPT: we could pre-compute the indices to fasten this. But only 1 active combo means the waste is limited.
     string items_separated_by_zeros = *cast(string*)data;
@@ -1872,7 +1872,7 @@ __gshared const ImGuiDataTypeInfo[ImGuiDataType.COUNT] GDataTypeInfo =
 // FIXME-LEGACY: Prior to 1.61 our DragInt() function internally used floats and because of this the compile-time default value for format was "%.0f".
 // Even though we changed the compile-time default, we expect users to have carried %f around, which would break the display of DragInt() calls.
 // To honor backward compatibility we are rewriting the format string, unless IMGUI_DISABLE_OBSOLETE_FUNCTIONS is enabled. What could possibly go wrong?!
-string PatchFormatStringFloatToInt(string fmt)
+static string PatchFormatStringFloatToInt(string fmt)
 {
     if (fmt == "%.0f") // Fast legacy path for "%.0f" which is expected to be the most common case.
         return "%d";
@@ -2083,7 +2083,7 @@ bool DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType
     return memcmp(&data_backup, p_data, type_info.Size) != 0;
 }
 
-int DataTypeCompareT(T)(const T* lhs, const T* rhs)
+static int DataTypeCompareT(T)(const T* lhs, const T* rhs)
 {
     if (*lhs < *rhs) return -1;
     if (*lhs > *rhs) return +1;
@@ -2111,7 +2111,7 @@ int DataTypeCompare(ImGuiDataType data_type, const void* arg_1, const void* arg_
     return 0;
 }
 
-bool DataTypeClampT(T)(T* v, const T* v_min, const T* v_max)
+static bool DataTypeClampT(T)(T* v, const T* v_min, const T* v_max)
 {
     // Clamp, both sides are optional, return true if modified
     if (v_min && *v < *v_min) { *v = *v_min; return true; }
@@ -2140,7 +2140,7 @@ bool DataTypeClamp(ImGuiDataType data_type, void* p_data, const void* p_min, con
     return false;
 }
 
-float GetMinimumStepAtDecimalPrecision(int decimal_precision)
+static float GetMinimumStepAtDecimalPrecision(int decimal_precision)
 {
     __gshared const float[10] min_steps = [ 1.0f, 0.1f, 0.01f, 0.001f, 0.0001f, 0.00001f, 0.000001f, 0.0000001f, 0.00000001f, 0.000000001f ];
     if (decimal_precision < 0)
@@ -2148,7 +2148,7 @@ float GetMinimumStepAtDecimalPrecision(int decimal_precision)
     return (decimal_precision < IM_ARRAYSIZE(min_steps)) ? min_steps[decimal_precision] : ImPow(10.0f, cast(float)-decimal_precision);
 }
 
-string ImAtoi(TYPE)(string src, TYPE* output)
+static string ImAtoi(TYPE)(string src, TYPE* output)
 {
     int negative = 0;
     size_t index = 0;
@@ -2164,7 +2164,7 @@ string ImAtoi(TYPE)(string src, TYPE* output)
 // Sanitize format
 // - Zero terminate so extra characters after format (e.g. "%f123") don't confuse atof/atoi
 // - stb_sprintf.h supports several new modifiers which format numbers in a way that also makes them incompatible atof/atoi.
-string SanitizeFormatString(string fmt, char[] fmt_out)
+static string SanitizeFormatString(string fmt, char[] fmt_out)
 {
     // IM_UNUSED(fmt_out_size);
     size_t fmt_end = ImParseFormatFindEnd(fmt, 0);
@@ -3609,7 +3609,7 @@ bool InputTextWithHint(string label, string hint, char[] buf, ImGuiInputTextFlag
     return InputTextEx(label, hint, buf, ImVec2(0, 0), flags, callback, user_data);
 }
 
-int InputTextCalcTextLenAndLineCount(const char[] text_begin, size_t* out_text_end)
+static int InputTextCalcTextLenAndLineCount(const char[] text_begin, size_t* out_text_end)
 {
     int line_count = 0;
     const (char)*s = text_begin.ptr;
@@ -3626,7 +3626,7 @@ int InputTextCalcTextLenAndLineCount(const char[] text_begin, size_t* out_text_e
     return line_count;
 }
 
-ImVec2 InputTextCalcTextSizeW(const ImWchar* text_begin, const ImWchar* text_end, const (ImWchar)** remaining = NULL, ImVec2* out_offset = NULL, bool stop_on_new_line = false)
+static ImVec2 InputTextCalcTextSizeW(const ImWchar* text_begin, const ImWchar* text_end, const (ImWchar)** remaining = NULL, ImVec2* out_offset = NULL, bool stop_on_new_line = false)
 {
     ImGuiContext* g = GImGui;
     ImFont* font = g.Font;
@@ -3675,12 +3675,12 @@ ImVec2 InputTextCalcTextSizeW(const ImWchar* text_begin, const ImWchar* text_end
 // namespace ImStb
 // {
 
-int     STB_TEXTEDIT_STRINGLEN(const ImGuiInputTextState* obj)                             { return obj.CurLenW; }
-ImWchar STB_TEXTEDIT_GETCHAR(const ImGuiInputTextState* obj, int idx)                      { return obj.TextW[idx]; }
-float   STB_TEXTEDIT_GETWIDTH(ImGuiInputTextState* obj, int line_start_idx, int char_idx)  { ImWchar c = obj.TextW[line_start_idx + char_idx]; if (c == '\n') return STB_TEXTEDIT_GETWIDTH_NEWLINE; ImGuiContext* g = GImGui; return g.Font.GetCharAdvance(c) * (g.FontSize / g.Font.FontSize); }
-int     STB_TEXTEDIT_KEYTOTEXT(int key)                                                    { return key >= 0x200000 ? 0 : key; }
+static int     STB_TEXTEDIT_STRINGLEN(const ImGuiInputTextState* obj)                             { return obj.CurLenW; }
+static ImWchar STB_TEXTEDIT_GETCHAR(const ImGuiInputTextState* obj, int idx)                      { return obj.TextW[idx]; }
+static float   STB_TEXTEDIT_GETWIDTH(ImGuiInputTextState* obj, int line_start_idx, int char_idx)  { ImWchar c = obj.TextW[line_start_idx + char_idx]; if (c == '\n') return STB_TEXTEDIT_GETWIDTH_NEWLINE; ImGuiContext* g = GImGui; return g.Font.GetCharAdvance(c) * (g.FontSize / g.Font.FontSize); }
+static int     STB_TEXTEDIT_KEYTOTEXT(int key)                                                    { return key >= 0x200000 ? 0 : key; }
 __gshared ImWchar STB_TEXTEDIT_NEWLINE = '\n';
-void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* obj, int line_start_idx)
+static void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* obj, int line_start_idx)
 {
     const (ImWchar)* text = obj.TextW.Data;
     const (ImWchar)* text_remaining = NULL;
@@ -3694,19 +3694,19 @@ void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* obj, int 
 }
 
 // When ImGuiInputTextFlags_Password is set, we don't want actions such as CTRL+Arrow to leak the fact that underlying data are blanks or separators.
-bool is_separator(uint c)                                        { return ImCharIsBlankW(c) || c==',' || c==';' || c=='(' || c==')' || c=='{' || c=='}' || c=='[' || c==']' || c=='|'; }
-int  is_word_boundary_from_right(ImGuiInputTextState* obj, int idx)      { if (obj.Flags & ImGuiInputTextFlags.Password) return 0; return idx > 0 ? (is_separator(obj.TextW[idx - 1]) && !is_separator(obj.TextW[idx]) ) : 1; }
-int  STB_TEXTEDIT_MOVEWORDLEFT_IMPL(ImGuiInputTextState* obj, int idx)   { idx--; while (idx >= 0 && !is_word_boundary_from_right(obj, idx)) idx--; return idx < 0 ? 0 : idx; }
+static bool is_separator(uint c)                                        { return ImCharIsBlankW(c) || c==',' || c==';' || c=='(' || c==')' || c=='{' || c=='}' || c=='[' || c==']' || c=='|'; }
+static int  is_word_boundary_from_right(ImGuiInputTextState* obj, int idx)      { if (obj.Flags & ImGuiInputTextFlags.Password) return 0; return idx > 0 ? (is_separator(obj.TextW[idx - 1]) && !is_separator(obj.TextW[idx]) ) : 1; }
+static int  STB_TEXTEDIT_MOVEWORDLEFT_IMPL(ImGuiInputTextState* obj, int idx)   { idx--; while (idx >= 0 && !is_word_boundary_from_right(obj, idx)) idx--; return idx < 0 ? 0 : idx; }
 static if (D_IMGUI_Apple) {    // FIXME: Move setting to IO structure
-    int  is_word_boundary_from_left(ImGuiInputTextState* obj, int idx)       { if (obj.Flags & ImGuiInputTextFlags.Password) return 0; return idx > 0 ? (!is_separator(obj.TextW[idx - 1]) && is_separator(obj.TextW[idx]) ) : 1; }
-    int  STB_TEXTEDIT_MOVEWORDRIGHT_IMPL(ImGuiInputTextState* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_left(obj, idx)) idx++; return idx > len ? len : idx; }
+static int  is_word_boundary_from_left(ImGuiInputTextState* obj, int idx)       { if (obj.Flags & ImGuiInputTextFlags.Password) return 0; return idx > 0 ? (!is_separator(obj.TextW[idx - 1]) && is_separator(obj.TextW[idx]) ) : 1; }
+static int  STB_TEXTEDIT_MOVEWORDRIGHT_IMPL(ImGuiInputTextState* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_left(obj, idx)) idx++; return idx > len ? len : idx; }
 } else {
-    int  STB_TEXTEDIT_MOVEWORDRIGHT_IMPL(ImGuiInputTextState* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_right(obj, idx)) idx++; return idx > len ? len : idx; }
+static int  STB_TEXTEDIT_MOVEWORDRIGHT_IMPL(ImGuiInputTextState* obj, int idx)  { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_right(obj, idx)) idx++; return idx > len ? len : idx; }
 }
 alias STB_TEXTEDIT_MOVEWORDLEFT   = STB_TEXTEDIT_MOVEWORDLEFT_IMPL;    // They need to be #define for stb_textedit.h
 alias STB_TEXTEDIT_MOVEWORDRIGHT  = STB_TEXTEDIT_MOVEWORDRIGHT_IMPL;
 
-void STB_TEXTEDIT_DELETECHARS(ImGuiInputTextState* obj, int pos, int n)
+static void STB_TEXTEDIT_DELETECHARS(ImGuiInputTextState* obj, int pos, int n)
 {
     ImWchar* dst = obj.TextW.Data + pos;
 
@@ -3725,7 +3725,7 @@ void STB_TEXTEDIT_DELETECHARS(ImGuiInputTextState* obj, int pos, int n)
     *dst = '\0';
 }
 
-bool STB_TEXTEDIT_INSERTCHARS(ImGuiInputTextState* obj, int pos, const ImWchar* new_text, int new_text_len)
+static bool STB_TEXTEDIT_INSERTCHARS(ImGuiInputTextState* obj, int pos, const ImWchar* new_text, int new_text_len)
 {
     const bool is_resizable = (obj.Flags & ImGuiInputTextFlags.CallbackResize) != 0;
     const int text_len = obj.CurLenW;
@@ -3781,7 +3781,7 @@ import d_imgui.imstb_textedit;
 
 // stb_textedit internally allows for a single undo record to do addition and deletion, but somehow, calling
 // the stb_textedit_paste() function creates two separate records, so we perform it manually. (FIXME: Report to nothings/stb?)
-void stb_textedit_replace(ImGuiInputTextState* str, STB_TexteditState* state, const STB_TEXTEDIT_CHARTYPE* text, int text_len)
+static void stb_textedit_replace(ImGuiInputTextState* str, STB_TexteditState* state, const STB_TEXTEDIT_CHARTYPE* text, int text_len)
 {
     stb_text_makeundo_replace(str, state, 0, str.CurLenW, text_len);
     STB_TEXTEDIT_DELETECHARS(str, 0, str.CurLenW);
@@ -3889,7 +3889,7 @@ void InsertChars(int pos, string new_text)
 }
 
 // Return false to discard a character.
-bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data, ImGuiInputSource input_source)
+static bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data, ImGuiInputSource input_source)
 {
     IM_ASSERT(input_source == ImGuiInputSource.Keyboard || input_source == ImGuiInputSource.Clipboard);
     uint c = *p_char;
@@ -3960,7 +3960,7 @@ bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, ImGuiInpu
     // Custom callback filter
     if (flags & ImGuiInputTextFlags.CallbackCharFilter)
     {
-        ImGuiInputTextCallbackData callback_data;
+        ImGuiInputTextCallbackData callback_data = ImGuiInputTextCallbackData(false);
         memset(&callback_data, 0, sizeof!(ImGuiInputTextCallbackData));
         callback_data.EventFlag = ImGuiInputTextFlags.CallbackCharFilter;
         callback_data.EventChar = cast(ImWchar)c;
@@ -4490,7 +4490,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
                 if (event_flag)
                 {
-                    ImGuiInputTextCallbackData callback_data;
+                    ImGuiInputTextCallbackData callback_data = ImGuiInputTextCallbackData(false);
                     memset(&callback_data, 0, sizeof!(ImGuiInputTextCallbackData));
                     callback_data.EventFlag = event_flag;
                     callback_data.Flags = flags;
@@ -4548,7 +4548,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             IM_ASSERT(apply_new_text_length >= 0);
             if (is_resizable)
             {
-                ImGuiInputTextCallbackData callback_data;
+                ImGuiInputTextCallbackData callback_data = ImGuiInputTextCallbackData(false);
                 callback_data.EventFlag = ImGuiInputTextFlags.CallbackResize;
                 callback_data.Flags = flags;
                 callback_data.Buf = buf;
@@ -7226,12 +7226,12 @@ this(bool dummy)
 }
 }
 
-pragma(inline, true) int TabItemGetSectionIdx(const ImGuiTabItem* tab)
+static pragma(inline, true) int TabItemGetSectionIdx(const ImGuiTabItem* tab)
 {
     return (tab.Flags & ImGuiTabItemFlags.Leading) ? 0 : (tab.Flags & ImGuiTabItemFlags.Trailing) ? 2 : 1;
 }
 
-int TabItemComparerBySection(const ImGuiTabItem* a, const ImGuiTabItem* b)
+static int TabItemComparerBySection(const ImGuiTabItem* a, const ImGuiTabItem* b)
 {
     const int a_section = TabItemGetSectionIdx(a);
     const int b_section = TabItemGetSectionIdx(b);
@@ -7240,7 +7240,7 @@ int TabItemComparerBySection(const ImGuiTabItem* a, const ImGuiTabItem* b)
     return cast(int)(a.IndexDuringLayout - b.IndexDuringLayout);
 }
 
-int TabItemComparerByBeginOrder(const ImGuiTabItem* a, const ImGuiTabItem* b)
+static int TabItemComparerByBeginOrder(const ImGuiTabItem* a, const ImGuiTabItem* b)
 {
     return cast(int)(a.BeginOrder - b.BeginOrder);
 }
@@ -7251,7 +7251,7 @@ static ImGuiTabBar* GetTabBarFromTabBarRef(const ImGuiPtrOrIndex/*&*/ _ref)
     return _ref.Ptr ? cast(ImGuiTabBar*)_ref.Ptr : g.TabBars.GetByIndex(_ref.Index);
 }
 
-ImGuiPtrOrIndex GetTabBarRefFromTabBar(ImGuiTabBar* tab_bar)
+static ImGuiPtrOrIndex GetTabBarRefFromTabBar(ImGuiTabBar* tab_bar)
 {
     ImGuiContext* g = GImGui;
     if (g.TabBars.Contains(tab_bar))
@@ -7373,7 +7373,7 @@ void    EndTabBar()
 
 // This is called only once a frame before by the first call to ItemTab()
 // The reason we're not calling it in BeginTabBar() is to leave a chance to the user to call the SetTabItemClosed() functions.
-void TabBarLayout(ImGuiTabBar* tab_bar)
+static void TabBarLayout(ImGuiTabBar* tab_bar)
 {
     ImGuiContext* g = GImGui;
     tab_bar.WantLayout = false;
@@ -7603,7 +7603,7 @@ void TabBarLayout(ImGuiTabBar* tab_bar)
 }
 
 // Dockables uses Name/ID in the global namespace. Non-dockable items use the ID stack.
-ImU32   TabBarCalcTabID(ImGuiTabBar* tab_bar, string label)
+static ImU32   TabBarCalcTabID(ImGuiTabBar* tab_bar, string label)
 {
     if (tab_bar.Flags & ImGuiTabBarFlags.DockNode)
     {
@@ -7618,7 +7618,7 @@ ImU32   TabBarCalcTabID(ImGuiTabBar* tab_bar, string label)
     }
 }
 
-float TabBarCalcMaxTabWidth()
+static float TabBarCalcMaxTabWidth()
 {
     ImGuiContext* g = GImGui;
     return g.FontSize * 20.0f;
@@ -7666,14 +7666,14 @@ void TabBarCloseTab(ImGuiTabBar* tab_bar, ImGuiTabItem* tab)
     }
 }
 
-float TabBarScrollClamp(ImGuiTabBar* tab_bar, float scrolling)
+static float TabBarScrollClamp(ImGuiTabBar* tab_bar, float scrolling)
 {
     scrolling = ImMin(scrolling, tab_bar.WidthAllTabs - tab_bar.BarRect.GetWidth());
     return ImMax(scrolling, 0.0f);
 }
 
 // Note: we may scroll to tab that are not selected! e.g. using keyboard arrow keys
-void TabBarScrollToTab(ImGuiTabBar* tab_bar, ImGuiID tab_id, ImGuiTabBarSection* sections)
+static void TabBarScrollToTab(ImGuiTabBar* tab_bar, ImGuiID tab_id, ImGuiTabBarSection* sections)
 {
     ImGuiTabItem* tab = TabBarFindTabByID(tab_bar, tab_id);
     if (tab == NULL)
@@ -7782,7 +7782,7 @@ bool TabBarProcessReorder(ImGuiTabBar* tab_bar)
     return true;
 }
 
-ImGuiTabItem* TabBarScrollingButtons(ImGuiTabBar* tab_bar)
+static ImGuiTabItem* TabBarScrollingButtons(ImGuiTabBar* tab_bar)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -7843,7 +7843,7 @@ ImGuiTabItem* TabBarScrollingButtons(ImGuiTabBar* tab_bar)
     return tab_to_scroll_to;
 }
 
-ImGuiTabItem* TabBarTabListPopupButton(ImGuiTabBar* tab_bar)
+static ImGuiTabItem* TabBarTabListPopupButton(ImGuiTabBar* tab_bar)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;

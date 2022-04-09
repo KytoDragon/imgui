@@ -204,7 +204,7 @@ static void ShowExampleMenuFile();
 
 // Helper to display a little (?) mark which shows a tooltip when hovered.
 // In your own code you may want to display an actual icon if you are using a merged icon fonts (see docs/FONTS.md)
-private void HelpMarker(string desc)
+static void HelpMarker(string desc)
 {
     ImGui.TextDisabled("(?)");
     if (ImGui.IsItemHovered())
@@ -553,7 +553,7 @@ static if (!IMGUI_DISABLE_METRICS_WINDOW) {
     ImGui.End();
 }
 
-private void ShowDemoWindowWidgets()
+static void ShowDemoWindowWidgets()
 {
     if (!ImGui.CollapsingHeader("Widgets"))
         return;
@@ -1421,7 +1421,7 @@ private void ShowDemoWindowWidgets()
                 {
                     if (data.EventFlag == ImGuiInputTextFlags.CallbackResize)
                     {
-                        ImVector!(char)* my_str = cast(ImVector!(char)*)data.UserData;
+                        ImVector!char* my_str = cast(ImVector!char*)data.UserData;
                         IM_ASSERT(my_str.begin() == data.Buf.ptr);
                         my_str.resize(data.BufSize); // NB: On resizing calls, generally data->BufSize == data->BufTextLen + 1
                         data.Buf = my_str.asArray();
@@ -1431,7 +1431,7 @@ private void ShowDemoWindowWidgets()
 
                 // Note: Because ImGui:: is a namespace you would typically add your own function into the namespace.
                 // For example, you code may declare a function 'ImGui::InputText(const char* label, MyString* my_str)'
-                static bool MyInputTextMultiline(string label, ImVector!(char)* my_str, const ImVec2/*&*/ size = ImVec2(0, 0), ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
+                static bool MyInputTextMultiline(string label, ImVector!char* my_str, const ImVec2/*&*/ size = ImVec2(0, 0), ImGuiInputTextFlags flags = ImGuiInputTextFlags.None)
                 {
                     IM_ASSERT((flags & ImGuiInputTextFlags.CallbackResize) == 0);
                     return ImGui.InputTextMultiline(label, my_str.asArray(), size, flags | ImGuiInputTextFlags.CallbackResize, &Funcs.MyResizeCallback, cast(void*)my_str);
@@ -2408,7 +2408,7 @@ private void ShowDemoWindowWidgets()
     }
 }
 
-private void ShowDemoWindowLayout()
+static void ShowDemoWindowLayout()
 {
     if (!ImGui.CollapsingHeader("Layout & Scrolling"))
         return;
@@ -3176,7 +3176,7 @@ private void ShowDemoWindowLayout()
     }
 }
 
-private void ShowDemoWindowPopups()
+static void ShowDemoWindowPopups()
 {
     if (!ImGui.CollapsingHeader("Popups & Modal windows"))
         return;
@@ -3527,20 +3527,20 @@ struct MyItem
 // }
 
 // Make the UI compact because there are so many fields
-private void PushStyleCompact()
+static void PushStyleCompact()
 {
     ImGuiStyle* style = &ImGui.GetStyle();
     ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, ImVec2(style.FramePadding.x, cast(float)cast(int)(style.FramePadding.y * 0.60f)));
     ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, ImVec2(style.ItemSpacing.x, cast(float)cast(int)(style.ItemSpacing.y * 0.60f)));
 }
 
-private void PopStyleCompact()
+static void PopStyleCompact()
 {
     ImGui.PopStyleVar(2);
 }
 
 // Show a combo box with a choice of sizing policies
-private void EditTableSizingFlags(ImGuiTableFlags* p_flags)
+static void EditTableSizingFlags(ImGuiTableFlags* p_flags)
 {
     struct EnumDesc { ImGuiTableFlags Value; string Name; string Tooltip; }
     __gshared const EnumDesc[5] policies =
@@ -3582,7 +3582,7 @@ private void EditTableSizingFlags(ImGuiTableFlags* p_flags)
     }
 }
 
-private void EditTableColumnsFlags(ImGuiTableColumnFlags* p_flags)
+static void EditTableColumnsFlags(ImGuiTableColumnFlags* p_flags)
 {
     ImGui.CheckboxFlags("_Disabled", p_flags, ImGuiTableColumnFlags.Disabled); ImGui.SameLine(); HelpMarker("Master disable flag (also hide from context menu)");
     ImGui.CheckboxFlags("_DefaultHide", p_flags, ImGuiTableColumnFlags.DefaultHide);
@@ -3606,7 +3606,7 @@ private void EditTableColumnsFlags(ImGuiTableColumnFlags* p_flags)
     ImGui.CheckboxFlags("_IndentDisable", p_flags, ImGuiTableColumnFlags.IndentDisable); ImGui.SameLine(); HelpMarker("Default for column >0");
 }
 
-private void ShowTableColumnsStatusFlags(ImGuiTableColumnFlags flags)
+static void ShowTableColumnsStatusFlags(ImGuiTableColumnFlags flags)
 {
     ImGui.CheckboxFlags("_IsEnabled", &flags, ImGuiTableColumnFlags.IsEnabled);
     ImGui.CheckboxFlags("_IsVisible", &flags, ImGuiTableColumnFlags.IsVisible);
@@ -3614,7 +3614,7 @@ private void ShowTableColumnsStatusFlags(ImGuiTableColumnFlags flags)
     ImGui.CheckboxFlags("_IsHovered", &flags, ImGuiTableColumnFlags.IsHovered);
 }
 
-private void ShowDemoWindowTables()
+static void ShowDemoWindowTables()
 {
     //ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (!ImGui.CollapsingHeader("Tables & Columns"))
@@ -5522,7 +5522,7 @@ static void ShowDemoWindowColumns()
     ImGui.TreePop();
 }
 
-private void ShowDemoWindowMisc()
+static void ShowDemoWindowMisc()
 {
     if (ImGui.CollapsingHeader("Filtering"))
     {
@@ -6147,7 +6147,7 @@ void ShowStyleEditor(ImGuiStyle* _ref = NULL)
 // Note the difference between BeginMainMenuBar() and BeginMenuBar():
 // - BeginMenuBar() = menu-bar inside current window (which needs the ImGuiWindowFlags_MenuBar flag!)
 // - BeginMainMenuBar() = helper to create menu-bar-sized window at the top of the main viewport + call BeginMenuBar() into it.
-private void ShowExampleAppMainMenuBar()
+static void ShowExampleAppMainMenuBar()
 {
     if (ImGui.BeginMainMenuBar())
     {
@@ -6172,7 +6172,7 @@ private void ShowExampleAppMainMenuBar()
 
 // Note that shortcuts are currently provided for display only
 // (future version will add explicit flags to BeginMenu() to request processing shortcuts)
-private void ShowExampleMenuFile()
+static void ShowExampleMenuFile()
 {
     ImGui.MenuItem("(demo menu)", NULL, false, false);
     if (ImGui.MenuItem("New")) {}
@@ -6610,7 +6610,7 @@ struct ExampleAppConsole
     }
 }
 
-private void ShowExampleAppConsole(bool* p_open)
+static void ShowExampleAppConsole(bool* p_open)
 {
     __gshared ExampleAppConsole console;
     if (console.Commands.empty()) {
@@ -6756,7 +6756,7 @@ struct ExampleAppLog
 }
 
 // Demonstrate creating a simple log window with basic filtering.
-private void ShowExampleAppLog(bool* p_open)
+static void ShowExampleAppLog(bool* p_open)
 {
     __gshared ExampleAppLog log;
     if (log.LineOffsets.empty()) {
@@ -6793,7 +6793,7 @@ private void ShowExampleAppLog(bool* p_open)
 //-----------------------------------------------------------------------------
 
 // Demonstrate create a window with multiple child windows.
-private void ShowExampleAppLayout(bool* p_open)
+static void ShowExampleAppLayout(bool* p_open)
 {
     ImGui.SetNextWindowSize(ImVec2(500, 440), ImGuiCond.FirstUseEver);
     if (ImGui.Begin("Example: Simple layout", p_open, ImGuiWindowFlags.MenuBar))
@@ -6905,7 +6905,7 @@ static void ShowPlaceholderObject(string prefix, int uid)
 }
 
 // Demonstrate create a simple property editor.
-private void ShowExampleAppPropertyEditor(bool* p_open)
+static void ShowExampleAppPropertyEditor(bool* p_open)
 {
     ImGui.SetNextWindowSize(ImVec2(430, 450), ImGuiCond.FirstUseEver);
     if (!ImGui.Begin("Example: Property editor", p_open))
@@ -6940,7 +6940,7 @@ private void ShowExampleAppPropertyEditor(bool* p_open)
 //-----------------------------------------------------------------------------
 
 // Demonstrate/test rendering huge amount of text, and the incidence of clipping.
-private void ShowExampleAppLongText(bool* p_open)
+static void ShowExampleAppLongText(bool* p_open)
 {
     ImGui.SetNextWindowSize(ImVec2(520, 600), ImGuiCond.FirstUseEver);
     if (!ImGui.Begin("Example: Long text display", p_open))
@@ -7004,7 +7004,7 @@ private void ShowExampleAppLongText(bool* p_open)
 //-----------------------------------------------------------------------------
 
 // Demonstrate creating a window which gets auto-resized according to its content.
-private void ShowExampleAppAutoResize(bool* p_open)
+static void ShowExampleAppAutoResize(bool* p_open)
 {
     if (!ImGui.Begin("Example: Auto-resizing window", p_open, ImGuiWindowFlags.AlwaysAutoResize))
     {
@@ -7028,7 +7028,7 @@ private void ShowExampleAppAutoResize(bool* p_open)
 //-----------------------------------------------------------------------------
 
 // Demonstrate creating a window with custom resize constraints.
-private void ShowExampleAppConstrainedResize(bool* p_open)
+static void ShowExampleAppConstrainedResize(bool* p_open)
 {
     struct CustomConstraints
     {
@@ -7085,7 +7085,7 @@ private void ShowExampleAppConstrainedResize(bool* p_open)
 
 // Demonstrate creating a simple static window with no decoration
 // + a context-menu to choose which corner of the screen to use.
-private void ShowExampleAppSimpleOverlay(bool* p_open)
+static void ShowExampleAppSimpleOverlay(bool* p_open)
 {
     __gshared int corner = 0;
     ImGuiIO* io = &ImGui.GetIO();
@@ -7132,7 +7132,7 @@ private void ShowExampleAppSimpleOverlay(bool* p_open)
 //-----------------------------------------------------------------------------
 
 // Demonstrate creating a window covering the entire screen/viewport
-private void ShowExampleAppFullscreen(bool* p_open)
+static void ShowExampleAppFullscreen(bool* p_open)
 {
     __gshared bool use_work_area = true;
     __gshared ImGuiWindowFlags flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings;
@@ -7170,7 +7170,7 @@ private void ShowExampleAppFullscreen(bool* p_open)
 // Demonstrate using "##" and "###" in identifiers to manipulate ID generation.
 // This apply to all regular items as well.
 // Read FAQ section "How can I have multiple widgets with the same label?" for details.
-private void ShowExampleAppWindowTitles(bool*)
+static void ShowExampleAppWindowTitles(bool*)
 {
     const ImGuiViewport* viewport = ImGui.GetMainViewport();
     const ImVec2 base_pos = viewport.Pos;
@@ -7203,7 +7203,7 @@ private void ShowExampleAppWindowTitles(bool*)
 //-----------------------------------------------------------------------------
 
 // Demonstrate using the low-level ImDrawList to draw custom shapes.
-private void ShowExampleAppCustomRendering(bool* p_open)
+static void ShowExampleAppCustomRendering(bool* p_open)
 {
     if (!ImGui.Begin("Example: Custom rendering", p_open))
     {
@@ -7307,7 +7307,7 @@ private void ShowExampleAppCustomRendering(bool* p_open)
             draw_list.AddRectFilled(ImVec2(x, y), ImVec2(x + sz, y + sz), col, 10.0f);                             x += sz + spacing;  // Square with all rounded corners
             draw_list.AddRectFilled(ImVec2(x, y), ImVec2(x + sz, y + sz), col, 10.0f, corners_tl_br);              x += sz + spacing;  // Square with two rounded corners
             draw_list.AddTriangleFilled(ImVec2(x+sz*0.5f,y), ImVec2(x+sz, y+sz-0.5f), ImVec2(x, y+sz-0.5f), col);  x += sz + spacing;  // Triangle
-            //draw_list.AddTriangleFilled(ImVec2(x+sz*0.2f,y), ImVec2(x, y+sz-0.5f), ImVec2(x+sz*0.4f, y+sz-0.5f), col); x += sz*0.4f + spacing; // Thin triangle
+            //draw_list->AddTriangleFilled(ImVec2(x+sz*0.2f,y), ImVec2(x, y+sz-0.5f), ImVec2(x+sz*0.4f, y+sz-0.5f), col); x += sz*0.4f + spacing; // Thin triangle
             draw_list.AddRectFilled(ImVec2(x, y), ImVec2(x + sz, y + thickness), col);                             x += sz + spacing;  // Horizontal line (faster than AddLine, but only handle integer thickness)
             draw_list.AddRectFilled(ImVec2(x, y), ImVec2(x + thickness, y + sz), col);                             x += spacing * 2.0f;// Vertical line (faster than AddLine, but only handle integer thickness)
             draw_list.AddRectFilled(ImVec2(x, y), ImVec2(x + 1, y + 1), col);                                      x += sz;            // Pixel (faster than AddLine)
@@ -7320,7 +7320,7 @@ private void ShowExampleAppCustomRendering(bool* p_open)
 
         if (ImGui.BeginTabItem("Canvas"))
         {
-            __gshared ImVector!(ImVec2) points;
+            __gshared ImVector!ImVec2 points;
             __gshared ImVec2 scrolling = ImVec2(0.0f, 0.0f);
             __gshared bool opt_enable_grid = true;
             __gshared bool opt_enable_context_menu = true;
@@ -7532,7 +7532,7 @@ struct ExampleAppDocuments
 // give the impression of a flicker for one frame.
 // We call SetTabItemClosed() to manually notify the Tab Bar or Docking system of removed tabs to avoid this glitch.
 // Note that this completely optional, and only affect tab bars with the ImGuiTabBarFlags_Reorderable flag.
-private void NotifyOfDocumentsClosedElsewhere(ref ExampleAppDocuments app)
+static void NotifyOfDocumentsClosedElsewhere(ref ExampleAppDocuments app)
 {
     for (int doc_n = 0; doc_n < app.Documents.Size; doc_n++)
     {

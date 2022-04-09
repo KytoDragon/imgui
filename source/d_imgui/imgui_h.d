@@ -2192,7 +2192,7 @@ struct ImGuiInputTextCallbackData
 
     // Helper functions for text manipulation.
     // Use those function to benefit from the CallbackResize behaviors. Calling those function reset the selection.
-    this(bool dummy) { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).__ctor(dummy); }
+    @disable this(); this(bool dummy) { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).__ctor(dummy); }
     void      DeleteChars(int pos, int bytes_count) { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).DeleteChars(pos, bytes_count); }
     void      InsertChars(int pos, string new_text) { (cast(ImGuiInputTextCallbackData_Wrapper*)&this).InsertChars(pos, new_text); }
     void                SelectAll()             { SelectionStart = 0; SelectionEnd = BufTextLen; }
@@ -2229,7 +2229,7 @@ struct ImGuiPayload
     bool            Delivery;           // Set when AcceptDragDropPayload() was called and mouse button is released over the target item.
     size_t          DataTypeLength;
 
-    // this()  { Clear(); }
+    //ImGuiPayload()  { Clear(); }
     void Clear()    { SourceId = SourceParentId = 0; Data = NULL; DataSize = 0; memset(DataType, 0, sizeof(DataType)); DataFrameCount = -1; Preview = Delivery = false; }
     bool IsDataType(string type) const { return DataFrameCount != -1 && type == cast(string)DataType[0..DataTypeLength]; }
     bool IsPreview() const                  { return Preview; }
@@ -2244,7 +2244,7 @@ struct ImGuiTableColumnSortSpecs
     ImS16                       SortOrder;          // Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here)
     ImGuiSortDirection          SortDirection/* : 8*/;  // ImGuiSortDirection_Ascending or ImGuiSortDirection_Descending (you can use this or SortSign, whichever is more convenient for your sort function)
 
-    this(bool dummy) { memset(&this, 0, sizeof(this)); }
+    //ImGuiTableColumnSortSpecs() { memset(&this, 0, sizeof(this)); }
 }
 
 // Sorting specifications for a table (often handling sort specs for a single column, occasionally more)
@@ -2257,7 +2257,7 @@ struct ImGuiTableSortSpecs
     int                         SpecsCount;     // Sort spec count. Most often 1. May be > 1 when ImGuiTableFlags_SortMulti is enabled. May be == 0 when ImGuiTableFlags_SortTristate is enabled.
     bool                        SpecsDirty;     // Set to true when specs have changed since last time! Use this to sort again, then clear the flag.
 
-    this(bool dummy)       { memset(&this, 0, sizeof(this)); }
+    //ImGuiTableSortSpecs()       { memset(&this, 0, sizeof(this)); }
 }
 
 //-----------------------------------------------------------------------------
@@ -2287,7 +2287,7 @@ struct ImGuiTextFilter
     nothrow:
     @nogc:
 
-    this(string default_filter) { (cast(ImGuiTextFilter_Wrapper*)&this).__ctor(default_filter); }
+              this(string default_filter) { (cast(ImGuiTextFilter_Wrapper*)&this).__ctor(default_filter); }
     bool      Draw(string label = "Filter (inc,-exc)", float width = 0.0f) { return (cast(ImGuiTextFilter_Wrapper*)&this).Draw(label, width); }  // Helper calling InputText+Build
     bool      PassFilter(string text) const { return (cast(ImGuiTextFilter_Wrapper*)&this).PassFilter(text); }
     void      Build() { (cast(ImGuiTextFilter_Wrapper*)&this).Build(); }
@@ -2463,7 +2463,7 @@ struct ImGuiListClipper
     bool Step() { return (cast(ImGuiListClipper_Wrapper*)&this).Step(); }                                              // Call until it returns false. The DisplayStart/DisplayEnd fields will be set and you can process/draw those items.
 
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-    deprecated this(int items_count, float items_height = -1.0f) { memset(&this, 0, sizeof(this)); ItemsCount = -1; Begin(items_count, items_height); } // [removed in 1.79]
+    deprecated pragma(inline, true) this(int items_count, float items_height = -1.0f) { memset(&this, 0, sizeof(this)); ItemsCount = -1; Begin(items_count, items_height); } // [removed in 1.79]
 }
 }
 
@@ -2555,7 +2555,7 @@ struct ImDrawCmd
     ImDrawCallback  UserCallback;       // 4-8  // If != NULL, call the function instead of rendering the vertices. clip_rect and texture_id will be set normally.
     void*           UserCallbackData;   // 4-8  // The draw callback code can access this.
 
-    this(bool dummy) { memset(&this, 0, sizeof(this)); } // Also ensure our padding fields are zeroed
+    //ImDrawCmd() { memset(&this, 0, sizeof(this)); } // Also ensure our padding fields are zeroed
 
     // Since 1.83: returns ImTextureID associated with this draw call. Warning: DO NOT assume this is always same as 'TextureId' (we will change this function for an upcoming feature)
     pragma(inline, true) ImTextureID GetTexID() const { return TextureId; }
@@ -2612,7 +2612,7 @@ struct ImDrawListSplitter
     int                         _Count;      // Number of active channels (1+)
     ImVector!ImDrawChannel     _Channels;   // Draw channels (not resized down so _Count might be < Channels.Size)
 
-    pragma(inline, true) this(bool dummy)  { memset(&this, 0, sizeof(this)); }
+    //pragma(inline, true) ImDrawListSplitter()  { memset(&this, 0, sizeof(this)); }
     pragma(inline, true) void destroy() { ClearFreeMemory(); }
     pragma(inline, true) void                 Clear() { _Current = 0; _Count = 1; } // Do not clear Channels[] so our allocations are reused next frame
     void              ClearFreeMemory() { (cast(ImDrawListSplitter_Wrapper*)&this).ClearFreeMemory(); }
@@ -2763,7 +2763,7 @@ struct ImDrawList
     void  PrimReserve(int idx_count, int vtx_count) { (cast(ImDrawList_Wrapper*)&this).PrimReserve(idx_count, vtx_count); }
     void  PrimUnreserve(int idx_count, int vtx_count) { (cast(ImDrawList_Wrapper*)&this).PrimUnreserve(idx_count, vtx_count); }
     void  PrimRect(const ImVec2/*&*/ a, const ImVec2/*&*/ b, ImU32 col) { (cast(ImDrawList_Wrapper*)&this).PrimRect(a, b, col); }      // Axis aligned rectangle (composed of two triangles)
-    void  PrimRectUV(const ImVec2/*&*/ a, const ImVec2/**/ b, const ImVec2/*&*/ uv_a, const ImVec2/*&*/ uv_b, ImU32 col) { (cast(ImDrawList_Wrapper*)&this).PrimRectUV(a, b, uv_a, uv_b, col); }
+    void  PrimRectUV(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ uv_a, const ImVec2/*&*/ uv_b, ImU32 col) { (cast(ImDrawList_Wrapper*)&this).PrimRectUV(a, b, uv_a, uv_b, col); }
     void  PrimQuadUV(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ c, const ImVec2/*&*/ d, const ImVec2/*&*/ uv_a, const ImVec2/*&*/ uv_b, const ImVec2/*&*/ uv_c, const ImVec2/*&*/ uv_d, ImU32 col) { (cast(ImDrawList_Wrapper*)&this).PrimQuadUV(a, b, c, d, uv_a, uv_b, uv_c, uv_d, col); }
     pragma(inline, true)    void  PrimWriteVtx(const ImVec2/*&*/ pos, const ImVec2/*&*/ uv, ImU32 col)    { _VtxWritePtr.pos = pos; _VtxWritePtr.uv = uv; _VtxWritePtr.col = col; _VtxWritePtr++; _VtxCurrentIdx++; }
     pragma(inline, true)    void  PrimWriteIdx(ImDrawIdx idx)                                     { *_IdxWritePtr = idx; _IdxWritePtr++; }
@@ -2805,7 +2805,7 @@ struct ImDrawData
     ImVec2          FramebufferScale;       // Amount of pixels for each unit of DisplaySize. Based on io.DisplayFramebufferScale. Generally (1,1) on normal display, (2,2) on OSX with Retina display.
 
     // Functions
-    this(bool dummy)    { Clear(); }
+    //ImDrawData()    { Clear(); }
     void Clear()    { memset(&this, 0, sizeof(this)); }     // The ImDrawList are owned by ImGuiContext!
     void  DeIndexAllBuffers() { (cast(ImDrawData_Wrapper*)&this).DeIndexAllBuffers(); }                    // Helper to convert all buffers from indexed to non-indexed, in case you cannot render indexed. Note: this is slow and most likely a waste of resources. Always prefer indexed rendering!
     void  ScaleClipRects(const ImVec2/*&*/ fb_scale) { (cast(ImDrawData_Wrapper*)&this).ScaleClipRects(fb_scale); } // Helper to scale the ClipRect field of each ImDrawCmd. Use if your final output buffer is at a different scale than Dear ImGui expects, or if there is a difference between your window resolution and framebuffer resolution.
@@ -2993,7 +2993,7 @@ struct ImFontAtlas
 
     // [Internal]
     void              CalcCustomRectUV(const ImFontAtlasCustomRect* rect, ImVec2* out_uv_min, ImVec2* out_uv_max) const { (cast(ImFontAtlas_Wrapper*)&this).CalcCustomRectUV(rect, out_uv_min, out_uv_max); }
-    bool              GetMouseCursorTexData(ImGuiMouseCursor cursor_type, ImVec2* out_offset, ImVec2* out_size, ImVec2[2] out_uv_border, ImVec2[2] out_uv_fill) { return (cast(ImFontAtlas_Wrapper*)&this).GetMouseCursorTexData(cursor_type, out_offset, out_size, out_uv_border, out_uv_fill); }
+    bool              GetMouseCursorTexData(ImGuiMouseCursor cursor, ImVec2* out_offset, ImVec2* out_size, ImVec2[2] out_uv_border, ImVec2[2] out_uv_fill) { return (cast(ImFontAtlas_Wrapper*)&this).GetMouseCursorTexData(cursor, out_offset, out_size, out_uv_border, out_uv_fill); }
 
     //-------------------------------------------
     // Members
@@ -3030,7 +3030,7 @@ struct ImFontAtlas
 
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     alias CustomRect    = ImFontAtlasCustomRect;         // OBSOLETED in 1.72+
-    //alias GlyphRangesBuilder = ImFontGlyphRangesBuilder; // OBSOLETED in 1.67+
+    //typedef ImFontGlyphRangesBuilder GlyphRangesBuilder; // OBSOLETED in 1.67+
 }
 }
 
@@ -3065,8 +3065,7 @@ struct ImFont
     ImU8[(IM_UNICODE_CODEPOINT_MAX+1)/4096/8]                        Used4kPagesMap; // 2 bytes if ImWchar=ImWchar16, 34 bytes if ImWchar==ImWchar32. Store 1-bit for each block of 4K codepoints that has one active glyph. This is mainly used to facilitate iterations across all used codepoints.
 
     // Methods
-    @disable this();
-    this(bool dummy) { (cast(ImFont_Wrapper*)&this).__ctor(dummy); }
+    @disable this(); this(bool dummy) { (cast(ImFont_Wrapper*)&this).__ctor(dummy); }
     void destroy() { (cast(ImFont_Wrapper*)&this).destroy(); }
     const (ImFontGlyph)* FindGlyph(ImWchar c) const { return (cast(const ImFont_Wrapper*)&this).FindGlyph(c); }
     const (ImFontGlyph)* FindGlyphNoFallback(ImWchar c) const { return (cast(const ImFont_Wrapper*)&this).FindGlyphNoFallback(c); }
@@ -3122,7 +3121,7 @@ struct ImGuiViewport
     ImVec2              WorkPos;                // Work Area: Position of the viewport minus task bars, menus bars, status bars (>= Pos)
     ImVec2              WorkSize;               // Work Area: Size of the viewport minus task bars, menu bars, status bars (<= Size)
 
-    this(bool dummy)     { memset(&this, 0, sizeof(this)); }
+    //ImGuiViewport()     { memset(&this, 0, sizeof(this)); }
 
     // Helpers
     ImVec2              GetCenter() const       { return ImVec2(Pos.x + Size.x * 0.5f, Pos.y + Size.y * 0.5f); }
