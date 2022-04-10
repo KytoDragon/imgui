@@ -1,4 +1,4 @@
-// dear imgui, v1.86
+// dear imgui, v1.87
 // (widgets code)
 module d_imgui.imgui_widgets;
 
@@ -727,6 +727,7 @@ bool SmallButton(string label)
 // Then you can keep 'str_id' empty or the same for all your buttons (instead of creating a string based on a non-string id)
 bool InvisibleButton(string str_id, const ImVec2/*&*/ size_arg, ImGuiButtonFlags flags = ImGuiButtonFlags.None)
 {
+    ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
         return false;
@@ -744,16 +745,17 @@ bool InvisibleButton(string str_id, const ImVec2/*&*/ size_arg, ImGuiButtonFlags
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
 
+    IMGUI_TEST_ENGINE_ITEM_INFO(id, str_id, g.LastItemData.StatusFlags);
     return pressed;
 }
 
 bool ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size, ImGuiButtonFlags flags = ImGuiButtonFlags.None)
 {
+    ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
         return false;
 
-    ImGuiContext* g = GImGui;
     const ImGuiID id = window.GetID(str_id);
     const ImRect bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + size);
     const float default_size = GetFrameHeight();
@@ -774,6 +776,7 @@ bool ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size, ImGuiButtonFlags fl
     RenderFrame(bb.Min, bb.Max, bg_col, true, g.Style.FrameRounding);
     RenderArrow(window.DrawList, bb.Min + ImVec2(ImMax(0.0f, (size.x - g.FontSize) * 0.5f), ImMax(0.0f, (size.y - g.FontSize) * 0.5f)), text_col, dir);
 
+    IMGUI_TEST_ENGINE_ITEM_INFO(id, str_id, g.LastItemData.StatusFlags);
     return pressed;
 }
 
@@ -1991,26 +1994,12 @@ void DataTypeApplyOp(ImGuiDataType data_type, int op, void* output, const void* 
 
 // User can input math operators (e.g. +100) to edit a numerical values.
 // NB: This is _not_ a full expression evaluator. We should probably add one and replace this dumb mess..
-bool DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType data_type, void* p_data, string format)
+bool DataTypeApplyFromText(string buf, ImGuiDataType data_type, void* p_data, string format)
 {
     while (buf.length > 0 && ImCharIsBlankA(buf[0]))
         buf = buf[1..$];
     if (buf.length == 0)
         return false;
-
-    // We don't support '-' op because it would conflict with inputing negative value.
-    // Instead you can use +-100 to subtract from an existing value
-    char op = buf[0];
-    if (op == '+' || op == '*' || op == '/')
-    {
-        buf = buf[1..$];
-        while (buf.length > 0 && ImCharIsBlankA(buf[0]))
-            buf = buf[1..$];
-    }
-    else
-    {
-        op = 0;
-    }
     if (buf.length == 0)
         return false;
 
@@ -2022,54 +2011,11 @@ bool DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType
     if (format == NULL)
         format = type_info.ScanFmt;
 
-    // FIXME-LEGACY: The aim is to remove those operators and write a proper expression evaluator at some point..
-    int arg1i = 0;
-    if (data_type == ImGuiDataType.S32)
+    if (data_type == ImGuiDataType.S32 || data_type == ImGuiDataType.U32 || data_type == ImGuiDataType.S64 || data_type == ImGuiDataType.U64 || data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
     {
-        int* v = cast(int*)p_data;
-        int arg0i = *v;
-        float arg1f = 0.0f;
-        if (op && sscanf(initial_value_buf, format, &arg0i) < 1)
-            return false;
-        // Store operand in a float so we can use fractional value for multipliers (*1.1), but constant always parsed as integer so we can fit big integers (e.g. 2000000003) past float precision
-        if (op == '+')      { if (sscanf(buf, "%d", &arg1i)) *v = cast(int)(arg0i + arg1i); }                   // Add (use "+-" to subtract)
-        else if (op == '*') { if (sscanf(buf, "%f", &arg1f)) *v = cast(int)(arg0i * arg1f); }                   // Multiply
-        else if (op == '/') { if (sscanf(buf, "%f", &arg1f) && arg1f != 0.0f) *v = cast(int)(arg0i / arg1f); }  // Divide
-        else                { if (sscanf(buf, format, &arg1i) == 1) *v = arg1i; }                           // Assign constant
-    }
-    else if (data_type == ImGuiDataType.Float)
-    {
-        // For floats we have to ignore format with precision (e.g. "%.2f") because sscanf doesn't take them in
-        format = "%f";
-        float* v = cast(float*)p_data;
-        float arg0f = *v, arg1f = 0.0f;
-        if (op && sscanf(initial_value_buf, format, &arg0f) < 1)
-            return false;
-        if (sscanf(buf, format, &arg1f) < 1)
-            return false;
-        if (op == '+')      { *v = arg0f + arg1f; }                    // Add (use "+-" to subtract)
-        else if (op == '*') { *v = arg0f * arg1f; }                    // Multiply
-        else if (op == '/') { if (arg1f != 0.0f) *v = arg0f / arg1f; } // Divide
-        else                { *v = arg1f; }                            // Assign constant
-    }
-    else if (data_type == ImGuiDataType.Double)
-    {
-        format = "%lf"; // scanf differentiate float/double unlike printf which forces everything to double because of ellipsis
-        double* v = cast(double*)p_data;
-        double arg0f = *v, arg1f = 0.0;
-        if (op && sscanf(initial_value_buf, format, &arg0f) < 1)
-            return false;
-        if (sscanf(buf, format, &arg1f) < 1)
-            return false;
-        if (op == '+')      { *v = arg0f + arg1f; }                    // Add (use "+-" to subtract)
-        else if (op == '*') { *v = arg0f * arg1f; }                    // Multiply
-        else if (op == '/') { if (arg1f != 0.0f) *v = arg0f / arg1f; } // Divide
-        else                { *v = arg1f; }                            // Assign constant
-    }
-    else if (data_type == ImGuiDataType.U32 || data_type == ImGuiDataType.S64 || data_type == ImGuiDataType.U64)
-    {
-        // All other types assign constant
-        // We don't bother handling support for legacy operators since they are a little too crappy. Instead we will later implement a proper expression evaluator in the future.
+        // For float/double we have to ignore format with precision (e.g. "%.2f") because sscanf doesn't take them in, so force them into %f and %lf
+        if (data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
+            format = type_info.ScanFmt;
         if (sscanf(buf, format, p_data) < 1)
             return false;
     }
@@ -3399,8 +3345,6 @@ bool TempInputText(const ImRect/*&*/ bb, ImGuiID id, string label, char[] buf, I
 // However this may not be ideal for all uses, as some user code may break on out of bound values.
 bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataType data_type, void* p_data, string format, const (void)* p_clamp_min = NULL, const (void)* p_clamp_max = NULL)
 {
-    ImGuiContext* g = GImGui;
-
     char[32] data_buf;
     format = ImParseFormatTrimDecorations(format);
     int length = DataTypeFormatString(data_buf, data_type, p_data, format);
@@ -3418,7 +3362,7 @@ bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataTy
         memcpy(&data_backup, p_data, data_type_size);
 
         // Apply new value (or operations) then clamp
-        DataTypeApplyOpFromText(ImCstring(data_buf), cast(string)g.InputTextState.InitialTextA.asArray(), data_type, p_data, NULL);
+        DataTypeApplyFromText(ImCstring(data_buf), data_type, p_data, NULL);
         if (p_clamp_min || p_clamp_max)
         {
             if (p_clamp_min && p_clamp_max && DataTypeCompare(data_type, p_clamp_min, p_clamp_max) > 0)
@@ -3465,7 +3409,7 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
         PushID(label);
         SetNextItemWidth(ImMax(1.0f, CalcItemWidth() - (button_size + style.ItemInnerSpacing.x) * 2));
         if (InputText("", buf, flags)) // PushId(label) + "" gives us the expected ID from outside point of view
-            value_changed = DataTypeApplyOpFromText(ImCstring(buf.ptr), cast(string)g.InputTextState.InitialTextA.asArray()[0..$-1], data_type, p_data, format);
+            value_changed = DataTypeApplyFromText(ImCstring(buf), data_type, p_data, format);
 
         // Step buttons
         const ImVec2 backup_frame_padding = style.FramePadding;
@@ -3502,7 +3446,7 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
     else
     {
         if (InputText(label, buf, flags))
-            value_changed = DataTypeApplyOpFromText(ImCstring(buf.ptr), cast(string)g.InputTextState.InitialTextA.asArray()[0..$-1], data_type, p_data, format);
+            value_changed = DataTypeApplyFromText(ImCstring(buf), data_type, p_data, format);
     }
     if (value_changed)
         MarkItemEdited(g.LastItemData.ID);
@@ -4161,11 +4105,17 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         if (is_multiline || (flags & ImGuiInputTextFlags.CallbackHistory))
             g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir.Up) | (1 << ImGuiDir.Down);
         g.ActiveIdUsingNavInputMask |= (1 << ImGuiNavInput.Cancel);
-        g.ActiveIdUsingKeyInputMask |= (cast(ImU64)1 << ImGuiKey.Home) | (cast(ImU64)1 << ImGuiKey.End);
+        SetActiveIdUsingKey(ImGuiKey.Home);
+        SetActiveIdUsingKey(ImGuiKey.End);
         if (is_multiline)
-            g.ActiveIdUsingKeyInputMask |= (cast(ImU64)1 << ImGuiKey.PageUp) | (cast(ImU64)1 << ImGuiKey.PageDown);
-        if (flags & (ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.AllowTabInput))  // Disable keyboard tabbing out as we will use the \t character.
-            g.ActiveIdUsingKeyInputMask |= (cast(ImU64)1 << ImGuiKey.Tab);
+        {
+            SetActiveIdUsingKey(ImGuiKey.PageUp);
+            SetActiveIdUsingKey(ImGuiKey.PageDown);
+        }
+        if (flags & (ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.AllowTabInput)) // Disable keyboard tabbing out as we will use the \t character.
+        {
+            SetActiveIdUsingKey(ImGuiKey.Tab);
+        }
     }
 
     // We have an edge case if ActiveId was set through another widget (e.g. widget being swapped), clear id immediately (don't wait until the end of the function)
@@ -4295,7 +4245,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         // It is ill-defined whether the backend needs to send a \t character when pressing the TAB keys.
         // Win32 and GLFW naturally do it but not SDL.
         const bool ignore_char_inputs = (io.KeyCtrl && !io.KeyAlt) || (is_osx && io.KeySuper);
-        if ((flags & ImGuiInputTextFlags.AllowTabInput) && IsKeyPressedMap(ImGuiKey.Tab) && !ignore_char_inputs && !io.KeyShift && !is_readonly)
+        if ((flags & ImGuiInputTextFlags.AllowTabInput) && IsKeyPressed(ImGuiKey.Tab) && !ignore_char_inputs && !io.KeyShift && !is_readonly)
             if (!io.InputQueueCharacters.contains('\t'))
             {
                 uint c = '\t'; // Insert TAB
@@ -4342,27 +4292,27 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         const bool is_shift_key_only = (io.KeyMods == ImGuiKeyModFlags.Shift);
         const bool is_shortcut_key = g.IO.ConfigMacOSXBehaviors ? (io.KeyMods == ImGuiKeyModFlags.Super) : (io.KeyMods == ImGuiKeyModFlags.Ctrl);
 
-        const bool is_cut   = ((is_shortcut_key && IsKeyPressedMap(ImGuiKey.X)) || (is_shift_key_only && IsKeyPressedMap(ImGuiKey.Delete))) && !is_readonly && !is_password && (!is_multiline || state.HasSelection());
-        const bool is_copy  = ((is_shortcut_key && IsKeyPressedMap(ImGuiKey.C)) || (is_ctrl_key_only  && IsKeyPressedMap(ImGuiKey.Insert))) && !is_password && (!is_multiline || state.HasSelection());
-        const bool is_paste = ((is_shortcut_key && IsKeyPressedMap(ImGuiKey.V)) || (is_shift_key_only && IsKeyPressedMap(ImGuiKey.Insert))) && !is_readonly;
-        const bool is_undo  = ((is_shortcut_key && IsKeyPressedMap(ImGuiKey.Z)) && !is_readonly && is_undoable);
-        const bool is_redo  = ((is_shortcut_key && IsKeyPressedMap(ImGuiKey.Y)) || (is_osx_shift_shortcut && IsKeyPressedMap(ImGuiKey.Z))) && !is_readonly && is_undoable;
+        const bool is_cut   = ((is_shortcut_key && IsKeyPressed(ImGuiKey.X)) || (is_shift_key_only && IsKeyPressed(ImGuiKey.Delete))) && !is_readonly && !is_password && (!is_multiline || state.HasSelection());
+        const bool is_copy  = ((is_shortcut_key && IsKeyPressed(ImGuiKey.C)) || (is_ctrl_key_only  && IsKeyPressed(ImGuiKey.Insert))) && !is_password && (!is_multiline || state.HasSelection());
+        const bool is_paste = ((is_shortcut_key && IsKeyPressed(ImGuiKey.V)) || (is_shift_key_only && IsKeyPressed(ImGuiKey.Insert))) && !is_readonly;
+        const bool is_undo  = ((is_shortcut_key && IsKeyPressed(ImGuiKey.Z)) && !is_readonly && is_undoable);
+        const bool is_redo  = ((is_shortcut_key && IsKeyPressed(ImGuiKey.Y)) || (is_osx_shift_shortcut && IsKeyPressed(ImGuiKey.Z))) && !is_readonly && is_undoable;
 
         // We allow validate/cancel with Nav source (gamepad) to makes it easier to undo an accidental NavInput press with no keyboard wired, but otherwise it isn't very useful.
-        const bool is_validate_enter = IsKeyPressedMap(ImGuiKey.Enter) || IsKeyPressedMap(ImGuiKey.KeyPadEnter);
-        const bool is_validate_nav = (IsNavInputTest(ImGuiNavInput.Activate, ImGuiInputReadMode.Pressed) && !IsKeyPressedMap(ImGuiKey.Space)) || IsNavInputTest(ImGuiNavInput.Input, ImGuiInputReadMode.Pressed);
-        const bool is_cancel   = IsKeyPressedMap(ImGuiKey.Escape) || IsNavInputTest(ImGuiNavInput.Cancel, ImGuiInputReadMode.Pressed);
+        const bool is_validate_enter = IsKeyPressed(ImGuiKey.Enter) || IsKeyPressed(ImGuiKey.KeypadEnter);
+        const bool is_validate_nav = (IsNavInputTest(ImGuiNavInput.Activate, ImGuiInputReadMode.Pressed) && !IsKeyPressed(ImGuiKey.Space)) || IsNavInputTest(ImGuiNavInput.Input, ImGuiInputReadMode.Pressed);
+        const bool is_cancel   = IsKeyPressed(ImGuiKey.Escape) || IsNavInputTest(ImGuiNavInput.Cancel, ImGuiInputReadMode.Pressed);
 
-        if (IsKeyPressedMap(ImGuiKey.LeftArrow))                        { state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_LINESTART : is_wordmove_key_down ? STB_TEXTEDIT_K_WORDLEFT : STB_TEXTEDIT_K_LEFT) | k_mask); }
-        else if (IsKeyPressedMap(ImGuiKey.RightArrow))                  { state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_LINEEND : is_wordmove_key_down ? STB_TEXTEDIT_K_WORDRIGHT : STB_TEXTEDIT_K_RIGHT) | k_mask); }
-        else if (IsKeyPressedMap(ImGuiKey.UpArrow) && is_multiline)     { if (io.KeyCtrl) SetScrollY(draw_window, ImMax(draw_window.Scroll.y - g.FontSize, 0.0f)); else state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_TEXTSTART : STB_TEXTEDIT_K_UP) | k_mask); }
-        else if (IsKeyPressedMap(ImGuiKey.DownArrow) && is_multiline)   { if (io.KeyCtrl) SetScrollY(draw_window, ImMin(draw_window.Scroll.y + g.FontSize, GetScrollMaxY())); else state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_TEXTEND : STB_TEXTEDIT_K_DOWN) | k_mask); }
-        else if (IsKeyPressedMap(ImGuiKey.PageUp) && is_multiline)      { state.OnKeyPressed(STB_TEXTEDIT_K_PGUP | k_mask); scroll_y -= row_count_per_page * g.FontSize; }
-        else if (IsKeyPressedMap(ImGuiKey.PageDown) && is_multiline)    { state.OnKeyPressed(STB_TEXTEDIT_K_PGDOWN | k_mask); scroll_y += row_count_per_page * g.FontSize; }
-        else if (IsKeyPressedMap(ImGuiKey.Home))                        { state.OnKeyPressed(io.KeyCtrl ? STB_TEXTEDIT_K_TEXTSTART | k_mask : STB_TEXTEDIT_K_LINESTART | k_mask); }
-        else if (IsKeyPressedMap(ImGuiKey.End))                         { state.OnKeyPressed(io.KeyCtrl ? STB_TEXTEDIT_K_TEXTEND | k_mask : STB_TEXTEDIT_K_LINEEND | k_mask); }
-        else if (IsKeyPressedMap(ImGuiKey.Delete) && !is_readonly && !is_cut) { state.OnKeyPressed(STB_TEXTEDIT_K_DELETE | k_mask); }
-        else if (IsKeyPressedMap(ImGuiKey.Backspace) && !is_readonly)
+        if (IsKeyPressed(ImGuiKey.LeftArrow))                        { state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_LINESTART : is_wordmove_key_down ? STB_TEXTEDIT_K_WORDLEFT : STB_TEXTEDIT_K_LEFT) | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.RightArrow))                  { state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_LINEEND : is_wordmove_key_down ? STB_TEXTEDIT_K_WORDRIGHT : STB_TEXTEDIT_K_RIGHT) | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.UpArrow) && is_multiline)     { if (io.KeyCtrl) SetScrollY(draw_window, ImMax(draw_window.Scroll.y - g.FontSize, 0.0f)); else state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_TEXTSTART : STB_TEXTEDIT_K_UP) | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.DownArrow) && is_multiline)   { if (io.KeyCtrl) SetScrollY(draw_window, ImMin(draw_window.Scroll.y + g.FontSize, GetScrollMaxY())); else state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_TEXTEND : STB_TEXTEDIT_K_DOWN) | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.PageUp) && is_multiline)      { state.OnKeyPressed(STB_TEXTEDIT_K_PGUP | k_mask); scroll_y -= row_count_per_page * g.FontSize; }
+        else if (IsKeyPressed(ImGuiKey.PageDown) && is_multiline)    { state.OnKeyPressed(STB_TEXTEDIT_K_PGDOWN | k_mask); scroll_y += row_count_per_page * g.FontSize; }
+        else if (IsKeyPressed(ImGuiKey.Home))                        { state.OnKeyPressed(io.KeyCtrl ? STB_TEXTEDIT_K_TEXTSTART | k_mask : STB_TEXTEDIT_K_LINESTART | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.End))                         { state.OnKeyPressed(io.KeyCtrl ? STB_TEXTEDIT_K_TEXTEND | k_mask : STB_TEXTEDIT_K_LINEEND | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.Delete) && !is_readonly && !is_cut) { state.OnKeyPressed(STB_TEXTEDIT_K_DELETE | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.Backspace) && !is_readonly)
         {
             if (!state.HasSelection())
             {
@@ -4401,7 +4351,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             state.OnKeyPressed(is_undo ? STB_TEXTEDIT_K_UNDO : STB_TEXTEDIT_K_REDO);
             state.ClearSelection();
         }
-        else if (is_shortcut_key && IsKeyPressedMap(ImGuiKey.A))
+        else if (is_shortcut_key && IsKeyPressed(ImGuiKey.A))
         {
             state.SelectAll();
             state.CursorFollow = true;
@@ -4508,18 +4458,18 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
                 // The reason we specify the usage semantic (Completion/History) is that Completion needs to disable keyboard TABBING at the moment.
                 ImGuiInputTextFlags event_flag = ImGuiInputTextFlags.None;
-                ImGuiKey event_key = ImGuiKey.COUNT;
-                if ((flags & ImGuiInputTextFlags.CallbackCompletion) != 0 && IsKeyPressedMap(ImGuiKey.Tab))
+                ImGuiKey event_key = ImGuiKey.None;
+                if ((flags & ImGuiInputTextFlags.CallbackCompletion) != 0 && IsKeyPressed(ImGuiKey.Tab))
                 {
                     event_flag = ImGuiInputTextFlags.CallbackCompletion;
                     event_key = ImGuiKey.Tab;
                 }
-                else if ((flags & ImGuiInputTextFlags.CallbackHistory) != 0 && IsKeyPressedMap(ImGuiKey.UpArrow))
+                else if ((flags & ImGuiInputTextFlags.CallbackHistory) != 0 && IsKeyPressed(ImGuiKey.UpArrow))
                 {
                     event_flag = ImGuiInputTextFlags.CallbackHistory;
                     event_key = ImGuiKey.UpArrow;
                 }
-                else if ((flags & ImGuiInputTextFlags.CallbackHistory) != 0 && IsKeyPressedMap(ImGuiKey.DownArrow))
+                else if ((flags & ImGuiInputTextFlags.CallbackHistory) != 0 && IsKeyPressed(ImGuiKey.DownArrow))
                 {
                     event_flag = ImGuiInputTextFlags.CallbackHistory;
                     event_key = ImGuiKey.DownArrow;
@@ -4805,7 +4755,11 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
             // Notify OS of text input position for advanced IME (-1 x offset so that Windows IME can cover our cursor. Bit of an extra nicety.)
             if (!is_readonly)
-                g.PlatformImePos = ImVec2(cursor_screen_pos.x - 1.0f, cursor_screen_pos.y - g.FontSize);
+            {
+                g.PlatformImeData.WantVisible = true;
+                g.PlatformImeData.InputPos = ImVec2(cursor_screen_pos.x - 1.0f, cursor_screen_pos.y - g.FontSize);
+                g.PlatformImeData.InputLineHeight = g.FontSize;
+            }
         }
     }
     else
@@ -5018,7 +4972,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
                 value_changed |= DragInt(ids[n], &i[n], 1.0f, 0, hdr ? 0 : 255, fmt_table_int[fmt_idx][n]);
             }
             if (!(flags & ImGuiColorEditFlags.NoOptions))
-                OpenPopupOnItemClick("context");
+                OpenPopupOnItemClick("context", ImGuiPopupFlags.MouseButtonRight);
         }
     }
     else if ((flags & ImGuiColorEditFlags.DisplayHex) != 0 && (flags & ImGuiColorEditFlags.NoInputs) == 0)
@@ -5046,7 +5000,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
             IM_UNUSED(r); // Fixes C6031: Return value ignored: 'sscanf'.
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
-            OpenPopupOnItemClick("context");
+            OpenPopupOnItemClick("context", ImGuiPopupFlags.MouseButtonRight);
     }
 
     ImGuiWindow* picker_active_window = NULL;
@@ -5063,11 +5017,11 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
                 // Store current color and open a picker
                 g.ColorPickerRef = col_v4;
                 OpenPopup("picker");
-                SetNextWindowPos(g.LastItemData.Rect.GetBL() + ImVec2(-1, style.ItemSpacing.y));
+                SetNextWindowPos(g.LastItemData.Rect.GetBL() + ImVec2(0.0f, style.ItemSpacing.y));
             }
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
-            OpenPopupOnItemClick("context");
+            OpenPopupOnItemClick("context", ImGuiPopupFlags.MouseButtonRight);
 
         if (BeginPopup("picker"))
         {
@@ -5293,7 +5247,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
             }
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
-            OpenPopupOnItemClick("context");
+            OpenPopupOnItemClick("context", ImGuiPopupFlags.MouseButtonRight);
     }
     else if (flags & ImGuiColorEditFlags.PickerHueBar)
     {
@@ -5310,7 +5264,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
             value_changed = value_changed_sv = true;
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
-            OpenPopupOnItemClick("context");
+            OpenPopupOnItemClick("context", ImGuiPopupFlags.MouseButtonRight);
 
         // Hue bar logic
         SetCursorScreenPos(ImVec2(bar0_pos_x, picker_pos.y));
@@ -7017,6 +6971,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
         BeginDisabled();
     const ImGuiMenuColumns* offsets = &window.DC.MenuColumns;
     bool pressed;
+    const ImGuiSelectableFlags selectable_flags = ImGuiSelectableFlags.NoHoldingActiveID | ImGuiSelectableFlags.SelectOnClick | ImGuiSelectableFlags.DontClosePopups;
     if (window.DC.LayoutType == ImGuiLayoutType.Horizontal)
     {
         // Menu inside an horizontal menu bar
@@ -7027,7 +6982,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
         PushStyleVar(ImGuiStyleVar.ItemSpacing, ImVec2(style.ItemSpacing.x * 2.0f, style.ItemSpacing.y));
         float w = label_size.x;
         ImVec2 text_pos = ImVec2(window.DC.CursorPos.x + offsets.OffsetLabel, window.DC.CursorPos.y + window.DC.CurrLineTextBaseOffset);
-        pressed = Selectable("", menu_is_open, ImGuiSelectableFlags.NoHoldingActiveID | ImGuiSelectableFlags.SelectOnClick | ImGuiSelectableFlags.DontClosePopups, ImVec2(w, 0.0f));
+        pressed = Selectable("", menu_is_open, selectable_flags, ImVec2(w, 0.0f));
         RenderText(text_pos, label);
         PopStyleVar();
         window.DC.CursorPos.x += IM_FLOOR(style.ItemSpacing.x * (-1.0f + 0.5f)); // -1 spacing to compensate the spacing added when Selectable() did a SameLine(). It would also work to call SameLine() ourselves after the PopStyleVar().
@@ -7043,7 +6998,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
         float min_w = window.DC.MenuColumns.DeclColumns(icon_w, label_size.x, 0.0f, checkmark_w); // Feedback to next frame
         float extra_w = ImMax(0.0f, GetContentRegionAvail().x - min_w);
         ImVec2 text_pos = ImVec2(window.DC.CursorPos.x + offsets.OffsetLabel, window.DC.CursorPos.y + window.DC.CurrLineTextBaseOffset);
-        pressed = Selectable("", menu_is_open, ImGuiSelectableFlags.NoHoldingActiveID | ImGuiSelectableFlags.SelectOnClick | ImGuiSelectableFlags.DontClosePopups | ImGuiSelectableFlags.SpanAvailWidth, ImVec2(min_w, 0.0f));
+        pressed = Selectable("", menu_is_open, selectable_flags | ImGuiSelectableFlags.SpanAvailWidth, ImVec2(min_w, 0.0f));
         RenderText(text_pos, label);
         if (icon_w > 0.0f)
             RenderText(pos + ImVec2(offsets.OffsetIcon, 0.0f), icon);

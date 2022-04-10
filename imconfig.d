@@ -28,6 +28,7 @@ enum D_IMGUI_USER_DEFINED_ASSERT = false;
 //---- Don't define obsolete functions/enums/behaviors. Consider enabling from time to time after updating to avoid using soon-to-be obsolete function/names.
 // D_IMGUI: Not all obsolet functions are implemented. Please use their replacment instead.
 enum IMGUI_DISABLE_OBSOLETE_FUNCTIONS = false;
+enum IMGUI_DISABLE_OBSOLETE_KEYIO = false;                      // 1.87: disable legacy io.KeyMap[]+io.KeysDown[] in favor io.AddKeyEvent(). This will be folded into IMGUI_DISABLE_OBSOLETE_FUNCTIONS in a few versions.
 
 //---- Disable all of Dear ImGui or don't implement standard windows.
 // It is very strongly recommended to NOT disable the demo windows during development. Please read comments in imgui_demo.d.

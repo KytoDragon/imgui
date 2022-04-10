@@ -52,7 +52,7 @@ static if (IMGUI_IMPL_OPENGL_ES2) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-} else version(OSX) {
+} else static if (D_IMGUI_Apple) {
     // GL 3.2 + GLSL 150
     string glsl_version = "#version 150";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);

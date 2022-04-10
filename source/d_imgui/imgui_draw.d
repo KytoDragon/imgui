@@ -1,4 +1,4 @@
-// dear imgui, v1.86
+// dear imgui, v1.87
 // (drawing and font code)
 module d_imgui.imgui_draw;
 
@@ -441,10 +441,9 @@ struct ImDrawList_Wrapper {
 void _ResetForNewFrame()
 {
     // Verify that the ImDrawCmd fields we want to memcmp() are contiguous in memory.
-    // (those should be IM_STATIC_ASSERT() in theory but with our pre C++11 setup the whole check doesn't compile with GCC)
-    IM_ASSERT(ImDrawCmd.ClipRect.offsetof == 0);
-    IM_ASSERT(ImDrawCmd.TextureId.offsetof == sizeof!(ImVec4));
-    IM_ASSERT(ImDrawCmd.VtxOffset.offsetof == sizeof!(ImVec4) + sizeof!(ImTextureID));
+    IM_STATIC_ASSERT!(ImDrawCmd.ClipRect.offsetof == 0);
+    IM_STATIC_ASSERT!(ImDrawCmd.TextureId.offsetof == sizeof!(ImVec4));
+    IM_STATIC_ASSERT!(ImDrawCmd.VtxOffset.offsetof == sizeof!(ImVec4) + sizeof!(ImTextureID));
 
     CmdBuffer.resize(0);
     IdxBuffer.resize(0);
@@ -528,11 +527,12 @@ void AddCallback(ImDrawCallback callback, void* callback_data)
 
 // Compare ClipRect, TextureId and VtxOffset with a single memcmp()
 enum ImDrawCmd_HeaderSize                        = (ImDrawCmd.VtxOffset.offsetof + sizeof!(uint));
-static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmd* CMD_LHS, ImDrawCmd* CMD_RHS)   { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
-static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmdHeader* CMD_LHS, ImDrawCmd* CMD_RHS)   { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
-static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmd* CMD_LHS, ImDrawCmdHeader* CMD_RHS)   { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
-static pragma(inline, true) void* ImDrawCmd_HeaderCopy(ImDrawCmd* CMD_DST, ImDrawCmd* CMD_SRC)      { return (memcpy(CMD_DST, CMD_SRC, ImDrawCmd_HeaderSize)); }    // Copy ClipRect, TextureId, VtxOffset
-static pragma(inline, true) void* ImDrawCmd_HeaderCopy(ImDrawCmd* CMD_DST, ImDrawCmdHeader* CMD_SRC)      { return (memcpy(CMD_DST, CMD_SRC, ImDrawCmd_HeaderSize)); }    // Copy ClipRect, TextureId, VtxOffset
+static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmd* CMD_LHS, ImDrawCmd* CMD_RHS)       { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
+static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmdHeader* CMD_LHS, ImDrawCmd* CMD_RHS)       { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
+static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmd* CMD_LHS, ImDrawCmdHeader* CMD_RHS)       { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
+static pragma(inline, true) void* ImDrawCmd_HeaderCopy(ImDrawCmd* CMD_DST, ImDrawCmd* CMD_SRC)          { return (memcpy(CMD_DST, CMD_SRC, ImDrawCmd_HeaderSize)); }    // Copy ClipRect, TextureId, VtxOffset
+static pragma(inline, true) void* ImDrawCmd_HeaderCopy(ImDrawCmd* CMD_DST, ImDrawCmdHeader* CMD_SRC)          { return (memcpy(CMD_DST, CMD_SRC, ImDrawCmd_HeaderSize)); }    // Copy ClipRect, TextureId, VtxOffset
+static pragma(inline, true) bool ImDrawCmd_AreSequentialIdxOffset(ImDrawCmd* CMD_0, ImDrawCmd* CMD_1)  { return (CMD_0.IdxOffset + CMD_0.ElemCount == CMD_1.IdxOffset); }
 
 // Try to merge two last draw commands
 void _TryMergeDrawCmds()
@@ -540,7 +540,7 @@ void _TryMergeDrawCmds()
     IM_ASSERT_PARANOID(CmdBuffer.Size > 0);
     ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
     ImDrawCmd* prev_cmd = curr_cmd - 1;
-    if (ImDrawCmd_HeaderCompare(curr_cmd, prev_cmd) == 0 && curr_cmd.UserCallback == NULL && prev_cmd.UserCallback == NULL)
+    if (ImDrawCmd_HeaderCompare(curr_cmd, prev_cmd) == 0 && ImDrawCmd_AreSequentialIdxOffset(prev_cmd, curr_cmd) && curr_cmd.UserCallback == NULL && prev_cmd.UserCallback == NULL)
     {
         prev_cmd.ElemCount += curr_cmd.ElemCount;
         CmdBuffer.pop_back();
@@ -563,7 +563,7 @@ void _OnChangedClipRect()
 
     // Try to merge with previous command if it matches, else use current command
     ImDrawCmd* prev_cmd = curr_cmd - 1;
-    if (curr_cmd.ElemCount == 0 && CmdBuffer.Size > 1 && ImDrawCmd_HeaderCompare(&_CmdHeader, prev_cmd) == 0 && prev_cmd.UserCallback == NULL)
+    if (curr_cmd.ElemCount == 0 && CmdBuffer.Size > 1 && ImDrawCmd_HeaderCompare(&_CmdHeader, prev_cmd) == 0 && ImDrawCmd_AreSequentialIdxOffset(prev_cmd, curr_cmd) && prev_cmd.UserCallback == NULL)
     {
         CmdBuffer.pop_back();
         return;
@@ -586,7 +586,7 @@ void _OnChangedTextureID()
 
     // Try to merge with previous command if it matches, else use current command
     ImDrawCmd* prev_cmd = curr_cmd - 1;
-    if (curr_cmd.ElemCount == 0 && CmdBuffer.Size > 1 && ImDrawCmd_HeaderCompare(&_CmdHeader, prev_cmd) == 0 && prev_cmd.UserCallback == NULL)
+    if (curr_cmd.ElemCount == 0 && CmdBuffer.Size > 1 && ImDrawCmd_HeaderCompare(&_CmdHeader, prev_cmd) == 0 && ImDrawCmd_AreSequentialIdxOffset(prev_cmd, curr_cmd) && prev_cmd.UserCallback == NULL)
     {
         CmdBuffer.pop_back();
         return;
@@ -1364,7 +1364,7 @@ void PathBezierQuadraticCurveTo(const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, int 
 static assert(ImDrawFlags.RoundCornersTopLeft == (1 << 4));
 static pragma(inline, true) ImDrawFlags FixRectCornerFlags(ImDrawFlags flags)
 {
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {} else {
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     // Legacy Support for hard coded ~0 (used to be a suggested equivalent to ImDrawCornerFlags_All)
     //   ~0   --> ImDrawFlags_RoundCornersAll or 0
     if (flags == ~0)
@@ -1784,13 +1784,13 @@ void Merge(ImDrawList* draw_list)
     for (int i = 1; i < _Count; i++)
     {
         ImDrawChannel* ch = &_Channels[i];
-
-        // Equivalent of PopUnusedDrawCmd() for this channel's cmdbuffer and except we don't need to test for UserCallback.
-        if (ch._CmdBuffer.Size > 0 && ch._CmdBuffer.back().ElemCount == 0)
+        if (ch._CmdBuffer.Size > 0 && ch._CmdBuffer.back().ElemCount == 0 && ch._CmdBuffer.back().UserCallback == NULL) // Equivalent of PopUnusedDrawCmd()
             ch._CmdBuffer.pop_back();
 
         if (ch._CmdBuffer.Size > 0 && last_cmd != NULL)
         {
+            // Do not include ImDrawCmd_AreSequentialIdxOffset() in the compare as we rebuild IdxOffset values ourselves.
+            // Manipulating IdxOffset (e.g. by reordering draw commands like done by RenderDimmedBackgroundBehindWindow()) is not supported within a splitter.
             ImDrawCmd* next_cmd = &ch._CmdBuffer[0];
             if (ImDrawList_Wrapper.ImDrawCmd_HeaderCompare(last_cmd, next_cmd) == 0 && last_cmd.UserCallback == NULL && next_cmd.UserCallback == NULL)
             {

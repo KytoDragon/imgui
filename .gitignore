@@ -59,6 +59,3 @@ dub.selections.json
 
 ## VS Code settings
 /.vscode
-
-## imconfig file used for testing
-/source/d_imgui/imconfig.d

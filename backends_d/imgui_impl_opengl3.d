@@ -108,10 +108,26 @@ import core.stdc.stdint : intptr_t;
 //#endif
 import core.stdc.string : strcpy, strcat, strcmp;
 
+// Clang warnings with -Weverything
+/+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wold-style-cast"     // warning: use of old-style cast
+#pragma clang diagnostic ignored "-Wsign-conversion"    // warning: implicit conversion changes signedness
+#if __has_warning("-Wzero-as-null-pointer-constant")
+#pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+#endif
+#endif
++/
+
 // GL includes
 /+ D_IMGUI: OpenGl ES not supported
 #if defined(IMGUI_IMPL_OPENGL_ES2)
-#include <GLES2/gl2.h>
+#if (defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV))
+#include <OpenGLES/ES2/gl.h>    // Use GL ES 2
+#else
+#include <GLES2/gl2.h>          // Use GL ES 2
+#endif
 #if defined(__EMSCRIPTEN__)
 #ifndef GL_GLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES
@@ -275,7 +291,7 @@ static if (IMGUI_IMPL_OPENGL_ES2) {
         glsl_version = "#version 100";
 } else static if (IMGUI_IMPL_OPENGL_ES3) {
         glsl_version = "#version 300 es";
-} else version(OSX) {
+} else static if (D_IMGUI_Apple) {
         glsl_version = "#version 150";
 } else {
         glsl_version = "#version 130";
@@ -500,7 +516,7 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
                     continue;
 
                 // Apply scissor/clipping rectangle (Y is inverted in OpenGL)
-                glScissor(cast(int)clip_min.x, cast(int)(fb_height - clip_max.y), cast(int)(clip_max.x - clip_min.x), cast(int)(clip_max.y - clip_min.y));
+                glScissor(cast(int)clip_min.x, cast(int)(cast(float)fb_height - clip_max.y), cast(int)(clip_max.x - clip_min.x), cast(int)(clip_max.y - clip_min.y));
 
                 // Bind texture, Draw
                 glBindTexture(GL_TEXTURE_2D, cast(GLuint)cast(intptr_t)pcmd.GetTexID());
@@ -830,3 +846,9 @@ void    ImGui_ImplOpenGL3_DestroyDeviceObjects()
     if (bd.ShaderHandle)   { glDeleteProgram(bd.ShaderHandle); bd.ShaderHandle = 0; }
     ImGui_ImplOpenGL3_DestroyFontsTexture();
 }
+
+/+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
++/

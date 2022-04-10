@@ -1,4 +1,4 @@
-// dear imgui, v1.86
+// dear imgui, v1.87
 // (headers)
 module d_imgui.imgui_h;
 
@@ -36,6 +36,7 @@ Index of this file:
 // [SECTION] Drawing API (ImDrawCallback, ImDrawCmd, ImDrawIdx, ImDrawVert, ImDrawChannel, ImDrawListSplitter, ImDrawFlags, ImDrawListFlags, ImDrawList, ImDrawData)
 // [SECTION] Font API (ImFontConfig, ImFontGlyph, ImFontGlyphRangesBuilder, ImFontAtlasFlags, ImFontAtlas, ImFont)
 // [SECTION] Viewports (ImGuiViewportFlags, ImGuiViewport)
+// [SECTION] Platform Dependent Interfaces (ImGuiPlatformImeData)
 // [SECTION] Obsolete functions and types
 
 */
@@ -98,8 +99,8 @@ version (OSX) {
 
 // Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals. Work in progress versions typically starts at XYY99 then bounce up to XYY00, XYY01 etc. when release tagging happens)
-enum IMGUI_VERSION              = "1.86";
-enum IMGUI_VERSION_NUM          = 18600;
+enum IMGUI_VERSION              = "1.87";
+enum IMGUI_VERSION_NUM          = 18700;
 pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndDataLayout(IMGUI_VERSION, sizeof!(ImGuiIO), sizeof!(ImGuiStyle), sizeof!(ImVec2), sizeof!(ImVec4), sizeof!(ImDrawVert), sizeof!(ImDrawIdx));}
 version = IMGUI_HAS_TABLE;
 
@@ -131,11 +132,7 @@ static if (!D_IMGUI_USER_DEFINED_ASSERT) {
 pragma(inline, true) int IM_ARRAYSIZE(T, size_t N)(T[N] _ARR) { return cast(int)N;}       // Size of a static C-style array. Don't use on pointers!
 pragma(inline, true) void IM_UNUSED(T)(T _VAR) {}                              // Used to silence "unused variable warnings". Often useful as asserts may be stripped out from final builds.
 /+
-#if (__cplusplus >= 201100) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201100)
 #define IM_OFFSETOF(_TYPE,_MEMBER)  offsetof(_TYPE, _MEMBER)                    // Offset of _MEMBER within _TYPE. Standardized as offsetof() in C++11
-#else
-#define IM_OFFSETOF(_TYPE,_MEMBER)  (cast(size_t)&(((_TYPE*)0)._MEMBER))           // Offset of _MEMBER within _TYPE. Old style macro.
-#endif
 +/
 
 // Helper Macros - IM_FMTARGS, IM_FMTLIST: Apply printf-style warnings to our formatting functions.
@@ -154,7 +151,7 @@ pragma(inline, true) void IM_UNUSED(T)(T _VAR) {}                              /
 
 // Disable some of MSVC most aggressive Debug runtime checks in function header/footer (used in some simple/low-level functions)
 /+
-#if defined(_MSC_VER) && !defined(__clang__) && !defined(IMGUI_DEBUG_PARANOID)
+#if defined(_MSC_VER) && !defined(__clang__)  && !defined(__INTEL_COMPILER) && !defined(IMGUI_DEBUG_PARANOID)
 #define IM_MSVC_RUNTIME_CHECKS_OFF      __pragma(runtime_checks("",off))     __pragma(check_stack(off)) __pragma(strict_gs_check(push,off))
 #define IM_MSVC_RUNTIME_CHECKS_RESTORE  __pragma(runtime_checks("",restore)) __pragma(check_stack())    __pragma(strict_gs_check(pop))
 #else
@@ -205,9 +202,11 @@ struct ImColor;                     // Helper functions to create a color that c
 struct ImGuiContext;                // Dear ImGui context (opaque structure, unless including imgui_internal.h)
 struct ImGuiIO;                     // Main configuration and I/O between your application and ImGui
 struct ImGuiInputTextCallbackData;  // Shared state of InputText() when using custom ImGuiInputTextCallback (rare/advanced use)
+struct ImGuiKeyData;                // Storage for ImGuiIO and IsKeyDown(), IsKeyPressed() etc functions.
 struct ImGuiListClipper;            // Helper to manually clip large list of items
 struct ImGuiOnceUponAFrame;         // Helper for running a block of code not more than once a frame
 struct ImGuiPayload;                // User data payload for drag and drop operations
+struct ImGuiPlatformImeData;        // Platform IME data for io.SetPlatformImeDataFn() function.
 struct ImGuiSizeCallbackData;       // Callback data when using SetNextWindowSizeConstraints() (rare/advanced use)
 struct ImGuiStorage;                // Helper for key->value storage
 struct ImGuiStyle;                  // Runtime data for styling/colors
@@ -227,7 +226,7 @@ typedef int ImGuiCol;               // -> enum ImGuiCol_             // Enum: A 
 typedef int ImGuiCond;              // -> enum ImGuiCond_            // Enum: A condition for many Set*() functions
 typedef int ImGuiDataType;          // -> enum ImGuiDataType_        // Enum: A primary data type
 typedef int ImGuiDir;               // -> enum ImGuiDir_             // Enum: A cardinal direction
-typedef int ImGuiKey;               // -> enum ImGuiKey_             // Enum: A key identifier (ImGui-side enum)
+typedef int ImGuiKey;               // -> enum ImGuiKey_             // Enum: A key identifier
 typedef int ImGuiNavInput;          // -> enum ImGuiNavInput_        // Enum: An input identifier for navigation
 typedef int ImGuiMouseButton;       // -> enum ImGuiMouseButton_     // Enum: A mouse button identifier (0=left, 1=right, 2=middle)
 typedef int ImGuiMouseCursor;       // -> enum ImGuiMouseCursor_     // Enum: A mouse cursor identifier
@@ -641,7 +640,8 @@ namespace ImGui
 
     // Widgets: Drag Sliders
     // - CTRL+Click on any drag box to turn them into an input box. Manually input values aren't clamped by default and can go off-bounds. Use ImGuiSliderFlags_AlwaysClamp to always clamp.
-    // - For all the Float2/Float3/Float4/Int2/Int3/Int4 versions of every functions, note that a 'float v[X]' function argument is the same as 'float* v', the array syntax is just a way to document the number of elements that are expected to be accessible. You can pass address of your first element out of a contiguous set, e.g. &myvector.x
+    // - For all the Float2/Float3/Float4/Int2/Int3/Int4 versions of every functions, note that a 'float v[X]' function argument is the same as 'float* v',
+    //   the array syntax is just a way to document the number of elements that are expected to be accessible. You can pass address of your first element out of a contiguous set, e.g. &myvector.x
     // - Adjust format string to decorate the value with a prefix, a suffix, or adapt the editing and display precision e.g. "%.3f" -> 1.234; "%5.2f secs" -> 01.23 secs; "Biscuit: %.0f" -> Biscuit: 1; etc.
     // - Format string may also be set to NULL or use the default format ("%f" or "%d").
     // - Speed are per-pixel of mouse movement (v_speed=0.2f: mouse needs to move by 5 pixels to increase value by 1). For gamepad/keyboard navigation, minimum speed is Max(v_speed, minimum_step_at_given_precision).
@@ -807,6 +807,7 @@ namespace ImGui
     //  - CloseCurrentPopup() is called by default by Selectable()/MenuItem() when activated (FIXME: need some options).
     //  - Use ImGuiPopupFlags_NoOpenOverExistingPopup to avoid opening a popup if there's already one at the same level. This is equivalent to e.g. testing for !IsAnyPopupOpen() prior to OpenPopup().
     //  - Use IsWindowAppearing() after BeginPopup() to tell if a window just opened.
+    //  - IMPORTANT: Notice that for OpenPopupOnItemClick() we exceptionally default flags to 1 (== ImGuiPopupFlags_MouseButtonRight) for backward compatibility with older API taking 'int mouse_button = 1' parameter
     void          OpenPopup(string str_id, ImGuiPopupFlags popup_flags = 0);                     // call to mark popup as open (don't call every frame!).
     void          OpenPopup(ImGuiID id, ImGuiPopupFlags popup_flags = 0);                             // id overload to facilitate calling from nested stacks
     void          OpenPopupOnItemClick(string str_id = NULL, ImGuiPopupFlags popup_flags = 1);   // helper to open popup when clicked on last item. Default to ImGuiPopupFlags_MouseButtonRight == 1. (note: actually triggers on the mouse _released_ event to be consistent with popup behaviors)
@@ -816,7 +817,7 @@ namespace ImGui
     //  - Helpers to do OpenPopup+BeginPopup where the Open action is triggered by e.g. hovering an item and right-clicking.
     //  - They are convenient to easily create context menus, hence the name.
     //  - IMPORTANT: Notice that BeginPopupContextXXX takes ImGuiPopupFlags just like OpenPopup() and unlike BeginPopup(). For full consistency, we may add ImGuiWindowFlags to the BeginPopupContextXXX functions in the future.
-    //  - IMPORTANT: we exceptionally default their flags to 1 (== ImGuiPopupFlags_MouseButtonRight) for backward compatibility with older API taking 'int mouse_button = 1' parameter, so if you add other flags remember to re-add the ImGuiPopupFlags_MouseButtonRight.
+    //  - IMPORTANT: Notice that we exceptionally default their flags to 1 (== ImGuiPopupFlags_MouseButtonRight) for backward compatibility with older API taking 'int mouse_button = 1' parameter, so if you add other flags remember to re-add the ImGuiPopupFlags_MouseButtonRight.
     bool          BeginPopupContextItem(string str_id = NULL, ImGuiPopupFlags popup_flags = 1);  // open+begin popup when clicked on last item. Use str_id==NULL to associate the popup to previous item. If you want to use that on a non-interactive item such as Text() you need to pass in an explicit ID here. read comments in .cpp!
     bool          BeginPopupContextWindow(string str_id = NULL, ImGuiPopupFlags popup_flags = 1);// open+begin popup when clicked on current window.
     bool          BeginPopupContextVoid(string str_id = NULL, ImGuiPopupFlags popup_flags = 1);  // open+begin popup when clicked in void (where there are no windows).
@@ -828,7 +829,6 @@ namespace ImGui
     bool          IsPopupOpen(string str_id, ImGuiPopupFlags flags = 0);                         // return true if the popup is open.
 
     // Tables
-    // [BETA API] API may evolve slightly! If you use this, please update to the next version when it comes out!
     // - Full-featured replacement for old Columns API.
     // - See Demo->Tables for demo code.
     // - See top of imgui_tables.cpp for general commentary.
@@ -924,7 +924,7 @@ namespace ImGui
     // - If you stop calling BeginDragDropSource() the payload is preserved however it won't have a preview tooltip (we currently display a fallback "..." tooltip, see #1725)
     // - An item can be both drag source and drop target.
     bool          BeginDragDropSource(ImGuiDragDropFlags flags = 0);                                      // call after submitting an item which may be dragged. when this return true, you can call SetDragDropPayload() + EndDragDropSource()
-    bool          SetDragDropPayload(string type, const void* data, size_t sz, ImGuiCond cond = 0);  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui.
+    bool          SetDragDropPayload(string type, const void* data, size_t sz, ImGuiCond cond = 0);  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
     void          EndDragDropSource();                                                                    // only call EndDragDropSource() if BeginDragDropSource() returns true!
     bool                  BeginDragDropTarget();                                                          // call after submitting an item that may receive a payload. If this returns true, you can call AcceptDragDropPayload() + EndDragDropTarget()
     const ImGuiPayload*   AcceptDragDropPayload(string type, ImGuiDragDropFlags flags = 0);          // accept contents of a given type. If ImGuiDragDropFlags_AcceptBeforeDelivery is set you can peek into the payload before the mouse button is released.
@@ -999,13 +999,16 @@ namespace ImGui
     void          ColorConvertHSVtoRGB(float h, float s, float v, float& out_r, float& out_g, float& out_b);
 
     // Inputs Utilities: Keyboard
-    // - For 'int user_key_index' you can use your own indices/enums according to how your backend/engine stored them in io.KeysDown[].
-    // - We don't know the meaning of those value. You can use GetKeyIndex() to map a ImGuiKey_ value into the user index.
-    int           GetKeyIndex(ImGuiKey imgui_key);                                    // map ImGuiKey_* values into user's key index. == io.KeyMap[key]
-    bool          IsKeyDown(int user_key_index);                                      // is key being held. == io.KeysDown[user_key_index].
-    bool          IsKeyPressed(int user_key_index, bool repeat = true);               // was key pressed (went from !Down to Down)? if repeat=true, uses io.KeyRepeatDelay / KeyRepeatRate
-    bool          IsKeyReleased(int user_key_index);                                  // was key released (went from Down to !Down)?
-    int           GetKeyPressedAmount(int key_index, float repeat_delay, float rate); // uses provided repeat rate/delay. return a count, most often 0 or 1 but might be >1 if RepeatRate is small enough that DeltaTime > RepeatRate
+    // Without IMGUI_DISABLE_OBSOLETE_KEYIO: (legacy support)
+    //   - For 'ImGuiKey key' you can still use your legacy native/user indices according to how your backend/engine stored them in io.KeysDown[].
+    // With IMGUI_DISABLE_OBSOLETE_KEYIO: (this is the way forward)
+    //   - Any use of 'ImGuiKey' will assert when key < 512 will be passed, previously reserved as native/user keys indices
+    //   - GetKeyIndex() is pass-through and therefore deprecated (gone if IMGUI_DISABLE_OBSOLETE_KEYIO is defined)
+    bool          IsKeyDown(ImGuiKey key);                                            // is key being held.
+    bool          IsKeyPressed(ImGuiKey key, bool repeat = true);                     // was key pressed (went from !Down to Down)? if repeat=true, uses io.KeyRepeatDelay / KeyRepeatRate
+    bool          IsKeyReleased(ImGuiKey key);                                        // was key released (went from Down to !Down)?
+    int           GetKeyPressedAmount(ImGuiKey key, float repeat_delay, float rate);  // uses provided repeat rate/delay. return a count, most often 0 or 1 but might be >1 if RepeatRate is small enough that DeltaTime > RepeatRate
+    string   GetKeyName(ImGuiKey key);                                           // [DEBUG] returns English name of the key. Those names a provided for debugging purpose and are not meant to be saved persistently not compared.
     void          CaptureKeyboardFromApp(bool want_capture_keyboard_value = true);    // attention: misleading name! manually override io.WantCaptureKeyboard flag next frame (said flag is entirely left for your application to handle). e.g. force capture keyboard when your widget is being hovered. This is equivalent to setting "io.WantCaptureKeyboard = want_capture_keyboard_value"; after the next NewFrame() call.
 
     // Inputs Utilities: Mouse
@@ -1019,7 +1022,7 @@ namespace ImGui
     int           GetMouseClickedCount(ImGuiMouseButton button);                      // return the number of successive mouse-clicks at the time where a click happen (otherwise 0).
     bool          IsMouseHoveringRect(const ImVec2/*&*/ r_min, const ImVec2/*&*/ r_max, bool clip = true);// is mouse hovering given bounding rect (in screen space). clipped by current clipping settings, but disregarding of other consideration of focus/window ordering/popup-block.
     bool          IsMousePosValid(const ImVec2* mouse_pos = NULL);                    // by convention we use (-FLT_MAX,-FLT_MAX) to denote that there is no mouse available
-    bool          IsAnyMouseDown();                                                   // is any mouse button held?
+    bool          IsAnyMouseDown();                                                   // [WILL OBSOLETE] is any mouse button held? This was designed for backends, but prefer having backend maintain a mask of held mouse buttons, because upcoming input queue system will make this invalid.
     ImVec2        GetMousePos();                                                      // shortcut to ImGui::GetIO().MousePos provided by user, to be consistent with other calls
     ImVec2        GetMousePosOnOpeningCurrentPopup();                                 // retrieve mouse position at the time of opening popup we have BeginPopup() into (helper to avoid user backing that value themselves)
     bool          IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f);         // is mouse dragging? (if lock_threshold < -1.0f, uses io.MouseDraggingThreshold)
@@ -1098,9 +1101,7 @@ enum ImGuiWindowFlags : int
     Popup                  = 1 << 26,  // Don't use! For internal use by BeginPopup()
     Modal                  = 1 << 27,  // Don't use! For internal use by BeginPopupModal()
     ChildMenu              = 1 << 28   // Don't use! For internal use by BeginMenu()
-
-    // [Obsolete]
-    //ImGuiWindowFlags_ResizeFromAnySide    = 1 << 17,  // --> Set io.ConfigWindowsResizeFromEdges=true and make sure mouse cursors are supported by backend (io.BackendFlags & ImGuiBackendFlags_HasMouseCursors)
+    //ImGuiWindowFlags_ResizeFromAnySide    = 1 << 17,  // [Obsolete] --> Set io.ConfigWindowsResizeFromEdges=true and make sure mouse cursors are supported by backend (io.BackendFlags & ImGuiBackendFlags_HasMouseCursors)
 }
 
 // Flags for ImGui::InputText()
@@ -1266,8 +1267,7 @@ enum ImGuiTabItemFlags : int
 }
 
 // Flags for ImGui::BeginTable()
-// [BETA API] API may evolve slightly! If you use this, please update to the next version when it comes out!
-// - Important! Sizing policies have complex and subtle side effects, more so than you would expect.
+// - Important! Sizing policies have complex and subtle side effects, much more so than you would expect.
 //   Read comments/demos carefully + experiment with live demos to get acquainted with them.
 // - The DEFAULT sizing policies are:
 //    - Default to ImGuiTableFlags_SizingFixedFit    if ScrollX is on, or if host window has ImGuiWindowFlags_AlwaysAutoResize.
@@ -1275,8 +1275,8 @@ enum ImGuiTabItemFlags : int
 // - When ScrollX is off:
 //    - Table defaults to ImGuiTableFlags_SizingStretchSame -> all Columns defaults to ImGuiTableColumnFlags_WidthStretch with same weight.
 //    - Columns sizing policy allowed: Stretch (default), Fixed/Auto.
-//    - Fixed Columns will generally obtain their requested width (unless the table cannot fit them all).
-//    - Stretch Columns will share the remaining width.
+//    - Fixed Columns (if any) will generally obtain their requested width (unless the table cannot fit them all).
+//    - Stretch Columns will share the remaining width according to their respective weight.
 //    - Mixed Fixed/Stretch columns is possible but has various side-effects on resizing behaviors.
 //      The typical use of mixing sizing policies is: any number of LEADING Fixed columns, followed by one or two TRAILING Stretch columns.
 //      (this is because the visible order of columns have subtle but necessary effects on how they react to manual resizing).
@@ -1390,7 +1390,7 @@ enum ImGuiTableColumnFlags : int
 enum ImGuiTableRowFlags : int
 {
     None                         = 0,
-    Headers                      = 1 << 0    // Identify header row (set default background color + width of its contents accounted different for auto column width)
+    Headers                      = 1 << 0    // Identify header row (set default background color + width of its contents accounted differently for auto column width)
 }
 
 // Enum for ImGui::TableSetBgColor()
@@ -1504,10 +1504,11 @@ enum ImGuiSortDirection : int
     Descending   = 2     // Descending = 9->0, Z->A etc.
 }
 
-// User fill ImGuiIO.KeyMap[] array with indices into the ImGuiIO.KeysDown[512] array
 enum ImGuiKey : int
 {
-    Tab,
+    // Keyboard
+    None = 0,
+    Tab = 512,             // == ImGuiKey_NamedKey_BEGIN
     LeftArrow,
     RightArrow,
     UpArrow,
@@ -1522,65 +1523,154 @@ enum ImGuiKey : int
     Space,
     Enter,
     Escape,
-    KeyPadEnter,
-    A,                 // for text edit CTRL+A: select all
-    C,                 // for text edit CTRL+C: copy
-    V,                 // for text edit CTRL+V: paste
-    X,                 // for text edit CTRL+X: cut
-    Y,                 // for text edit CTRL+Y: redo
-    Z,                 // for text edit CTRL+Z: undo
-    COUNT
+    LeftCtrl, LeftShift, LeftAlt, LeftSuper,
+    RightCtrl, RightShift, RightAlt, RightSuper,
+    Menu,
+    _0, _1, _2, _3, _4, _5, _6, _7, _8, _9,
+    A, B, C, D, E, F, G, H, I, J,
+    K, L, M, N, O, P, Q, R, S, T,
+    U, V, W, X, Y, Z,
+    F1, F2, F3, F4, F5, F6,
+    F7, F8, F9, F10, F11, F12,
+    Apostrophe,        // '
+    Comma,             // ,
+    Minus,             // -
+    Period,            // .
+    Slash,             // /
+    Semicolon,         // ;
+    Equal,             // =
+    LeftBracket,       // [
+    Backslash,         // \ (this text inhibit multiline comment caused by backslash)
+    RightBracket,      // ]
+    GraveAccent,       // `
+    CapsLock,
+    ScrollLock,
+    NumLock,
+    PrintScreen,
+    Pause,
+    Keypad0, Keypad1, Keypad2, Keypad3, Keypad4,
+    Keypad5, Keypad6, Keypad7, Keypad8, Keypad9,
+    KeypadDecimal,
+    KeypadDivide,
+    KeypadMultiply,
+    KeypadSubtract,
+    KeypadAdd,
+    KeypadEnter,
+    KeypadEqual,
+
+    // Gamepad (some of those are analog values, 0.0f to 1.0f)                              // NAVIGATION action
+    GamepadStart,          // Menu (Xbox)          + (Switch)   Start/Options (PS) // --
+    GamepadBack,           // View (Xbox)          - (Switch)   Share (PS)         // --
+    GamepadFaceUp,         // Y (Xbox)             X (Switch)   Triangle (PS)      // -> ImGuiNavInput_Input
+    GamepadFaceDown,       // A (Xbox)             B (Switch)   Cross (PS)         // -> ImGuiNavInput_Activate
+    GamepadFaceLeft,       // X (Xbox)             Y (Switch)   Square (PS)        // -> ImGuiNavInput_Menu
+    GamepadFaceRight,      // B (Xbox)             A (Switch)   Circle (PS)        // -> ImGuiNavInput_Cancel
+    GamepadDpadUp,         // D-pad Up                                             // -> ImGuiNavInput_DpadUp
+    GamepadDpadDown,       // D-pad Down                                           // -> ImGuiNavInput_DpadDown
+    GamepadDpadLeft,       // D-pad Left                                           // -> ImGuiNavInput_DpadLeft
+    GamepadDpadRight,      // D-pad Right                                          // -> ImGuiNavInput_DpadRight
+    GamepadL1,             // L Bumper (Xbox)      L (Switch)   L1 (PS)            // -> ImGuiNavInput_FocusPrev + ImGuiNavInput_TweakSlow
+    GamepadR1,             // R Bumper (Xbox)      R (Switch)   R1 (PS)            // -> ImGuiNavInput_FocusNext + ImGuiNavInput_TweakFast
+    GamepadL2,             // L Trigger (Xbox)     ZL (Switch)  L2 (PS) [Analog]
+    GamepadR2,             // R Trigger (Xbox)     ZR (Switch)  R2 (PS) [Analog]
+    GamepadL3,             // L Thumbstick (Xbox)  L3 (Switch)  L3 (PS)
+    GamepadR3,             // R Thumbstick (Xbox)  R3 (Switch)  R3 (PS)
+    GamepadLStickUp,       // [Analog]                                             // -> ImGuiNavInput_LStickUp
+    GamepadLStickDown,     // [Analog]                                             // -> ImGuiNavInput_LStickDown
+    GamepadLStickLeft,     // [Analog]                                             // -> ImGuiNavInput_LStickLeft
+    GamepadLStickRight,    // [Analog]                                             // -> ImGuiNavInput_LStickRight
+    GamepadRStickUp,       // [Analog]
+    GamepadRStickDown,     // [Analog]
+    GamepadRStickLeft,     // [Analog]
+    GamepadRStickRight,    // [Analog]
+
+    // Keyboard Modifiers
+    // - This is mirroring the data also written to io.KeyCtrl, io.KeyShift, io.KeyAlt, io.KeySuper, in a format allowing
+    //   them to be accessed via standard key API, allowing calls such as IsKeyPressed(), IsKeyReleased(), querying duration etc.
+    // - Code polling every keys (e.g. an interface to detect a key press for input mapping) might want to ignore those
+    //   and prefer using the real keys (e.g. ImGuiKey_LeftCtrl, ImGuiKey_RightCtrl instead of ImGuiKey_ModCtrl).
+    // - In theory the value of keyboard modifiers should be roughly equivalent to a logical or of the equivalent left/right keys.
+    //   In practice: it's complicated; mods are often provided from different sources. Keyboard layout, IME, sticky keys and
+    //   backends tend to interfere and break that equivalence. The safer decision is to relay that ambiguity down to the end-user...
+    ModCtrl,
+    ModShift,
+    ModAlt,
+    ModSuper,
+
+    COUNT,                 // No valid ImGuiKey is ever greater than this value
+
+    // [Internal] Prior to 1.87 we required user to fill io.KeysDown[512] using their own native index + a io.KeyMap[] array.
+    // We are ditching this method but keeping a legacy path for user code doing e.g. IsKeyPressed(MY_NATIVE_KEY_CODE)
+    NamedKey_BEGIN         = 512,
+    NamedKey_END           = COUNT,
+    NamedKey_COUNT         = NamedKey_END - NamedKey_BEGIN,
+//#ifdef IMGUI_DISABLE_OBSOLETE_KEYIO
+//    KeysData_SIZE          = ImGuiKey.NamedKey_COUNT,          // Size of KeysData[]: only hold named keys
+//    KeysData_OFFSET        = ImGuiKey.NamedKey_BEGIN           // First key stored in KeysData[0]
+//#else
+    KeysData_SIZE          = COUNT,                   // Size of KeysData[]: hold legacy 0..512 keycodes + named keys
+    KeysData_OFFSET        = 0                                 // First key stored in KeysData[0]
+//#endif
+
+//#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+    , KeyPadEnter = KeypadEnter   // Renamed in 1.87
+//#endif
+
+    , // [Internal]
+    LegacyNativeKey_BEGIN  = 0,
+    LegacyNativeKey_END    = 512,
+    Gamepad_BEGIN          = ImGuiKey.GamepadStart,
+    Gamepad_END            = ImGuiKey.GamepadRStickRight + 1
 }
 
-// To test io.KeyMods (which is a combination of individual fields io.KeyCtrl, io.KeyShift, io.KeyAlt set by user/backend)
+// Helper "flags" version of key-mods to store and compare multiple key-mods easily. Sometimes used for storage (e.g. io.KeyMods) but otherwise not much used in public API.
 enum ImGuiKeyModFlags : int
 {
-    None       = 0,
-    Ctrl       = 1 << 0,
-    Shift      = 1 << 1,
-    Alt        = 1 << 2,
-    Super      = 1 << 3
+    None           = 0,
+    Ctrl           = 1 << 0,
+    Shift          = 1 << 1,
+    Alt            = 1 << 2,
+    Super          = 1 << 3    // Cmd/Super/Windows key
 }
 
 // Gamepad/Keyboard navigation
-// Keyboard: Set io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard to enable. NewFrame() will automatically fill io.NavInputs[] based on your io.KeysDown[] + io.KeyMap[] arrays.
+// Keyboard: Set io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard to enable. NewFrame() will automatically fill io.NavInputs[] based on your io.AddKeyEvent() calls.
 // Gamepad:  Set io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad to enable. Backend: set ImGuiBackendFlags_HasGamepad and fill the io.NavInputs[] fields before calling NewFrame(). Note that io.NavInputs[] is cleared by EndFrame().
 // Read instructions in imgui.cpp for more details. Download PNG/PSD at http://dearimgui.org/controls_sheets.
 enum ImGuiNavInput : int
 {
     // Gamepad Mapping
-    Activate,      // activate / open / toggle / tweak value       // e.g. Cross  (PS4), A (Xbox), A (Switch), Space (Keyboard)
-    Cancel,        // cancel / close / exit                        // e.g. Circle (PS4), B (Xbox), B (Switch), Escape (Keyboard)
-    Input,         // text input / on-screen keyboard              // e.g. Triang.(PS4), Y (Xbox), X (Switch), Return (Keyboard)
-    Menu,          // tap: toggle menu / hold: focus, move, resize // e.g. Square (PS4), X (Xbox), Y (Switch), Alt (Keyboard)
-    DpadLeft,      // move / tweak / resize window (w/ PadMenu)    // e.g. D-pad Left/Right/Up/Down (Gamepads), Arrow keys (Keyboard)
+    Activate,      // Activate / Open / Toggle / Tweak value       // e.g. Cross  (PS4), A (Xbox), A (Switch), Space (Keyboard)
+    Cancel,        // Cancel / Close / Exit                        // e.g. Circle (PS4), B (Xbox), B (Switch), Escape (Keyboard)
+    Input,         // Text input / On-Screen keyboard              // e.g. Triang.(PS4), Y (Xbox), X (Switch), Return (Keyboard)
+    Menu,          // Tap: Toggle menu / Hold: Focus, Move, Resize // e.g. Square (PS4), X (Xbox), Y (Switch), Alt (Keyboard)
+    DpadLeft,      // Move / Tweak / Resize window (w/ PadMenu)    // e.g. D-pad Left/Right/Up/Down (Gamepads), Arrow keys (Keyboard)
     DpadRight,     //
     DpadUp,        //
     DpadDown,      //
-    LStickLeft,    // scroll / move window (w/ PadMenu)            // e.g. Left Analog Stick Left/Right/Up/Down
+    LStickLeft,    // Scroll / Move window (w/ PadMenu)            // e.g. Left Analog Stick Left/Right/Up/Down
     LStickRight,   //
     LStickUp,      //
     LStickDown,    //
-    FocusPrev,     // next window (w/ PadMenu)                     // e.g. L1 or L2 (PS4), LB or LT (Xbox), L or ZL (Switch)
-    FocusNext,     // prev window (w/ PadMenu)                     // e.g. R1 or R2 (PS4), RB or RT (Xbox), R or ZL (Switch)
-    TweakSlow,     // slower tweaks                                // e.g. L1 or L2 (PS4), LB or LT (Xbox), L or ZL (Switch)
-    TweakFast,     // faster tweaks                                // e.g. R1 or R2 (PS4), RB or RT (Xbox), R or ZL (Switch)
+    FocusPrev,     // Focus Next window (w/ PadMenu)               // e.g. L1 or L2 (PS4), LB or LT (Xbox), L or ZL (Switch)
+    FocusNext,     // Focus Prev window (w/ PadMenu)               // e.g. R1 or R2 (PS4), RB or RT (Xbox), R or ZL (Switch)
+    TweakSlow,     // Slower tweaks                                // e.g. L1 or L2 (PS4), LB or LT (Xbox), L or ZL (Switch)
+    TweakFast,     // Faster tweaks                                // e.g. R1 or R2 (PS4), RB or RT (Xbox), R or ZL (Switch)
 
     // [Internal] Don't use directly! This is used internally to differentiate keyboard from gamepad inputs for behaviors that require to differentiate them.
-    // Keyboard behavior that have no corresponding gamepad mapping (e.g. CTRL+TAB) will be directly reading from io.KeysDown[] instead of io.NavInputs[].
-    KeyLeft_,      // move left                                    // = Arrow keys
-    KeyRight_,     // move right
-    KeyUp_,        // move up
-    KeyDown_,      // move down
-    COUNT,
-    InternalStart_ = ImGuiNavInput.KeyLeft_
+    // Keyboard behavior that have no corresponding gamepad mapping (e.g. CTRL+TAB) will be directly reading from keyboard keys instead of io.NavInputs[].
+    KeyLeft_,      // Move left                                    // = Arrow keys
+    KeyRight_,     // Move right
+    KeyUp_,        // Move up
+    KeyDown_,      // Move down
+    COUNT
 }
 
 // Configuration flags stored in io.ConfigFlags. Set by user/application.
 enum ImGuiConfigFlags : int
 {
     None                   = 0,
-    NavEnableKeyboard      = 1 << 0,   // Master keyboard navigation enable flag. NewFrame() will automatically fill io.NavInputs[] based on io.KeysDown[].
+    NavEnableKeyboard      = 1 << 0,   // Master keyboard navigation enable flag. NewFrame() will automatically fill io.NavInputs[] based on io.AddKeyEvent() calls
     NavEnableGamepad       = 1 << 1,   // Master gamepad navigation enable flag. This is mostly to instruct your imgui backend to fill io.NavInputs[]. Backend also needs to set ImGuiBackendFlags_HasGamepad.
     NavEnableSetMousePos   = 1 << 2,   // Instruct navigation to move the mouse cursor. May be useful on TV/console systems where moving a virtual mouse is awkward. Will update io.MousePos and set io.WantSetMousePos=true. If enabled you MUST honor io.WantSetMousePos requests in your backend, otherwise ImGui will react as if the mouse is jumping around back and forth.
     NavNoCaptureKeyboard   = 1 << 3,   // Instruct navigation to not set the io.WantCaptureKeyboard flag when io.NavActive is set.
@@ -1770,13 +1860,9 @@ enum ImGuiColorEditFlags : int
     DataTypeMask_   = ImGuiColorEditFlags.Uint8 | ImGuiColorEditFlags.Float,
     PickerMask_     = ImGuiColorEditFlags.PickerHueWheel | ImGuiColorEditFlags.PickerHueBar,
     InputMask_      = ImGuiColorEditFlags.InputRGB | ImGuiColorEditFlags.InputHSV
-}
 
     // Obsolete names (will be removed)
-static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-    deprecated enum ImGuiColorEditFlags_RGB = ImGuiColorEditFlags.DisplayRGB;
-    deprecated enum ImGuiColorEditFlags_HSV = ImGuiColorEditFlags.DisplayHSV;
-    deprecated enum ImGuiColorEditFlags_HEX = ImGuiColorEditFlags.DisplayHex;  // [renamed in 1.69]
+    // ImGuiColorEditFlags_RGB = ImGuiColorEditFlags_DisplayRGB, ImGuiColorEditFlags_HSV = ImGuiColorEditFlags_DisplayHSV, ImGuiColorEditFlags_HEX = ImGuiColorEditFlags_DisplayHex  // [renamed in 1.69]
 }
 
 // Flags for DragFloat(), DragInt(), SliderFloat(), SliderInt() etc.
@@ -2013,6 +2099,16 @@ struct ImGuiStyle
 // Access via ImGui::GetIO(). Read 'Programmer guide' section in .cpp file for general usage.
 //-----------------------------------------------------------------------------
 
+// [Internal] Storage used by IsKeyDown(), IsKeyPressed() etc functions.
+// If prior to 1.87 you used io.KeysDownDuration[] (which was marked as internal), you should use GetKeyData(key)->DownDuration and not io.KeysData[key]->DownDuration.
+struct ImGuiKeyData
+{
+    bool        Down;               // True for if key is down
+    float       DownDuration;       // Duration the key has been down (<0.0f: not pressed, 0.0f: just pressed, >0.0f: time held)
+    float       DownDurationPrev;   // Last frame duration the key has been down
+    float       AnalogValue;        // 0.0f..1.0f for gamepad values
+}
+
 struct ImGuiIO
 {
     nothrow:
@@ -2031,7 +2127,6 @@ struct ImGuiIO
     float       MouseDoubleClickTime;           // = 0.30f          // Time for a double-click, in seconds.
     float       MouseDoubleClickMaxDist;        // = 6.0f           // Distance threshold to stay in to validate a double-click, in pixels.
     float       MouseDragThreshold;             // = 6.0f           // Distance threshold before considering we are dragging.
-    int[ImGuiKey.COUNT]         KeyMap;         // <unset>          // Map of indices into the KeysDown[512] entries array which represent your "native" keyboard state.
     float       KeyRepeatDelay;                 // = 0.250f         // When holding a key/button, time before it starts repeating, in seconds (for buttons in Repeat mode, etc.).
     float       KeyRepeatRate;                  // = 0.050f         // When holding a key/button, rate at which it repeats, in seconds.
     void*       UserData;                       // = NULL           // Store your own data for retrieval by callbacks.
@@ -2045,6 +2140,7 @@ struct ImGuiIO
     // Miscellaneous options
     bool        MouseDrawCursor;                // = false          // Request ImGui to draw a mouse cursor for you (if you are on a platform without a mouse cursor). Cannot be easily renamed to 'io.ConfigXXX' because this is frequently used by backend implementations.
     bool        ConfigMacOSXBehaviors;          // = defined(__APPLE__) // OS X style: Text editing cursor movement using Alt instead of Ctrl, Shortcuts using Cmd/Super instead of Ctrl, Line/Text Start and End using Cmd+Arrows instead of Home/End, Double click selects by word instead of selecting whole text, Multi-selection in lists uses Cmd/Super instead of Ctrl.
+    bool        ConfigInputTrickleEventQueue;   // = true           // Enable input queue trickling: some types of events submitted during the same frame (e.g. button down + up) will be spread over multiple frames, improving interactions with low framerates.
     bool        ConfigInputTextCursorBlink;     // = true           // Enable blinking cursor (optional as some users consider it to be distracting).
     bool        ConfigDragClickToInputText;     // = false          // [BETA] Enable turning DragXXX widgets into text input with a simple mouse click-release (without moving). Not desirable on devices without a keyboard.
     bool        ConfigWindowsResizeFromEdges;   // = true           // Enable resizing of windows from their edges and from the lower-left corner. This requires (io.BackendFlags & ImGuiBackendFlags_HasMouseCursors) because it needs mouse cursor feedback. (This used to be a per-window ImGuiWindowFlags_ResizeFromAnySide flag)
@@ -2071,31 +2167,31 @@ struct ImGuiIO
 
     // Optional: Notify OS Input Method Editor of the screen position of your cursor for text input position (e.g. when using Japanese/Chinese IME on Windows)
     // (default to use native imm32 api on Windows)
-    void        function(int x, int y) ImeSetInputScreenPosFn;
-    void*       ImeWindowHandle;                // = NULL           // (Windows) Set this to your HWND to get automatic IME cursor positioning.
+    void        function(ImGuiViewport* viewport, ImGuiPlatformImeData* data) SetPlatformImeDataFn;
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    void*       ImeWindowHandle;                // = NULL           // [Obsolete] Set ImGuiViewport::PlatformHandleRaw instead. Set this to your HWND to get automatic IME cursor positioning.
+} else {
+    void*       _UnusedPadding;                                     // Unused field to keep data structure the same size.
+}
 
     //------------------------------------------------------------------
-    // Input - Fill before calling NewFrame()
+    // Input - Call before calling NewFrame()
     //------------------------------------------------------------------
 
-    ImVec2      MousePos;                       // Mouse position, in pixels. Set to ImVec2(-FLT_MAX, -FLT_MAX) if mouse is unavailable (on another screen, etc.)
-    bool[5]        MouseDown;                   // Mouse buttons: 0=left, 1=right, 2=middle + extras (ImGuiMouseButton_COUNT == 5). Dear ImGui mostly uses left and right buttons. Others buttons allows us to track if the mouse is being used by your application + available to user as a convenience via IsMouse** API.
-    float       MouseWheel;                     // Mouse wheel Vertical: 1 unit scrolls about 5 lines text.
-    float       MouseWheelH;                    // Mouse wheel Horizontal. Most users don't have a mouse with an horizontal wheel, may not be filled by all backends.
-    bool        KeyCtrl;                        // Keyboard modifier pressed: Control
-    bool        KeyShift;                       // Keyboard modifier pressed: Shift
-    bool        KeyAlt;                         // Keyboard modifier pressed: Alt
-    bool        KeySuper;                       // Keyboard modifier pressed: Cmd/Super/Windows
-    bool[512]        KeysDown;                  // Keyboard keys that are pressed (ideally left in the "native" order your engine has access to keyboard keys, so you can use your own defines/enums for keys).
-    float[ImGuiNavInput.COUNT]       NavInputs; // Gamepad inputs. Cleared back to zero by EndFrame(). Keyboard keys will be auto-mapped and be written here by NewFrame().
+    // Input Functions
+    void  AddKeyEvent(ImGuiKey key, bool down) { (cast(ImGuiIO_Wrapper*)&this).AddKeyEvent(key, down); }                   // Queue a new key down/up event. Key should be "translated" (as in, generally ImGuiKey_A matches the key end-user would use to emit an 'A' character)
+    void  AddKeyAnalogEvent(ImGuiKey key, bool down, float v) { (cast(ImGuiIO_Wrapper*)&this).AddKeyAnalogEvent(key, down, v); }    // Queue a new key down/up event for analog values (e.g. ImGuiKey_Gamepad_ values). Dead-zones should be handled by the backend.
+    void  AddMousePosEvent(float x, float y) { (cast(ImGuiIO_Wrapper*)&this).AddMousePosEvent(x, y); }                     // Queue a mouse position update. Use -FLT_MAX,-FLT_MAX to signify no mouse (e.g. app not focused and not hovered)
+    void  AddMouseButtonEvent(int button, bool down) { (cast(ImGuiIO_Wrapper*)&this).AddMouseButtonEvent(button, down); }             // Queue a mouse button change
+    void  AddMouseWheelEvent(float wh_x, float wh_y) { (cast(ImGuiIO_Wrapper*)&this).AddMouseWheelEvent(wh_x, wh_y); }             // Queue a mouse wheel update
+    void  AddFocusEvent(bool focused) { (cast(ImGuiIO_Wrapper*)&this).AddFocusEvent(focused); }                            // Queue a gain/loss of focus for the application (generally based on OS/platform focus of your window)
+    void  AddInputCharacter(uint c) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacter(c); }                      // Queue a new character input
+    void  AddInputCharacterUTF16(ImWchar16 c) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacterUTF16(c); }                    // Queue a new character input from an UTF-16 character, it can be a surrogate
+    void  AddInputCharactersUTF8(string str) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharactersUTF8(str); }                // Queue a new characters input from an UTF-8 string
 
-    // Functions
-    void  AddInputCharacter(uint c) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacter(c); }          // Queue new character input
-    void  AddInputCharacterUTF16(ImWchar16 c) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacterUTF16(c); }        // Queue new character input from an UTF-16 character, it can be a surrogate
-    void  AddInputCharactersUTF8(string str) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharactersUTF8(str); }    // Queue new characters input from an UTF-8 string
-    void  AddFocusEvent(bool focused) { (cast(ImGuiIO_Wrapper*)&this).AddFocusEvent(focused); }                // Notifies Dear ImGui when hosting platform windows lose or gain input focus
-    void  ClearInputCharacters() { (cast(ImGuiIO_Wrapper*)&this).ClearInputCharacters(); }                     // [Internal] Clear the text input buffer manually
-    void  ClearInputKeys() { (cast(ImGuiIO_Wrapper*)&this).ClearInputKeys(); }                           // [Internal] Release all keys
+    void  ClearInputCharacters() { (cast(ImGuiIO_Wrapper*)&this).ClearInputCharacters(); }                                 // [Internal] Clear the text input buffer manually
+    void  ClearInputKeys() { (cast(ImGuiIO_Wrapper*)&this).ClearInputKeys(); }                                       // [Internal] Release all keys
+    void  SetKeyEventNativeData(ImGuiKey key, int native_keycode, int native_scancode, int native_legacy_index = -1) { (cast(ImGuiIO_Wrapper*)&this).SetKeyEventNativeData(key, native_keycode, native_scancode, native_legacy_index); } // [Optional] Specify index for legacy <1.87 IsKeyXXX() functions with native indices + specify native keycode, scancode.
 
     //------------------------------------------------------------------
     // Output - Updated by NewFrame() or EndFrame()/Render()
@@ -2103,50 +2199,71 @@ struct ImGuiIO
     //  generally easier and more correct to use their state BEFORE calling NewFrame(). See FAQ for details!)
     //------------------------------------------------------------------
 
-    bool        WantCaptureMouse;               // Set when Dear ImGui will use mouse inputs, in this case do not dispatch them to your main game/application (either way, always pass on mouse inputs to imgui). (e.g. unclicked mouse is hovering over an imgui window, widget is active, mouse was clicked over an imgui window, etc.).
-    bool        WantCaptureKeyboard;            // Set when Dear ImGui will use keyboard inputs, in this case do not dispatch them to your main game/application (either way, always pass keyboard inputs to imgui). (e.g. InputText active, or an imgui window is focused and navigation is enabled, etc.).
-    bool        WantTextInput;                  // Mobile/console: when set, you may display an on-screen keyboard. This is set by Dear ImGui when it wants textual keyboard input to happen (e.g. when a InputText widget is active).
-    bool        WantSetMousePos;                // MousePos has been altered, backend should reposition mouse on next frame. Rarely used! Set only when ImGuiConfigFlags_NavEnableSetMousePos flag is enabled.
-    bool        WantSaveIniSettings;            // When manual .ini load/save is active (io.IniFilename == NULL), this will be set to notify your application that you can call SaveIniSettingsToMemory() and save yourself. Important: clear io.WantSaveIniSettings yourself after saving!
-    bool        NavActive;                      // Keyboard/Gamepad navigation is currently allowed (will handle ImGuiKey_NavXXX events) = a window is focused and it doesn't use the ImGuiWindowFlags_NoNavInputs flag.
-    bool        NavVisible;                     // Keyboard/Gamepad navigation is visible and allowed (will handle ImGuiKey_NavXXX events).
-    float       Framerate;                      // Rough estimate of application framerate, in frame per second. Solely for convenience. Rolling average estimation based on io.DeltaTime over 120 frames.
-    int         MetricsRenderVertices;          // Vertices output during last call to Render()
-    int         MetricsRenderIndices;           // Indices output during last call to Render() = number of triangles * 3
-    int         MetricsRenderWindows;           // Number of visible windows
-    int         MetricsActiveWindows;           // Number of active windows
-    int         MetricsActiveAllocations;       // Number of active allocations, updated by MemAlloc/MemFree based on current context. May be off if you have multiple imgui contexts.
-    ImVec2      MouseDelta;                     // Mouse delta. Note that this is zero if either current or previous position are invalid (-FLT_MAX,-FLT_MAX), so a disappearing/reappearing mouse won't have a huge delta.
+    bool        WantCaptureMouse;                   // Set when Dear ImGui will use mouse inputs, in this case do not dispatch them to your main game/application (either way, always pass on mouse inputs to imgui). (e.g. unclicked mouse is hovering over an imgui window, widget is active, mouse was clicked over an imgui window, etc.).
+    bool        WantCaptureKeyboard;                // Set when Dear ImGui will use keyboard inputs, in this case do not dispatch them to your main game/application (either way, always pass keyboard inputs to imgui). (e.g. InputText active, or an imgui window is focused and navigation is enabled, etc.).
+    bool        WantTextInput;                      // Mobile/console: when set, you may display an on-screen keyboard. This is set by Dear ImGui when it wants textual keyboard input to happen (e.g. when a InputText widget is active).
+    bool        WantSetMousePos;                    // MousePos has been altered, backend should reposition mouse on next frame. Rarely used! Set only when ImGuiConfigFlags_NavEnableSetMousePos flag is enabled.
+    bool        WantSaveIniSettings;                // When manual .ini load/save is active (io.IniFilename == NULL), this will be set to notify your application that you can call SaveIniSettingsToMemory() and save yourself. Important: clear io.WantSaveIniSettings yourself after saving!
+    bool        NavActive;                          // Keyboard/Gamepad navigation is currently allowed (will handle ImGuiKey_NavXXX events) = a window is focused and it doesn't use the ImGuiWindowFlags_NoNavInputs flag.
+    bool        NavVisible;                         // Keyboard/Gamepad navigation is visible and allowed (will handle ImGuiKey_NavXXX events).
+    float       Framerate;                          // Rough estimate of application framerate, in frame per second. Solely for convenience. Rolling average estimation based on io.DeltaTime over 120 frames.
+    int         MetricsRenderVertices;              // Vertices output during last call to Render()
+    int         MetricsRenderIndices;               // Indices output during last call to Render() = number of triangles * 3
+    int         MetricsRenderWindows;               // Number of visible windows
+    int         MetricsActiveWindows;               // Number of active windows
+    int         MetricsActiveAllocations;           // Number of active allocations, updated by MemAlloc/MemFree based on current context. May be off if you have multiple imgui contexts.
+    ImVec2      MouseDelta;                         // Mouse delta. Note that this is zero if either current or previous position are invalid (-FLT_MAX,-FLT_MAX), so a disappearing/reappearing mouse won't have a huge delta.
+
+    // Legacy: before 1.87, we required backend to fill io.KeyMap[] (imgui->native map) during initialization and io.KeysDown[] (native indices) every frame.
+    // This is still temporarily supported as a legacy feature. However the new preferred scheme is for backend to call io.AddKeyEvent().
+static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
+    int[ImGuiKey.COUNT]         KeyMap;             // [LEGACY] Input: map of indices into the KeysDown[512] entries array which represent your "native" keyboard state. The first 512 are now unused and should be kept zero. Legacy backend will write into KeyMap[] using ImGuiKey_ indices which are always >512.
+    bool[512]        KeysDown;                      // [LEGACY] Input: Keyboard keys that are pressed (ideally left in the "native" order your engine has access to keyboard keys, so you can use your own defines/enums for keys).
+}
 
     //------------------------------------------------------------------
     // [Internal] Dear ImGui will maintain those fields. Forward compatibility not guaranteed!
     //------------------------------------------------------------------
 
-    bool        WantCaptureMouseUnlessPopupClose;// Alternative to WantCaptureMouse: (WantCaptureMouse == true && WantCaptureMouseUnlessPopupClose == false) when a click over void is expected to close a popup.
-    ImGuiKeyModFlags KeyMods;                   // Key mods flags (same as io.KeyCtrl/KeyShift/KeyAlt/KeySuper but merged into flags), updated by NewFrame()
-    ImGuiKeyModFlags KeyModsPrev;               // Previous key mods
-    ImVec2      MousePosPrev;                   // Previous mouse position (note that MouseDelta is not necessary == MousePos-MousePosPrev, in case either position is invalid)
-    ImVec2[5]      MouseClickedPos;             // Position at time of clicking
-    double[5]      MouseClickedTime;            // Time of last click (used to figure out double-click)
-    bool[5]        MouseClicked;                // Mouse button went from !Down to Down (same as MouseClickedCount[x] != 0)
-    bool[5]        MouseDoubleClicked;          // Has mouse button been double-clicked? (same as MouseClickedCount[x] == 2)
-    ImU16[5]       MouseClickedCount;           // == 0 (not clicked), == 1 (same as MouseClicked[]), == 2 (double-clicked), == 3 (triple-clicked) etc. when going from !Down to Down
-    ImU16[5]       MouseClickedLastCount;       // Count successive number of clicks. Stays valid after mouse release. Reset after another click is done.
-    bool[5]        MouseReleased;               // Mouse button went from Down to !Down
-    bool[5]        MouseDownOwned;              // Track if button was clicked inside a dear imgui window or over void blocked by a popup. We don't request mouse capture from the application if click started outside ImGui bounds.
-    bool[5]        MouseDownOwnedUnlessPopupClose;//Track if button was clicked inside a dear imgui window.
-    float[5]       MouseDownDuration;           // Duration the mouse button has been down (0.0f == just clicked)
-    float[5]       MouseDownDurationPrev;       // Previous time the mouse button has been down
-    ImVec2[5]      MouseDragMaxDistanceAbs;     // Maximum distance, absolute, on each axis, of how much mouse has traveled from the clicking point
-    float[5]       MouseDragMaxDistanceSqr;     // Squared maximum distance of how much mouse has traveled from the clicking point
-    float[512]       KeysDownDuration;          // Duration the keyboard key has been down (0.0f == just pressed)
-    float[512]       KeysDownDurationPrev;      // Previous duration the key has been down
+    // Main Input State
+    // (this block used to be written by backend, since 1.87 it is best to NOT write to those directly, call the AddXXX functions above instead)
+    // (reading from those variables is fair game, as they are extremely unlikely to be moving anywhere)
+    ImVec2      MousePos;                           // Mouse position, in pixels. Set to ImVec2(-FLT_MAX, -FLT_MAX) if mouse is unavailable (on another screen, etc.)
+    bool[5]        MouseDown;                       // Mouse buttons: 0=left, 1=right, 2=middle + extras (ImGuiMouseButton_COUNT == 5). Dear ImGui mostly uses left and right buttons. Others buttons allows us to track if the mouse is being used by your application + available to user as a convenience via IsMouse** API.
+    float       MouseWheel;                         // Mouse wheel Vertical: 1 unit scrolls about 5 lines text.
+    float       MouseWheelH;                        // Mouse wheel Horizontal. Most users don't have a mouse with an horizontal wheel, may not be filled by all backends.
+    bool        KeyCtrl;                            // Keyboard modifier down: Control
+    bool        KeyShift;                           // Keyboard modifier down: Shift
+    bool        KeyAlt;                             // Keyboard modifier down: Alt
+    bool        KeySuper;                           // Keyboard modifier down: Cmd/Super/Windows
+    float[ImGuiNavInput.COUNT]       NavInputs;     // Gamepad inputs. Cleared back to zero by EndFrame(). Keyboard keys will be auto-mapped and be written here by NewFrame().
+
+    // Other state maintained from data above + IO function calls
+    ImGuiKeyModFlags KeyMods;                       // Key mods flags (same as io.KeyCtrl/KeyShift/KeyAlt/KeySuper but merged into flags), updated by NewFrame()
+    ImGuiKeyModFlags KeyModsPrev;                   // Key mods flags (from previous frame)
+    ImGuiKeyData[ImGuiKey.KeysData_SIZE] KeysData;  // Key state for all known keys. Use IsKeyXXX() functions to access this.
+    bool        WantCaptureMouseUnlessPopupClose;   // Alternative to WantCaptureMouse: (WantCaptureMouse == true && WantCaptureMouseUnlessPopupClose == false) when a click over void is expected to close a popup.
+    ImVec2      MousePosPrev;                       // Previous mouse position (note that MouseDelta is not necessary == MousePos-MousePosPrev, in case either position is invalid)
+    ImVec2[5]      MouseClickedPos;                 // Position at time of clicking
+    double[5]      MouseClickedTime;                // Time of last click (used to figure out double-click)
+    bool[5]        MouseClicked;                    // Mouse button went from !Down to Down (same as MouseClickedCount[x] != 0)
+    bool[5]        MouseDoubleClicked;              // Has mouse button been double-clicked? (same as MouseClickedCount[x] == 2)
+    ImU16[5]       MouseClickedCount;               // == 0 (not clicked), == 1 (same as MouseClicked[]), == 2 (double-clicked), == 3 (triple-clicked) etc. when going from !Down to Down
+    ImU16[5]       MouseClickedLastCount;           // Count successive number of clicks. Stays valid after mouse release. Reset after another click is done.
+    bool[5]        MouseReleased;                   // Mouse button went from Down to !Down
+    bool[5]        MouseDownOwned;                  // Track if button was clicked inside a dear imgui window or over void blocked by a popup. We don't request mouse capture from the application if click started outside ImGui bounds.
+    bool[5]        MouseDownOwnedUnlessPopupClose;  //Track if button was clicked inside a dear imgui window.
+    float[5]       MouseDownDuration;               // Duration the mouse button has been down (0.0f == just clicked)
+    float[5]       MouseDownDurationPrev;           // Previous time the mouse button has been down
+    float[5]       MouseDragMaxDistanceSqr;         // Squared maximum distance of how much mouse has traveled from the clicking point (used for moving thresholds)
     float[ImGuiNavInput.COUNT]       NavInputsDownDuration;
     float[ImGuiNavInput.COUNT]       NavInputsDownDurationPrev;
-    float       PenPressure;                    // Touch/Pen pressure (0.0f to 1.0f, should be >0.0f only when MouseDown[0] == true). Helper storage currently unused by Dear ImGui.
+    float       PenPressure;                        // Touch/Pen pressure (0.0f to 1.0f, should be >0.0f only when MouseDown[0] == true). Helper storage currently unused by Dear ImGui.
     bool        AppFocusLost;
-    ImWchar16   InputQueueSurrogate;            // For AddInputCharacterUTF16
-    ImVector!ImWchar InputQueueCharacters;     // Queue of _characters_ input (obtained by platform backend). Fill using AddInputCharacter() helper.
+    ImS8        BackendUsingLegacyKeyArrays;        // -1: unknown, 0: using AddKeyEvent(), 1: using legacy io.KeysDown[]
+    bool        BackendUsingLegacyNavInputArray;    // 0: using AddKeyAnalogEvent(), 1: writing to legacy io.NavInputs[] directly
+    ImWchar16   InputQueueSurrogate;                // For AddInputCharacterUTF16()
+    ImVector!ImWchar InputQueueCharacters;         // Queue of _characters_ input (obtained by platform backend). Fill using AddInputCharacter() helper.
 
     @disable this();
     this(bool dummy) { (cast(ImGuiIO_Wrapper*)&this).__ctor(dummy); }
@@ -2541,9 +2658,9 @@ static if (!D_IMGUI_USER_DEFINED_DRAW_CALLBACK) {
 enum ImDrawCallback_ResetRenderState     = cast(ImDrawCallback)(-1);
 
 // Typically, 1 command = 1 GPU draw call (unless command is a callback)
-// - VtxOffset/IdxOffset: When 'io.BackendFlags & ImGuiBackendFlags_RendererHasVtxOffset' is enabled,
-//   those fields allow us to render meshes larger than 64K vertices while keeping 16-bit indices.
-//   Pre-1.71 backends will typically ignore the VtxOffset/IdxOffset fields.
+// - VtxOffset: When 'io.BackendFlags & ImGuiBackendFlags_RendererHasVtxOffset' is enabled,
+//   this fields allow us to render meshes larger than 64K vertices while keeping 16-bit indices.
+//   Backends made for <1.71. will typically ignore the VtxOffset fields.
 // - The ClipRect/TextureId/VtxOffset fields must be contiguous as we memcmp() them together (this is asserted for).
 struct ImDrawCmd
 {
@@ -2553,7 +2670,7 @@ struct ImDrawCmd
     ImVec4          ClipRect;           // 4*4  // Clipping rectangle (x1, y1, x2, y2). Subtract ImDrawData->DisplayPos to get clipping rectangle in "viewport" coordinates
     ImTextureID     TextureId;          // 4-8  // User-provided texture ID. Set by user in ImfontAtlas::SetTexID() for fonts or passed to Image*() functions. Ignore if never using images or multiple fonts atlas.
     uint    VtxOffset;          // 4    // Start offset in vertex buffer. ImGuiBackendFlags_RendererHasVtxOffset: always 0, otherwise may be >0 to support meshes larger than 64K vertices with 16-bit indices.
-    uint    IdxOffset;          // 4    // Start offset in index buffer. Always equal to sum of ElemCount drawn so far.
+    uint    IdxOffset;          // 4    // Start offset in index buffer.
     uint    ElemCount;          // 4    // Number of indices (multiple of 3) to be rendered as triangles. Vertices are stored in the callee ImDrawList's vtx_buffer[] array, indices in idx_buffer[].
     ImDrawCallback  UserCallback;       // 4-8  // If != NULL, call the function instead of rendering the vertices. clip_rect and texture_id will be set normally.
     void*           UserCallbackData;   // 4-8  // The draw callback code can access this.
@@ -2772,9 +2889,9 @@ struct ImDrawList
     pragma(inline, true)    void  PrimWriteIdx(ImDrawIdx idx)                                     { *_IdxWritePtr = idx; _IdxWritePtr++; }
     pragma(inline, true)    void  PrimVtx(const ImVec2/*&*/ pos, const ImVec2/*&*/ uv, ImU32 col)         { PrimWriteIdx(cast(ImDrawIdx)_VtxCurrentIdx); PrimWriteVtx(pos, uv, col); }
 
-version (IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-    pragma(inline, true)    void  AddBezierCurve(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, ImU32 col, float thickness, int num_segments = 0) { AddBezierCubic(p1, p2, p3, p4, col, thickness, num_segments); }
-    pragma(inline, true)    void  PathBezierCurveTo(const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, int num_segments = 0) { PathBezierCubicCurveTo(p2, p3, p4, num_segments); }
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    pragma(inline, true)    void  AddBezierCurve(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, ImU32 col, float thickness, int num_segments = 0) { AddBezierCubic(p1, p2, p3, p4, col, thickness, num_segments); } // OBSOLETED in 1.80 (Jan 2021)
+    pragma(inline, true)    void  PathBezierCurveTo(const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, int num_segments = 0) { PathBezierCubicCurveTo(p2, p3, p4, num_segments); } // OBSOLETED in 1.80 (Jan 2021)
 }
 
     // [Internal helpers]
@@ -3031,10 +3148,9 @@ struct ImFontAtlas
     int                         PackIdMouseCursors; // Custom texture rectangle ID for white pixel and mouse cursors
     int                         PackIdLines;        // Custom texture rectangle ID for baked anti-aliased lines
 
-static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
-    alias CustomRect    = ImFontAtlasCustomRect;         // OBSOLETED in 1.72+
+    // [Obsolete]
+    //typedef ImFontAtlasCustomRect    CustomRect;         // OBSOLETED in 1.72+
     //typedef ImFontGlyphRangesBuilder GlyphRangesBuilder; // OBSOLETED in 1.67+
-}
 }
 
 // Font runtime data and rendering
@@ -3124,11 +3240,28 @@ struct ImGuiViewport
     ImVec2              WorkPos;                // Work Area: Position of the viewport minus task bars, menus bars, status bars (>= Pos)
     ImVec2              WorkSize;               // Work Area: Size of the viewport minus task bars, menu bars, status bars (<= Size)
 
+    // Platform/Backend Dependent Data
+    void*               PlatformHandleRaw;      // void* to hold lower-level, platform-native window handle (under Win32 this is expected to be a HWND, unused for other platforms)
+
     //ImGuiViewport()     { memset(&this, 0, sizeof(this)); }
 
     // Helpers
     ImVec2              GetCenter() const       { return ImVec2(Pos.x + Size.x * 0.5f, Pos.y + Size.y * 0.5f); }
     ImVec2              GetWorkCenter() const   { return ImVec2(WorkPos.x + WorkSize.x * 0.5f, WorkPos.y + WorkSize.y * 0.5f); }
+}
+
+//-----------------------------------------------------------------------------
+// [SECTION] Platform Dependent Interfaces
+//-----------------------------------------------------------------------------
+
+// (Optional) Support for IME (Input Method Editor) via the io.SetPlatformImeDataFn() function.
+struct ImGuiPlatformImeData
+{
+    bool    WantVisible;        // A widget wants the IME to be visible
+    ImVec2  InputPos;           // Position of the input cursor
+    float   InputLineHeight = 0;    // Line height
+
+    //ImGuiPlatformImeData() { memset(&this, 0, sizeof(this)); }
 }
 
 //-----------------------------------------------------------------------------
@@ -3138,6 +3271,15 @@ struct ImGuiViewport
 //-----------------------------------------------------------------------------
 
 /+
+namespace ImGui
+{
+#ifndef IMGUI_DISABLE_OBSOLETE_KEYIO
+    int       GetKeyIndex(ImGuiKey key);  // map ImGuiKey_* values into legacy native key index. == io.KeyMap[key]
+#else
+    __gshared inline int   GetKeyIndex(ImGuiKey key)   { IM_ASSERT(key >= ImGuiKey.NamedKey_BEGIN && key < ImGuiKey.NamedKey_END, "ImGuiKey and native_index was merged together and native_index is disabled by IMGUI_DISABLE_OBSOLETE_KEYIO. Please switch to ImGuiKey."); return key; }
+#endif
+}
+
 #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 namespace ImGui
 {
@@ -3168,24 +3310,21 @@ namespace ImGui
     static inline bool  SliderFloat4(string label, float v[4], float v_min, float v_max, string format, float power)              { return SliderScalarN(label, ImGuiDataType.Float, v, 4, &v_min, &v_max, format, power); }
     // OBSOLETED in 1.77 (from June 2020)
     static inline bool  BeginPopupContextWindow(string str_id, ImGuiMouseButton mb, bool over_items) { return BeginPopupContextWindow(str_id, mb | (over_items ? 0 : ImGuiPopupFlags.NoOpenOverItems)); }
-    // OBSOLETED in 1.72 (from April 2019)
-    static inline void  TreeAdvanceToLabelPos()             { SetCursorPosX(GetCursorPosX() + GetTreeNodeToLabelSpacing()); }
-    // OBSOLETED in 1.71 (from June 2019)
-    static inline void  SetNextTreeNodeOpen(bool open, ImGuiCond cond = 0) { SetNextItemOpen(open, cond); }
-    // OBSOLETED in 1.70 (from May 2019)
-    static inline float GetContentRegionAvailWidth()        { return GetContentRegionAvail().x; }
 
     // Some of the older obsolete names along with their replacement (commented out so they are not reported in IDE)
-    //static inline ImDrawList* GetOverlayDrawList()            { return GetForegroundDrawList(); }                         // OBSOLETED in 1.69 (from Mar 2019)
-    //static inline void  SetScrollHere(float ratio = 0.5f)     { SetScrollHereY(ratio); }                                  // OBSOLETED in 1.66 (from Nov 2018)
-    //static inline bool  IsItemDeactivatedAfterChange()        { return IsItemDeactivatedAfterEdit(); }                    // OBSOLETED in 1.63 (from Aug 2018)
-    //static inline bool  IsAnyWindowFocused()                  { return IsWindowFocused(ImGuiFocusedFlags_AnyWindow); }    // OBSOLETED in 1.60 (from Apr 2018)
-    //static inline bool  IsAnyWindowHovered()                  { return IsWindowHovered(ImGuiHoveredFlags_AnyWindow); }    // OBSOLETED in 1.60 (between Dec 2017 and Apr 2018)
-    //static inline void  ShowTestWindow()                      { return ShowDemoWindow(); }                                // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
-    //static inline bool  IsRootWindowFocused()                 { return IsWindowFocused(ImGuiFocusedFlags_RootWindow); }   // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
-    //static inline bool  IsRootWindowOrAnyChildFocused()       { return IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows); } // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
-    //static inline void  SetNextWindowContentWidth(float w)    { SetNextWindowContentSize(ImVec2(w, 0.0f)); }              // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
-    //static inline float GetItemsLineHeightWithSpacing()       { return GetFrameHeightWithSpacing(); }                     // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
+    //static inline void  TreeAdvanceToLabelPos()               { SetCursorPosX(GetCursorPosX() + GetTreeNodeToLabelSpacing()); }   // OBSOLETED in 1.72 (from July 2019)
+    //static inline void  SetNextTreeNodeOpen(bool open, ImGuiCond cond = 0) { SetNextItemOpen(open, cond); }                       // OBSOLETED in 1.71 (from June 2019)
+    //static inline float GetContentRegionAvailWidth()          { return GetContentRegionAvail().x; }                               // OBSOLETED in 1.70 (from May 2019)
+    //static inline ImDrawList* GetOverlayDrawList()            { return GetForegroundDrawList(); }                                 // OBSOLETED in 1.69 (from Mar 2019)
+    //static inline void  SetScrollHere(float ratio = 0.5f)     { SetScrollHereY(ratio); }                                          // OBSOLETED in 1.66 (from Nov 2018)
+    //static inline bool  IsItemDeactivatedAfterChange()        { return IsItemDeactivatedAfterEdit(); }                            // OBSOLETED in 1.63 (from Aug 2018)
+    //static inline bool  IsAnyWindowFocused()                  { return IsWindowFocused(ImGuiFocusedFlags_AnyWindow); }            // OBSOLETED in 1.60 (from Apr 2018)
+    //static inline bool  IsAnyWindowHovered()                  { return IsWindowHovered(ImGuiHoveredFlags_AnyWindow); }            // OBSOLETED in 1.60 (between Dec 2017 and Apr 2018)
+    //static inline void  ShowTestWindow()                      { return ShowDemoWindow(); }                                        // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
+    //static inline bool  IsRootWindowFocused()                 { return IsWindowFocused(ImGuiFocusedFlags_RootWindow); }           // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
+    //static inline bool  IsRootWindowOrAnyChildFocused()       { return IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows); }  // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
+    //static inline void  SetNextWindowContentWidth(float w)    { SetNextWindowContentSize(ImVec2(w, 0.0f)); }                      // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
+    //static inline float GetItemsLineHeightWithSpacing()       { return GetFrameHeightWithSpacing(); }                             // OBSOLETED in 1.53 (between Oct 2017 and Dec 2017)
 }
 
 // OBSOLETED in 1.82 (from Mars 2021): flags for AddRect(), AddRectFilled(), AddImageRounded(), PathRect()

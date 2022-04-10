@@ -1,4 +1,4 @@
-// dear imgui, v1.86
+// dear imgui, v1.87
 // (internal structures/api)
 module d_imgui.imgui_internal;
 
@@ -19,6 +19,7 @@ Index of this file:
 // [SECTION] Generic helpers
 // [SECTION] ImDrawList support
 // [SECTION] Widgets support: flags, enums, data structures
+// [SECTION] Inputs support
 // [SECTION] Clipper support
 // [SECTION] Navigation support
 // [SECTION] Columns support
@@ -231,15 +232,13 @@ import ImStb = d_imgui.imstb_textedit;
 // Debug Logging for selected systems. Remove the '((void)0) //' to enable.
 //#define IMGUI_DEBUG_LOG_POPUP         IMGUI_DEBUG_LOG // Enable log
 //#define IMGUI_DEBUG_LOG_NAV           IMGUI_DEBUG_LOG // Enable log
+//#define IMGUI_DEBUG_LOG_IO            IMGUI_DEBUG_LOG // Enable log
 pragma(inline, true) void IMGUI_DEBUG_LOG_POPUP(...)      { (cast(void)0); }       // Disable log
 pragma(inline, true) void IMGUI_DEBUG_LOG_NAV(...)        { (cast(void)0); }       // Disable log
+pragma(inline, true) void IMGUI_DEBUG_LOG_IO(...)         { (cast(void)0); }       // Disable log
 
 // Static Asserts
-// #if (__cplusplus >= 201100) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201100)
 void IM_STATIC_ASSERT(bool _COND)()         {static assert(_COND);}
-// #else
-// #define IM_STATIC_ASSERT(_COND)         typedef char static_assertion_##__line__[(_COND)?1:-1]
-// #endif
 
 // "Paranoid" Debug Asserts are meant to only be enabled during specific debugging/work, otherwise would slow down the code too much.
 // We currently don't have many of those so the effect is currently negligible, but onward intent to add more aggressive ones in the code.
@@ -733,8 +732,9 @@ static pragma(inline, true) float  ImLengthSqr(const ImVec2/*&*/ lhs)           
 static pragma(inline, true) float  ImLengthSqr(const ImVec4/*&*/ lhs)                             { return (lhs.x * lhs.x) + (lhs.y * lhs.y) + (lhs.z * lhs.z) + (lhs.w * lhs.w); }
 static pragma(inline, true) float  ImInvLength(const ImVec2/*&*/ lhs, float fail_value)           { float d = (lhs.x * lhs.x) + (lhs.y * lhs.y); if (d > 0.0f) return ImRsqrt(d); return fail_value; }
 static pragma(inline, true) float  ImFloor(float f)                                           { return cast(float)cast(int)(f); }
-static pragma(inline, true) float  ImFloorSigned(float f)                                     { return cast(float)((f >= 0 || cast(int)f == f) ? cast(int)f : cast(int)f - 1); } // Decent replacement for floorf()
+static pragma(inline, true) float  ImFloorSigned(float f)                                     { return cast(float)((f >= 0 || cast(float)cast(int)f == f) ? cast(int)f : cast(int)f - 1); } // Decent replacement for floorf()
 static pragma(inline, true) ImVec2 ImFloor(const ImVec2/*&*/ v)                                   { return ImVec2(cast(float)cast(int)(v.x), cast(float)cast(int)(v.y)); }
+static pragma(inline, true) ImVec2 ImFloorSigned(const ImVec2/*&*/ v)                             { return ImVec2(ImFloorSigned(v.x), ImFloorSigned(v.y)); }
 static pragma(inline, true) int    ImModPositive(int a, int b)                                { return (a + b) % b; }
 static pragma(inline, true) float  ImDot(const ImVec2/*&*/ a, const ImVec2/*&*/ b)                    { return a.x * b.x + a.y * b.y; }
 static pragma(inline, true) ImVec2 ImRotate(const ImVec2/*&*/ v, float cos_a, float sin_a)        { return ImVec2(v.x * cos_a - v.y * sin_a, v.x * sin_a + v.y * cos_a); }
@@ -823,10 +823,10 @@ struct ImRect
 //IM_MSVC_RUNTIME_CHECKS_RESTORE
 
 // Helper: ImBitArray
-pragma(inline, true) bool     ImBitArrayTestBit(const ImU32* arr, int n)      { ImU32 mask = cast(ImU32)1 << (n & 31); return (arr[n >> 5] & mask) != 0; }
-pragma(inline, true) void     ImBitArrayClearBit(ImU32* arr, int n)           { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] &= ~mask; }
-pragma(inline, true) void     ImBitArraySetBit(ImU32* arr, int n)             { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] |= mask; }
-pragma(inline, true) void     ImBitArraySetBitRange(ImU32* arr, int n, int n2) // Works on range [n..n2)
+pragma(inline, true) bool     ImBitArrayTestBit(const ImU32[] arr, int n)      { ImU32 mask = cast(ImU32)1 << (n & 31); return (arr[n >> 5] & mask) != 0; }
+pragma(inline, true) void     ImBitArrayClearBit(ImU32[] arr, int n)           { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] &= ~mask; }
+pragma(inline, true) void     ImBitArraySetBit(ImU32[] arr, int n)             { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] |= mask; }
+pragma(inline, true) void     ImBitArraySetBitRange(ImU32[] arr, int n, int n2) // Works on range [n..n2)
 {
     n2--;
     while (n <= n2)
@@ -841,7 +841,7 @@ pragma(inline, true) void     ImBitArraySetBitRange(ImU32* arr, int n, int n2) /
 
 // Helper: ImBitArray class (wrapper over ImBitArray functions)
 // Store 1-bit per value.
-struct ImBitArray(int BITCOUNT)
+struct ImBitArray(int BITCOUNT, int OFFSET = 0)
 {
     nothrow:
     @nogc:
@@ -850,10 +850,11 @@ struct ImBitArray(int BITCOUNT)
     //ImBitArray()                                { ClearAllBits(); }
     void            ClearAllBits()              { memset(&Storage, 0, sizeof(Storage)); }
     void            SetAllBits()                { memset(&Storage, 255, sizeof(Storage)); }
-    bool            TestBit(int n) const        { IM_ASSERT(n < BITCOUNT); return ImBitArrayTestBit(Storage.ptr, n); }
-    void            SetBit(int n)               { IM_ASSERT(n < BITCOUNT); ImBitArraySetBit(Storage.ptr, n); }
-    void            ClearBit(int n)             { IM_ASSERT(n < BITCOUNT); ImBitArrayClearBit(Storage.ptr, n); }
-    void            SetBitRange(int n, int n2)  { ImBitArraySetBitRange(Storage.ptr, n, n2); } // Works on range [n..n2)
+    bool            TestBit(int n) const        { IM_ASSERT(n + OFFSET < BITCOUNT); return ImBitArrayTestBit(Storage, n + OFFSET); }
+    void            SetBit(int n)               { IM_ASSERT(n + OFFSET < BITCOUNT); ImBitArraySetBit(Storage, n + OFFSET); }
+    void            ClearBit(int n)             { IM_ASSERT(n + OFFSET < BITCOUNT); ImBitArrayClearBit(Storage, n + OFFSET); }
+    void            SetBitRange(int n, int n2)  { ImBitArraySetBitRange(Storage, n, n2); } // Works on range [n..n2)
+    bool            opIndex(int n) const     { IM_ASSERT(n + OFFSET < BITCOUNT); return ImBitArrayTestBit(Storage, n + OFFSET); }
 }
 
 // Helper: ImBitVector
@@ -867,9 +868,9 @@ struct ImBitVector
     void destroy() { Storage.destroy(); }
     void            Create(int sz)              { Storage.resize((sz + 31) >> 5); memset(Storage.Data, 0, cast(size_t)Storage.Size * sizeof(Storage.Data[0])); }
     void            Clear()                     { Storage.clear(); }
-    bool            TestBit(int n) const        { IM_ASSERT(n < (Storage.Size << 5)); return ImBitArrayTestBit(Storage.Data, n); }
-    void            SetBit(int n)               { IM_ASSERT(n < (Storage.Size << 5)); ImBitArraySetBit(Storage.Data, n); }
-    void            ClearBit(int n)             { IM_ASSERT(n < (Storage.Size << 5)); ImBitArrayClearBit(Storage.Data, n); }
+    bool            TestBit(int n) const        { IM_ASSERT(n < (Storage.Size << 5)); return ImBitArrayTestBit(Storage.asArray(), n); }
+    void            SetBit(int n)               { IM_ASSERT(n < (Storage.Size << 5)); ImBitArraySetBit(Storage.asArray(), n); }
+    void            ClearBit(int n)             { IM_ASSERT(n < (Storage.Size << 5)); ImBitArrayClearBit(Storage.asArray(), n); }
 }
 
 // Helper: ImSpan<>
@@ -1234,28 +1235,6 @@ enum ImGuiPlotType : int
     Histogram
 }
 
-enum ImGuiInputSource : int
-{
-    None = 0,
-    Mouse,
-    Keyboard,
-    Gamepad,
-    Nav,               // Stored in g.ActiveIdSource only
-    Clipboard,         // Currently only used by InputText()
-    COUNT
-}
-
-// FIXME-NAV: Clarify/expose various repeat delay/rate
-enum ImGuiInputReadMode : int
-{
-    Down,
-    Pressed,
-    Released,
-    Repeat,
-    RepeatSlow,
-    RepeatFast
-}
-
 enum ImGuiPopupPositionPolicy : int
 {
     Default,
@@ -1540,6 +1519,87 @@ struct ImGuiPtrOrIndex
 
     this(void* ptr)  { Ptr = ptr; Index = -1; }
     this(int index)  { Ptr = NULL; Index = index; }
+}
+
+//-----------------------------------------------------------------------------
+// [SECTION] Inputs support
+//-----------------------------------------------------------------------------
+
+alias ImBitArrayForNamedKeys = ImBitArray!(ImGuiKey.NamedKey_COUNT, -ImGuiKey.NamedKey_BEGIN);
+
+// D_IMGUI: Moved into ImGuiKey
+/+
+enum ImGuiKeyPrivate_
+{
+    LegacyNativeKey_BEGIN  = 0,
+    LegacyNativeKey_END    = 512,
+    Gamepad_BEGIN          = ImGuiKey.GamepadStart,
+    Gamepad_END            = ImGuiKey.GamepadRStickRight + 1
+}
++/
+
+enum ImGuiInputEventType
+{
+    None = 0,
+    MousePos,
+    MouseWheel,
+    MouseButton,
+    Key,
+    Char,
+    Focus,
+    COUNT
+}
+
+enum ImGuiInputSource
+{
+    None = 0,
+    Mouse,
+    Keyboard,
+    Gamepad,
+    Clipboard,     // Currently only used by InputText()
+    Nav,           // Stored in g.ActiveIdSource only
+    COUNT
+}
+
+// FIXME: Structures in the union below need to be declared as anonymous unions appears to be an extension?
+// Using ImVec2() would fail on Clang 'union member 'MousePos' has a non-trivial default constructor'
+struct ImGuiInputEventMousePos      { float PosX, PosY; };
+struct ImGuiInputEventMouseWheel    { float WheelX, WheelY; };
+struct ImGuiInputEventMouseButton   { ImGuiMouseButton Button; bool Down; };
+struct ImGuiInputEventKey           { ImGuiKey Key; bool Down; float AnalogValue; };
+struct ImGuiInputEventText          { uint Char; };
+struct ImGuiInputEventAppFocused    { bool Focused; };
+
+struct ImGuiInputEvent
+{
+    nothrow:
+    @nogc:
+
+    ImGuiInputEventType             Type;
+    ImGuiInputSource                Source;
+    union
+    {
+        ImGuiInputEventMousePos     MousePos;       // if Type == ImGuiInputEventType_MousePos
+        ImGuiInputEventMouseWheel   MouseWheel;     // if Type == ImGuiInputEventType_MouseWheel
+        ImGuiInputEventMouseButton  MouseButton;    // if Type == ImGuiInputEventType_MouseButton
+        ImGuiInputEventKey          Key;            // if Type == ImGuiInputEventType_Key
+        ImGuiInputEventText         Text;           // if Type == ImGuiInputEventType_Text
+        ImGuiInputEventAppFocused   AppFocused;     // if Type == ImGuiInputEventType_Focus
+    };
+    bool                            AddedByTestEngine;
+
+    @disable this(); this(bool dummy) { memset(&this, 0, sizeof(this)); }
+}
+
+// FIXME-NAV: Clarify/expose various repeat delay/rate
+enum ImGuiInputReadMode
+{
+    Down,
+    Pressed,
+    Released,
+    Repeat,
+    RepeatSlow,
+    RepeatFast
 }
 
 //-----------------------------------------------------------------------------
@@ -1919,6 +1979,8 @@ struct ImGuiContext
     bool                    Initialized;
     bool                    FontAtlasOwnedByContext;            // IO.Fonts-> is owned by the ImGuiContext and will be destructed along with it.
     ImGuiIO                 IO;
+    ImVector!ImGuiInputEvent InputEventsQueue;                 // Input events which will be tricked/written into IO structure.
+    ImVector!ImGuiInputEvent InputEventsTrail;                 // Past input events processed in NewFrame(). This is to allow domain-specific application to access e.g mouse/pen trail.
     ImGuiStyle              Style;
     ImFont*                 Font;                               // (Shortcut) == FontStack.empty() ? IO.Font : FontStack.back()
     float                   FontSize;                           // (Shortcut) == FontBaseSize * g.CurrentWindow->FontWindowScale == window->FontSize(). Text height for current window.
@@ -1973,7 +2035,7 @@ struct ImGuiContext
     bool                    ActiveIdUsingMouseWheel;            // Active widget will want to read mouse wheel. Blocks scrolling the underlying window.
     ImU32                   ActiveIdUsingNavDirMask;            // Active widget will want to read those nav move requests (e.g. can activate a button and move away from it)
     ImU32                   ActiveIdUsingNavInputMask;          // Active widget will want to read those nav inputs.
-    ImU64                   ActiveIdUsingKeyInputMask;          // Active widget will want to read those key inputs. When we grow the ImGuiKey enum we'll need to either to order the enum to make useful keys come first, either redesign this into e.g. a small array.
+    ImBitArrayForNamedKeys  ActiveIdUsingKeyInputMask;          // Active widget will want to read those key inputs. When we grow the ImGuiKey enum we'll need to either to order the enum to make useful keys come first, either redesign this into e.g. a small array.
     ImVec2                  ActiveIdClickOffset;                // Clicked offset from upper-left corner, if applicable (currently only set by ButtonBehavior)
     ImGuiWindow*            ActiveIdWindow;
     ImGuiInputSource        ActiveIdSource;                     // Activating with mouse or nav (gamepad/keyboard)
@@ -2125,8 +2187,8 @@ struct ImGuiContext
     ImVector!ImGuiID       MenusIdSubmittedThisFrame;          // A list of menu IDs that were rendered at least once
 
     // Platform support
-    ImVec2                  PlatformImePos;                     // Cursor position request & last passed to the OS Input Method Editor
-    ImVec2                  PlatformImeLastPos;
+    ImGuiPlatformImeData    PlatformImeData;                    // Data updated by current frame
+    ImGuiPlatformImeData    PlatformImeDataPrev;                // Previous frame data (when changing we will call io.SetPlatformImeDataFn
     char                    PlatformLocaleDecimalPoint;         // '.' or *localeconv()->decimal_point
 
     // Settings
@@ -2221,7 +2283,7 @@ struct ImGuiContext
         ActiveIdUsingMouseWheel = false;
         ActiveIdUsingNavDirMask = 0x00;
         ActiveIdUsingNavInputMask = 0x00;
-        ActiveIdUsingKeyInputMask = 0x00;
+        ActiveIdUsingKeyInputMask.ClearAllBits();
         ActiveIdClickOffset = ImVec2(-1, -1);
         ActiveIdWindow = NULL;
         ActiveIdSource = ImGuiInputSource.None;
@@ -2302,7 +2364,8 @@ struct ImGuiContext
         TooltipOverrideCount = 0;
         TooltipSlowDelay = 0.50f;
 
-        PlatformImePos = PlatformImeLastPos = ImVec2(FLT_MAX, FLT_MAX);
+        PlatformImeData.InputPos = ImVec2(0.0f, 0.0f);
+        PlatformImeDataPrev.InputPos = ImVec2(-1.0f, -1.0f); // Different to ensure initial submission
         PlatformLocaleDecimalPoint = '.';
 
         SettingsLoaded = false;
@@ -2342,6 +2405,8 @@ struct ImGuiContext
         ClipboardHandlerData.destroy();
         MenusIdSubmittedThisFrame.destroy();
         SettingsHandlers.destroy();
+        InputEventsQueue.destroy();
+        InputEventsTrail.destroy();
 
         IO.destroy();
         SettingsIniData.destroy();
@@ -2788,7 +2853,7 @@ struct ImGuiTable
     ImRect                      InnerRect;                  // InnerRect but without decoration. As with OuterRect, for non-scrolling tables, InnerRect.Max.y is
     ImRect                      WorkRect;
     ImRect                      InnerClipRect;
-    ImRect                      BgClipRect;                 // We use this to cpu-clip cell background color fill
+    ImRect                      BgClipRect;                 // We use this to cpu-clip cell background color fill, evolve during the frame as we cross frozen rows boundaries
     ImRect                      Bg0ClipRectForDrawCmd;      // Actual ImDrawCmd clip rect for BG0/1 channel. This tends to be == OuterWindow->ClipRect at BeginTable() because output in BG0/BG1 is cpu-clipped
     ImRect                      Bg2ClipRectForDrawCmd;      // Actual ImDrawCmd clip rect for BG2 channel. This tends to be a correct, tight-fit, because output to BG2 are done by widgets relying on regular ClipRect.
     ImRect                      HostClipRect;               // This is used to check if we can eventually merge our columns draw calls into the current draw call of the current window.
@@ -2979,6 +3044,7 @@ struct ImGuiTableSettings
     void          Shutdown(ImGuiContext* context);    // Since 1.60 this is a _private_ function. You can call DestroyContext() to destroy the context created by CreateContext().
 
     // NewFrame
+    void          UpdateInputEvents(bool trickle_fast_inputs);
     void          UpdateHoveredWindowAndCaptureFlags();
     void          StartMouseMovingWindow(ImGuiWindow* window);
     void          UpdateMouseMovingWindowNewFrame();
@@ -3102,6 +3168,7 @@ struct ImGuiTableSettings
     void          NavMoveRequestCancel();
     void          NavMoveRequestApplyResult();
     void          NavMoveRequestTryWrapping(ImGuiWindow* window, ImGuiNavMoveFlags move_flags);
+    string   GetNavInputName(ImGuiNavInput n);
     float         GetNavInputAmount(ImGuiNavInput n, ImGuiInputReadMode mode);
     ImVec2        GetNavInputAmount2d(ImGuiNavDirSourceFlags dir_sources, ImGuiInputReadMode mode, float slow_factor = 0.0f, float fast_factor = 0.0f);
     int           CalcTypematicRepeatAmount(float t0, float t1, float repeat_delay, float repeat_rate);
@@ -3120,16 +3187,25 @@ struct ImGuiTableSettings
 
     // Inputs
     // FIXME: Eventually we should aim to move e.g. IsActiveIdUsingKey() into IsKeyXXX functions.
-    //void          SetItemUsingMouseWheel();
-    //void          SetActiveIdUsingNavAndKeys();
+    pragma(inline, true) bool             IsNamedKey(ImGuiKey key)                                    { return key >= ImGuiKey.NamedKey_BEGIN && key < ImGuiKey.NamedKey_END; }
+    pragma(inline, true) bool             IsLegacyKey(ImGuiKey key)                                   { return key >= ImGuiKey.LegacyNativeKey_BEGIN && key < ImGuiKey.LegacyNativeKey_END; }
+    pragma(inline, true) bool             IsGamepadKey(ImGuiKey key)                                  { return key >= ImGuiKey.Gamepad_BEGIN && key < ImGuiKey.Gamepad_END; }
+    /+
+    ImGuiKeyData* GetKeyData(ImGuiKey key);
+    void          SetItemUsingMouseWheel();
+    void          SetActiveIdUsingNavAndKeys();
+    +/
     pragma(inline, true) bool             IsActiveIdUsingNavDir(ImGuiDir dir)                         { ImGuiContext* g = GImGui; return (g.ActiveIdUsingNavDirMask & (1 << dir)) != 0; }
     pragma(inline, true) bool             IsActiveIdUsingNavInput(ImGuiNavInput input)                { ImGuiContext* g = GImGui; return (g.ActiveIdUsingNavInputMask & (1 << input)) != 0; }
-    pragma(inline, true) bool             IsActiveIdUsingKey(ImGuiKey key)                            { ImGuiContext* g = GImGui; IM_ASSERT(key < 64); return (g.ActiveIdUsingKeyInputMask & (cast(ImU64)1 << key)) != 0; }
+    pragma(inline, true) bool             IsActiveIdUsingKey(ImGuiKey key)                            { ImGuiContext* g = GImGui; return g.ActiveIdUsingKeyInputMask[key]; }
+    pragma(inline, true) void             SetActiveIdUsingKey(ImGuiKey key)                           { ImGuiContext* g = GImGui; g.ActiveIdUsingKeyInputMask.SetBit(key); }
     //bool          IsMouseDragPastThreshold(ImGuiMouseButton button, float lock_threshold = -1.0f);
-    pragma(inline, true) bool             IsKeyPressedMap(ImGuiKey key, bool repeat = true)           { ImGuiContext* g = GImGui; const int key_index = g.IO.KeyMap[key]; return (key_index >= 0) ? IsKeyPressed(key_index, repeat) : false; }
     pragma(inline, true) bool             IsNavInputDown(ImGuiNavInput n)                             { ImGuiContext* g = GImGui; return g.IO.NavInputs[n] > 0.0f; }
     pragma(inline, true) bool             IsNavInputTest(ImGuiNavInput n, ImGuiInputReadMode rm)      { return (GetNavInputAmount(n, rm) > 0.0f); }
     //ImGuiKeyModFlags GetMergedKeyModFlags();
+static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
+    pragma(inline, true) bool             IsKeyPressedMap(ImGuiKey key, bool repeat = true)           { IM_ASSERT(IsNamedKey(key)); return IsKeyPressed(key, repeat); }
+}
 
     /+
     // Drag and Drop
@@ -3288,7 +3364,7 @@ struct ImGuiTableSettings
     const ImGuiDataTypeInfo*  DataTypeGetInfo(ImGuiDataType data_type);
     int           DataTypeFormatString(char* buf, int buf_size, ImGuiDataType data_type, const void* p_data, string format);
     void          DataTypeApplyOp(ImGuiDataType data_type, int op, void* output, const void* arg_1, const void* arg_2);
-    bool          DataTypeApplyOpFromText(string buf, string initial_value_buf, ImGuiDataType data_type, void* p_data, string format);
+    bool          DataTypeApplyFromText(string buf, ImGuiDataType data_type, void* p_data, string format);
     int           DataTypeCompare(ImGuiDataType data_type, const void* arg_1, const void* arg_2);
     bool          DataTypeClamp(ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max);
 
@@ -3363,7 +3439,9 @@ struct ImFontBuilderIO
 
 // Helper for font builder
 /+
+#ifdef IMGUI_ENABLE_STB_TRUETYPE
 const ImFontBuilderIO* ImFontAtlasGetBuilderForStbTruetype();
+#endif
 void      ImFontAtlasBuildInit(ImFontAtlas* atlas);
 void      ImFontAtlasBuildSetupFont(ImFontAtlas* atlas, ImFont* font, ImFontConfig* font_config, float ascent, float descent);
 void      ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, void* stbrp_context_opaque);
@@ -3389,10 +3467,12 @@ extern string  ImGuiTestEngine_FindItemDebugLabel(ImGuiContext* ctx, ImGuiID id)
 #define IMGUI_TEST_ENGINE_ITEM_INFO(_ID,_LABEL,_FLAGS)      if (g.TestEngineHookItems) ImGuiTestEngineHook_ItemInfo(&g, _ID, _LABEL, _FLAGS)   // Register item label and status flags (optional)
 #define IMGUI_TEST_ENGINE_LOG(_FMT,...)                     if (g.TestEngineHookItems) ImGuiTestEngineHook_Log(&g, _FMT, __VA_ARGS__)          // Custom log entry from user land into test log
 #else
-#define IMGUI_TEST_ENGINE_ITEM_INFO(_ID,_LABEL,_FLAGS)      ((void)0)
+#define IMGUI_TEST_ENGINE_ITEM_ADD(_BB,_ID)                 ((void)0)
+#define IMGUI_TEST_ENGINE_ITEM_INFO(_ID,_LABEL,_FLAGS)      ((void)g)
 #endif
 +/
 } else {
+pragma(inline, true) void IMGUI_TEST_ENGINE_ITEM_ADD(ImRect _BB, uint _IS)                 {}
 pragma(inline, true) void IMGUI_TEST_ENGINE_ITEM_INFO(ImGuiID _ID, string _LABEL, ImGuiItemStatusFlags _FLAGS)      {}
 }
 //-----------------------------------------------------------------------------
