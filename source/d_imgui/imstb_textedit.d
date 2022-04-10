@@ -569,7 +569,7 @@ static void stb_textedit_find_charpos(StbFindState *find, STB_TEXTEDIT_STRING *s
       find.x += STB_TEXTEDIT_GETWIDTH(str, first, i);
 }
 
-private pragma(inline, true) bool STB_TEXT_HAS_SELECTION(STB_TexteditState* s) {
+static pragma(inline, true) bool STB_TEXT_HAS_SELECTION(STB_TexteditState* s) {
    return (s.select_start != s.select_end);
 }
 

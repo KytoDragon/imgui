@@ -14,6 +14,7 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2021-12-15: OpenGL: Using buffer orphaning + glBufferSubData(), seems to fix leaks with multi-viewports with some Intel HD drivers.
 //  2021-08-23: OpenGL: Fixed ES 3.0 shader ("#version 300 es") use normal precision floats to avoid wobbly rendering at HD resolutions.
 //  2021-08-19: OpenGL: Embed and use our own minimal GL loader (imgui_impl_opengl3_loader.h), removing requirement and support for third-party loader.
 //  2021-06-29: Reorganized backend to pull data from a single structure to facilitate usage with multiple-contexts (all g_XXXX access changed to bd->XXXX).
@@ -210,6 +211,8 @@ struct ImGui_ImplOpenGL3_Data
     GLuint          AttribLocationVtxUV;
     GLuint          AttribLocationVtxColor;
     uint    VboHandle, ElementsHandle;
+    GLsizeiptr      VertexBufferSize;
+    GLsizeiptr      IndexBufferSize;
     bool            HasClipOrigin;
 
     //ImGui_ImplOpenGL3_Data() { memset(&this, 0, sizeof(this)); }
@@ -461,8 +464,20 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
         const ImDrawList* cmd_list = draw_data.CmdLists[n];
 
         // Upload vertex/index buffers
-        glBufferData(GL_ARRAY_BUFFER, cast(GLsizeiptr)cmd_list.VtxBuffer.Size * cast(int)sizeof!(ImDrawVert), cast(const GLvoid*)cmd_list.VtxBuffer.Data, GL_STREAM_DRAW);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, cast(GLsizeiptr)cmd_list.IdxBuffer.Size * cast(int)sizeof!(ImDrawIdx), cast(const GLvoid*)cmd_list.IdxBuffer.Data, GL_STREAM_DRAW);
+        GLsizeiptr vtx_buffer_size = cast(GLsizeiptr)cmd_list.VtxBuffer.Size * cast(int)sizeof!(ImDrawVert);
+        GLsizeiptr idx_buffer_size = cast(GLsizeiptr)cmd_list.IdxBuffer.Size * cast(int)sizeof!(ImDrawIdx);
+        if (bd.VertexBufferSize < vtx_buffer_size)
+        {
+            bd.VertexBufferSize = vtx_buffer_size;
+            glBufferData(GL_ARRAY_BUFFER, bd.VertexBufferSize, NULL, GL_STREAM_DRAW);
+        }
+        if (bd.IndexBufferSize < idx_buffer_size)
+        {
+            bd.IndexBufferSize = idx_buffer_size;
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, bd.IndexBufferSize, NULL, GL_STREAM_DRAW);
+        }
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data);
 
         for (int cmd_i = 0; cmd_i < cmd_list.CmdBuffer.Size; cmd_i++)
         {
@@ -481,7 +496,7 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
                 // Project scissor/clipping rectangles into framebuffer space
                 ImVec2 clip_min = ImVec2((pcmd.ClipRect.x - clip_off.x) * clip_scale.x, (pcmd.ClipRect.y - clip_off.y) * clip_scale.y);
                 ImVec2 clip_max = ImVec2((pcmd.ClipRect.z - clip_off.x) * clip_scale.x, (pcmd.ClipRect.w - clip_off.y) * clip_scale.y);
-                if (clip_max.x < clip_min.x || clip_max.y < clip_min.y)
+                if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
 
                 // Apply scissor/clipping rectangle (Y is inverted in OpenGL)

@@ -1,4 +1,4 @@
-// dear imgui, v1.85
+// dear imgui, v1.86
 // (internal structures/api)
 module d_imgui.imgui_internal;
 
@@ -19,6 +19,7 @@ Index of this file:
 // [SECTION] Generic helpers
 // [SECTION] ImDrawList support
 // [SECTION] Widgets support: flags, enums, data structures
+// [SECTION] Clipper support
 // [SECTION] Navigation support
 // [SECTION] Columns support
 // [SECTION] Multi-select support
@@ -296,7 +297,8 @@ pragma(inline, true) float IM_ROUND(float _VAL) {
 +/
 
 // Debug Tools
-// Use 'Metrics->Tools->Item Picker' to break into the call-stack of a specific item.
+// Use 'Metrics/Debugger->Tools->Item Picker' to break into the call-stack of a specific item.
+// This will call IM_DEBUG_BREAK() which you may redefine yourself. See https://github.com/scottt/debugbreak for more reference.
 static if (!D_IMGUI_USER_DEFINED_DEBUG_BREAK) {
     // It is expected that you define IM_DEBUG_BREAK() into something that will break nicely in a debugger!
     version (LDC) {
@@ -348,10 +350,11 @@ static inline ImGuiID   ImHash(const void* data, int size, ImU32 seed = 0) { ret
 // Helpers: Sorting
 // D_IMGUI: Dummy qsort implementation
 void ImQsort(T)(T[] data, int function(const T*, const T*) nothrow @nogc comp) {
+    if (data.length <= 1) return;
     ImQsortInternal(data,0, cast(int)data.length - 1, cast(int function(T*, T*) nothrow @nogc)comp);
 }
 void ImQsort(T)(T[] data, int function(T*, T*) nothrow @nogc comp) {
-    if (data.length == 0) return;
+    if (data.length <= 1) return;
     ImQsortInternal(data, 0, cast(int)data.length - 1, comp);
 }
 
@@ -505,8 +508,8 @@ static pragma(inline, true) double ImLog(double x)            { return log(x); }
 static pragma(inline, true) int    ImAbs(int x)               { return x < 0 ? -x : x; }
 static pragma(inline, true) float  ImAbs(float x)             { return fabsf(x); }
 static pragma(inline, true) double ImAbs(double x)            { return fabs(x); }
-static pragma(inline, true) float  ImSign(float x)            { return (x < 0.0f) ? -1.0f : ((x > 0.0f) ? 1.0f : 0.0f); } // Sign operator - returns -1, 0 or 1 based on sign of argument
-static pragma(inline, true) double ImSign(double x)           { return (x < 0.0) ? -1.0 : ((x > 0.0) ? 1.0 : 0.0); }
+static pragma(inline, true) float  ImSign(float x)            { return (x < 0.0f) ? -1.0f : (x > 0.0f) ? 1.0f : 0.0f; } // Sign operator - returns -1, 0 or 1 based on sign of argument
+static pragma(inline, true) double ImSign(double x)           { return (x < 0.0) ? -1.0 : (x > 0.0) ? 1.0 : 0.0; }
 version (IMGUI_ENABLE_SSE) {
 static pragma(inline, true) float  ImRsqrt(float x)           { return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(x))); }
 } else {
@@ -737,6 +740,7 @@ static pragma(inline, true) float  ImDot(const ImVec2/*&*/ a, const ImVec2/*&*/ 
 static pragma(inline, true) ImVec2 ImRotate(const ImVec2/*&*/ v, float cos_a, float sin_a)        { return ImVec2(v.x * cos_a - v.y * sin_a, v.x * sin_a + v.y * cos_a); }
 static pragma(inline, true) float  ImLinearSweep(float current, float target, float speed)    { if (current < target) return ImMin(current + speed, target); if (current > target) return ImMax(current - speed, target); return current; }
 static pragma(inline, true) ImVec2 ImMul(const ImVec2/*&*/ lhs, const ImVec2/*&*/ rhs)                { return ImVec2(lhs.x * rhs.x, lhs.y * rhs.y); }
+static pragma(inline, true) bool   ImIsFloatAboveGuaranteedIntegerPrecision(float f)          { return f <= -16777216 || f >= 16777216; }
 //IM_MSVC_RUNTIME_CHECKS_RESTORE
 
 // Helpers: Geometry
@@ -1380,8 +1384,6 @@ struct ImGuiInputTextState
     bool                    SelectedAllMouseLock;   // after a double-click to select all, we ignore further mouse drags to update selection
     bool                    Edited;                 // edited this frame
     ImGuiInputTextFlags     Flags;                  // copy of InputText() flags
-    ImGuiInputTextCallback  UserCallback;           // "
-    void*                   UserCallbackData;       // "
 
     this(bool dummy)                   { memset(&this, 0, sizeof(this)); }
     void destroy() { ClearFreeMemory(); }
@@ -1416,7 +1418,7 @@ struct ImGuiPopupData
     ImVec2              OpenPopupPos;   // Set on OpenPopup(), preferred popup position (typically == OpenMousePos when using mouse)
     ImVec2              OpenMousePos;   // Set on OpenPopup(), copy of mouse position at the time of opening popup
 
-    this(bool dummy) { memset(&this, 0, sizeof(this)); OpenFrameCount = -1; }
+    //ImGuiPopupData()    { memset(&this, 0, sizeof(this)); OpenFrameCount = -1; }
 }
 
 enum ImGuiNextWindowDataFlags : int
@@ -1541,6 +1543,42 @@ struct ImGuiPtrOrIndex
 }
 
 //-----------------------------------------------------------------------------
+// [SECTION] Clipper support
+//-----------------------------------------------------------------------------
+
+struct ImGuiListClipperRange
+{
+    nothrow:
+    @nogc:
+
+    int     Min;
+    int     Max;
+    bool    PosToIndexConvert;      // Begin/End are absolute position (will be converted to indices later)
+    ImS8    PosToIndexOffsetMin;    // Add to Min after converting to indices
+    ImS8    PosToIndexOffsetMax;    // Add to Min after converting to indices
+
+    static ImGuiListClipperRange    FromIndices(int min, int max)                               { ImGuiListClipperRange r = { min, max, false, 0, 0 }; return r; }
+    static ImGuiListClipperRange    FromPositions(float y1, float y2, int off_min, int off_max) { ImGuiListClipperRange r = { cast(int)y1, cast(int)y2, true, cast(ImS8)off_min, cast(ImS8)off_max }; return r; }
+}
+
+// Temporary clipper data, buffers shared/reused between instances
+struct ImGuiListClipperData
+{
+    nothrow:
+    @nogc:
+
+    ImGuiListClipper*               ListClipper;
+    float                           LossynessOffset = 0;
+    int                             StepNo;
+    int                             ItemsFrozen;
+    ImVector!ImGuiListClipperRange Ranges;
+
+    //ImGuiListClipperData()          { memset(&this, 0, sizeof(this)); }
+    void destroy() { Ranges.destroy(); }
+    void                            Reset(ImGuiListClipper* clipper) { ListClipper = clipper; StepNo = ItemsFrozen = 0; Ranges.resize(0); }
+}
+
+//-----------------------------------------------------------------------------
 // [SECTION] Navigation support
 //-----------------------------------------------------------------------------
 
@@ -1579,9 +1617,10 @@ enum ImGuiNavHighlightFlags : int
 enum ImGuiNavDirSourceFlags : int
 {
     None             = 0,
-    Keyboard         = 1 << 0,
-    PadDPad          = 1 << 1,
-    PadLStick        = 1 << 2
+    RawKeyboard      = 1 << 0,   // Raw keyboard (not pulled from nav), faciliate use of some functions before we can unify nav and keys
+    Keyboard         = 1 << 1,
+    PadDPad          = 1 << 2,
+    PadLStick        = 1 << 3
 }
 
 enum ImGuiNavMoveFlags : int
@@ -1596,9 +1635,10 @@ enum ImGuiNavMoveFlags : int
     ScrollToEdgeY         = 1 << 6,   // Force scrolling to min/max (used by Home/End) // FIXME-NAV: Aim to remove or reword, probably unnecessary
     Forwarded             = 1 << 7,
     DebugNoResult         = 1 << 8,   // Dummy scoring for debug purpose, don't apply result
-    Tabbing               = 1 << 9,   // == Focus + Activate if item is Inputable + DontChangeNavHighlight
-    Activate              = 1 << 10,
-    DontSetNavHighlight   = 1 << 11   // Do not alter the visible state of keyboard vs mouse nav highlight
+    FocusApi              = 1 << 9,
+    Tabbing               = 1 << 10,  // == Focus + Activate if item is Inputable + DontChangeNavHighlight
+    Activate              = 1 << 11,
+    DontSetNavHighlight   = 1 << 12   // Do not alter the visible state of keyboard vs mouse nav highlight
 }
 
 enum ImGuiNavLayer
@@ -1960,6 +2000,7 @@ struct ImGuiContext
     ImVector!ImGuiGroupData GroupStack;                         // Stack for BeginGroup()/EndGroup() - not inherited by Begin()
     ImVector!ImGuiPopupData OpenPopupStack;                     // Which popups are open (persistent)
     ImVector!ImGuiPopupData BeginPopupStack;                    // Which level of BeginPopup() we are in (reset every frame)
+    int                     BeginMenuCount;
 
     // Viewports
     ImVector!(ImGuiViewportP*) Viewports;                        // Active viewports (Size==1 in 'master' branch). Each viewports hold their copy of ImDrawData.
@@ -1973,7 +2014,6 @@ struct ImGuiContext
     ImGuiID                 NavActivatePressedId;               // ~~ IsNavInputPressed(ImGuiNavInput_Activate) ? NavId : 0
     ImGuiID                 NavActivateInputId;                 // ~~ IsNavInputPressed(ImGuiNavInput_Input) ? NavId : 0; ImGuiActivateFlags_PreferInput will be set and NavActivateId will be 0.
     ImGuiActivateFlags      NavActivateFlags;
-    ImGuiID                 NavJustTabbedId;                    // Just tabbed to this id.
     ImGuiID                 NavJustMovedToId;                   // Just navigated to this id (result of a successfully MoveRequest).
     ImGuiID                 NavJustMovedToFocusScopeId;         // Just navigated to this focus scope id (result of a successfully MoveRequest).
     ImGuiKeyModFlags        NavJustMovedToKeyMods;
@@ -1981,7 +2021,6 @@ struct ImGuiContext
     ImGuiActivateFlags      NavNextActivateFlags;
     ImGuiInputSource        NavInputSource;                     // Keyboard or Gamepad mode? THIS WILL ONLY BE None or NavGamepad or NavKeyboard.
     ImGuiNavLayer           NavLayer;                           // Layer we are navigating on. For now the system is hard-coded for 0=main contents and 1=menu/title bar, may expose layers later.
-    int                     NavIdTabCounter;                    // == NavWindow->DC.FocusIdxTabCounter at time of NavId processing
     bool                    NavIdIsAlive;                       // Nav widget has been seen this frame ~~ NavRectRel is valid
     bool                    NavMousePosDirty;                   // When set we will update mouse position if (io.ConfigFlags & ImGuiConfigFlags_NavEnableSetMousePos) if set (NB: this not enabled by default)
     bool                    NavDisableHighlight;                // When user starts using mouse, we hide gamepad/keyboard highlight (NB: but they are still available, which is why NavDisableHighlight isn't always != NavDisableMouseHover)
@@ -2003,11 +2042,14 @@ struct ImGuiContext
     ImGuiDir                NavMoveDirForDebug;
     ImGuiDir                NavMoveClipDir;                     // FIXME-NAV: Describe the purpose of this better. Might want to rename?
     ImRect                  NavScoringRect;                     // Rectangle used for scoring, in screen space. Based of window->NavRectRel[], modified for directional navigation scoring.
+    ImRect                  NavScoringNoClipRect;               // Some nav operations (such as PageUp/PageDown) enforce a region which clipper will attempt to always keep submitted
     int                     NavScoringDebugCount;               // Metrics for debugging
-    int                     NavTabbingInputableRemaining;       // >0 when counting items for tabbing
+    int                     NavTabbingDir;                      // Generally -1 or +1, 0 when tabbing without a nav id
+    int                     NavTabbingCounter;                  // >0 when counting items for tabbing
     ImGuiNavItemData        NavMoveResultLocal;                 // Best move request candidate within NavWindow
     ImGuiNavItemData        NavMoveResultLocalVisible;          // Best move request candidate within NavWindow that are mostly visible (when using ImGuiNavMoveFlags_AlsoScoreVisibleSet flag)
     ImGuiNavItemData        NavMoveResultOther;                 // Best move request candidate within NavWindow's flattened hierarchy (when using ImGuiWindowFlags_NavFlattened flag)
+    ImGuiNavItemData        NavTabbingResultFirst;              // First tabbing request candidate within NavWindow and flattened hierarchy
 
     // Navigation: Windowing (CTRL+TAB for list, or Menu button + keys or directional pads to move/resize)
     ImGuiWindow*            NavWindowingTarget;                 // Target window when doing CTRL+Tab (or Pad Menu + FocusPrev/Next), this window is temporarily displayed top-most!
@@ -2016,13 +2058,6 @@ struct ImGuiContext
     float                   NavWindowingTimer;
     float                   NavWindowingHighlightAlpha;
     bool                    NavWindowingToggleLayer;
-
-    // Legacy Focus/Tabbing system (older than Nav, active even if Nav is disabled, misnamed. FIXME-NAV: This needs a redesign!)
-    ImGuiWindow*            TabFocusRequestCurrWindow;          //
-    ImGuiWindow*            TabFocusRequestNextWindow;          //
-    int                     TabFocusRequestCurrCounterTabStop;  // Tab item being requested for focus, stored as an index
-    int                     TabFocusRequestNextCounterTabStop;  // "
-    bool                    TabFocusPressed;                    // Set in NewFrame() when user pressed Tab
 
     // Render
     float                   DimBgRatio;                         // 0.0..1.0 animation when fading in a dimming background (for modal window and CTRL+TAB list)
@@ -2047,11 +2082,15 @@ struct ImGuiContext
     ImVector!ubyte DragDropPayloadBufHeap;             // We don't expose the ImVector<> directly, ImGuiPayload only holds pointer+size
     ubyte[16]           DragDropPayloadBufLocal;        // Local buffer for small payloads
 
+    // Clipper
+    int                             ClipperTempDataStacked;
+    ImVector!ImGuiListClipperData  ClipperTempData;
+
     // Table
     ImGuiTable*                     CurrentTable;
-    int                             CurrentTableStackIdx;
-    ImPool!ImGuiTable              Tables;
-    ImVector!ImGuiTableTempData    TablesTempDataStack;
+    int                             TablesTempDataStacked;      // Temporary table data size (because we leave previous instances undestructed, we generally don't use TablesTempData.Size)
+    ImVector!ImGuiTableTempData    TablesTempData;             // Temporary table data (buffers reused/shared across instances, support nesting)
+    ImPool!ImGuiTable              Tables;                     // Persistent table data
     ImVector!float                 TablesLastTimeActive;       // Last used timestamp of each tables (SOA, for efficient GC)
     ImVector!ImDrawChannel         DrawChannelsTempMergeBuffer;
 
@@ -2141,6 +2180,7 @@ struct ImGuiContext
         NextItemData = ImGuiNextItemData(false);
         ComboPreviewData = ImGuiComboPreviewData(false);
         NavMoveResultLocalVisible = ImGuiNavItemData(false);
+        NavTabbingResultFirst = ImGuiNavItemData(false);
 
         Initialized = false;
         FontAtlasOwnedByContext = shared_font_atlas ? false : true;
@@ -2194,15 +2234,15 @@ struct ImGuiContext
         LastActiveIdTimer = 0.0f;
 
         CurrentItemFlags = ImGuiItemFlags.None;
+        BeginMenuCount = 0;
 
         NavWindow = NULL;
         NavId = NavFocusScopeId = NavActivateId = NavActivateDownId = NavActivatePressedId = NavActivateInputId = 0;
-        NavJustTabbedId = NavJustMovedToId = NavJustMovedToFocusScopeId = NavNextActivateId = 0;
+        NavJustMovedToId = NavJustMovedToFocusScopeId = NavNextActivateId = 0;
         NavActivateFlags = NavNextActivateFlags = ImGuiActivateFlags.None;
         NavJustMovedToKeyMods = ImGuiKeyModFlags.None;
         NavInputSource = ImGuiInputSource.None;
         NavLayer = ImGuiNavLayer.Main;
-        NavIdTabCounter = INT_MAX;
         NavIdIsAlive = false;
         NavMousePosDirty = false;
         NavDisableHighlight = true;
@@ -2219,16 +2259,12 @@ struct ImGuiContext
         NavMoveKeyMods = ImGuiKeyModFlags.None;
         NavMoveDir = NavMoveDirForDebug = NavMoveClipDir = ImGuiDir.None;
         NavScoringDebugCount = 0;
-        NavTabbingInputableRemaining = 0;
+        NavTabbingDir = 0;
+        NavTabbingCounter = 0;
 
         NavWindowingTarget = NavWindowingTargetAnim = NavWindowingListWindow = NULL;
         NavWindowingTimer = NavWindowingHighlightAlpha = 0.0f;
         NavWindowingToggleLayer = false;
-
-        TabFocusRequestCurrWindow = TabFocusRequestNextWindow = NULL;
-        TabFocusRequestCurrCounterTabStop = INT_MAX;
-        TabFocusRequestNextCounterTabStop = INT_MAX;
-        TabFocusPressed = false;
 
         DimBgRatio = 0.0f;
         MouseCursor = ImGuiMouseCursor.Arrow;
@@ -2245,8 +2281,10 @@ struct ImGuiContext
         DragDropHoldJustPressedId = 0;
         memset(&DragDropPayloadBufLocal, 0, sizeof(DragDropPayloadBufLocal));
 
+        ClipperTempDataStacked = 0;
+
         CurrentTable = NULL;
-        CurrentTableStackIdx = -1;
+        TablesTempDataStacked = 0;
         CurrentTabBar = NULL;
 
         TempInputId = 0;
@@ -2341,6 +2379,7 @@ struct ImGuiWindowTempData
     ImVec1                  Indent;                 // Indentation / start position from left of window (increased by TreePush/TreePop, etc.)
     ImVec1                  ColumnsOffset;          // Offset to the current column (if ColumnsCurrent > 0). FIXME: This and the above should be a stack to allow use cases like Tree->Column->Tree. Need revamp columns API.
     ImVec1                  GroupOffset;
+    ImVec2                  CursorStartPosLossyness;// Record the loss of precision of CursorStartPos due to really large scrolling amount. This is used by clipper to compensentate and fix the most common use case of large scroll area.
 
     // Keyboard/Gamepad navigation
     ImGuiNavLayer           NavLayerCurrent;        // Current layer, 0..31 (we currently only use 0..1)
@@ -2362,7 +2401,6 @@ struct ImGuiWindowTempData
     int                     CurrentTableIdx;        // Current table index (into g.Tables)
     ImGuiLayoutType         LayoutType;
     ImGuiLayoutType         ParentLayoutType;       // Layout type of parent window at the time of Begin()
-    int                     FocusCounterTabStop;    // (Legacy Focus/Tabbing system) Same, but only count widgets which you can Tab through.
 
     // Local parameters stacks
     // We store the current settings outside of the vectors to increase memory locality (reduce cache misses). The vectors are rarely modified. Also it allows us to not heap allocate for short-lived windows which are not using those settings.
@@ -2421,6 +2459,7 @@ struct ImGuiWindow
     bool                    Appearing;                          // Set during the frame where the window is appearing (or re-appearing)
     bool                    Hidden;                             // Do not display (== HiddenFrames*** > 0)
     bool                    IsFallbackWindow;                   // Set on the "Debug##Default" window.
+    bool                    IsExplicitChild;                    // Set when passed _ChildWindow, left to false by BeginDocked()
     bool                    HasCloseButton;                     // Set when the window has a close button (p_open != NULL)
     byte             ResizeBorderHeld;                   // Current border being held for resize (-1: none, otherwise 0-3)
     short                   BeginCount;                         // Number of Begin() during the current frame (generally 0 or 1, 1+ if appending via multiple Begin/End pairs)
@@ -2468,6 +2507,7 @@ struct ImGuiWindow
     ImDrawList*             DrawList;                           // == &DrawListInst (for backward compatibility reason with code using imgui_internal.h we keep this a pointer)
     ImDrawList              DrawListInst;
     ImGuiWindow*            ParentWindow;                       // If we are a child _or_ popup _or_ docked window, this is pointing to our parent. Otherwise NULL.
+    ImGuiWindow*            ParentWindowInBeginStack;
     ImGuiWindow*            RootWindow;                         // Point to ourself or first ancestor that is not a child window. Doesn't cross through popups/dock nodes.
     ImGuiWindow*            RootWindowPopupTree;                // Point to ourself or first ancestor that is not a child window. Cross through popups parent<>child.
     ImGuiWindow*            RootWindowForTitleBarHighlight;     // Point to ourself or first ancestor which will display TitleBgActive color when this window is active.
@@ -2802,8 +2842,8 @@ struct ImGuiTable
     bool                        HostSkipItems;              // Backup of InnerWindow->SkipItem at the end of BeginTable(), because we will overwrite InnerWindow->SkipItem on a per-column basis
 
     @disable this();
-    this(bool dummy)      { memset(&this, 0, sizeof(this)); LastFrameActive = -1; }
-    void destroy()     { IM_FREE(RawData); SortSpecsMulti.destroy(); }
+    this(bool dummy)                { memset(&this, 0, sizeof(this)); LastFrameActive = -1; }
+    void destroy()               { IM_FREE(RawData); SortSpecsMulti.destroy(); }
 }
 
 // Transient data that are only needed between BeginTable() and EndTable(), those buffers are shared (1 per level of stacked table).
@@ -2830,7 +2870,7 @@ struct ImGuiTableTempData
     int                         HostBackupItemWidthStackSize;//Backup of OuterWindow->DC.ItemWidthStack.Size at the end of BeginTable()
 
     @disable this();
-    this(bool dummy) { memset(&this, 0, sizeof(this)); LastTimeActive = -1.0f; }
+    this(bool dummy)        { memset(&this, 0, sizeof(this)); LastTimeActive = -1.0f; }
 }
 
 // sizeof() ~ 12
@@ -2900,19 +2940,27 @@ struct ImGuiTableSettings
     void          UpdateWindowParentAndRootLinks(ImGuiWindow* window, ImGuiWindowFlags flags, ImGuiWindow* parent_window);
     ImVec2        CalcWindowNextAutoFitSize(ImGuiWindow* window);
     bool          IsWindowChildOf(ImGuiWindow* window, ImGuiWindow* potential_parent, bool popup_hierarchy);
+    bool          IsWindowWithinBeginStackOf(ImGuiWindow* window, ImGuiWindow* potential_parent);
     bool          IsWindowAbove(ImGuiWindow* potential_above, ImGuiWindow* potential_below);
     bool          IsWindowNavFocusable(ImGuiWindow* window);
     void          SetWindowPos(ImGuiWindow* window, const ImVec2/*&*/ pos, ImGuiCond cond = 0);
     void          SetWindowSize(ImGuiWindow* window, const ImVec2/*&*/ size, ImGuiCond cond = 0);
     void          SetWindowCollapsed(ImGuiWindow* window, bool collapsed, ImGuiCond cond = 0);
     void          SetWindowHitTestHole(ImGuiWindow* window, const ImVec2/*&*/ pos, const ImVec2/*&*/ size);
+    +/
+    pragma(inline, true) ImRect           WindowRectAbsToRel(ImGuiWindow* window, const ImRect/*&*/ r) { ImVec2 off = window.DC.CursorStartPos; return ImRect(r.Min.x - off.x, r.Min.y - off.y, r.Max.x - off.x, r.Max.y - off.y); }
+    pragma(inline, true) ImRect           WindowRectRelToAbs(ImGuiWindow* window, const ImRect/*&*/ r) { ImVec2 off = window.DC.CursorStartPos; return ImRect(r.Min.x + off.x, r.Min.y + off.y, r.Max.x + off.x, r.Max.y + off.y); }
 
+    /+
     // Windows: Display Order and Focus Order
     void          FocusWindow(ImGuiWindow* window);
     void          FocusTopMostWindowUnderOne(ImGuiWindow* under_this_window, ImGuiWindow* ignore_window);
     void          BringWindowToFocusFront(ImGuiWindow* window);
     void          BringWindowToDisplayFront(ImGuiWindow* window);
     void          BringWindowToDisplayBack(ImGuiWindow* window);
+    void          BringWindowToDisplayBehind(ImGuiWindow* window, ImGuiWindow* above_window);
+    int           FindWindowDisplayIndex(ImGuiWindow* window);
+    ImGuiWindow*  FindBottomMostVisibleWindowWithinBeginStack(ImGuiWindow* window);
 
     // Fonts, drawing
     void          SetCurrentFont(ImFont* font);
@@ -2989,8 +3037,8 @@ struct ImGuiTableSettings
     void          ItemSize(const ImRect/*&*/ bb, float text_baseline_y = -1.0f);
     bool          ItemAdd(const ImRect/*&*/ bb, ImGuiID id, const ImRect* nav_bb = NULL, ImGuiItemFlags extra_flags = 0);
     bool          ItemHoverable(const ImRect/*&*/ bb, ImGuiID id);
-    void          ItemInputable(ImGuiWindow* window, ImGuiID id);
     bool          IsClippedEx(const ImRect/*&*/ bb, ImGuiID id);
+    void          SetLastItemData(ImGuiID item_id, ImGuiItemFlags in_flags, ImGuiItemStatusFlags status_flags, const ImRect/*&*/ item_rect);
     ImVec2        CalcItemSize(ImVec2 size, float default_w, float default_h);
     float         CalcWrapWidthForPos(const ImVec2/*&*/ pos, float wrap_pos_x);
     void          PushMultiItemsWidths(int components, float width_full);
@@ -3027,9 +3075,10 @@ struct ImGuiTableSettings
     void          ClosePopupsExceptModals();
     bool          IsPopupOpen(ImGuiID id, ImGuiPopupFlags popup_flags);
     bool          BeginPopupEx(ImGuiID id, ImGuiWindowFlags extra_flags);
-    void          BeginTooltipEx(ImGuiWindowFlags extra_flags, ImGuiTooltipFlags tooltip_flags);
+    void          BeginTooltipEx(ImGuiTooltipFlags tooltip_flags, ImGuiWindowFlags extra_window_flags);
     ImRect        GetPopupAllowedExtentRect(ImGuiWindow* window);
     ImGuiWindow*  GetTopMostPopupModal();
+    ImGuiWindow*  GetTopMostAndVisiblePopupModal();
     ImVec2        FindBestWindowPosForPopup(ImGuiWindow* window);
     ImVec2        FindBestWindowPosForPopupEx(const ImVec2/*&*/ ref_pos, const ImVec2/*&*/ size, ImGuiDir* last_dir, const ImRect/*&*/ r_outer, const ImRect/*&*/ r_avoid, ImGuiPopupPositionPolicy policy);
 
@@ -3049,7 +3098,7 @@ struct ImGuiTableSettings
     bool          NavMoveRequestButNoResultYet();
     void          NavMoveRequestSubmit(ImGuiDir move_dir, ImGuiDir clip_dir, ImGuiNavMoveFlags move_flags, ImGuiScrollFlags scroll_flags);
     void          NavMoveRequestForward(ImGuiDir move_dir, ImGuiDir clip_dir, ImGuiNavMoveFlags move_flags, ImGuiScrollFlags scroll_flags);
-    void          NavMoveRequestResolveWithLastItem();
+    void          NavMoveRequestResolveWithLastItem(ImGuiNavItemData* result);
     void          NavMoveRequestCancel();
     void          NavMoveRequestApplyResult();
     void          NavMoveRequestTryWrapping(ImGuiWindow* window, ImGuiNavMoveFlags move_flags);
@@ -3206,7 +3255,7 @@ struct ImGuiTableSettings
     bool          CollapseButton(ImGuiID id, const ImVec2/*&*/ pos);
     bool          ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size_arg, ImGuiButtonFlags flags = 0);
     void          Scrollbar(ImGuiAxis axis);
-    bool          ScrollbarEx(const ImRect/*&*/ bb, ImGuiID id, ImGuiAxis axis, float* p_scroll_v, float avail_v, float contents_v, ImDrawFlags flags);
+    bool          ScrollbarEx(const ImRect/*&*/ bb, ImGuiID id, ImGuiAxis axis, ImS64* p_scroll_v, ImS64 avail_v, ImS64 contents_v, ImDrawFlags flags);
     bool          ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, const ImVec2/*&*/ padding, const ImVec4/*&*/ bg_col, const ImVec4/*&*/ tint_col);
     ImRect        GetWindowScrollbarRect(ImGuiWindow* window, ImGuiAxis axis);
     ImGuiID       GetWindowScrollbarID(ImGuiWindow* window, ImGuiAxis axis);
@@ -3294,6 +3343,7 @@ struct ImGuiTableSettings
     void          DebugNodeWindow(ImGuiWindow* window, string label);
     void          DebugNodeWindowSettings(ImGuiWindowSettings* settings);
     void          DebugNodeWindowsList(ImVector<ImGuiWindow*>* windows, string label);
+    void          DebugNodeWindowsListByBeginStackParent(ImGuiWindow** windows, int windows_size, ImGuiWindow* parent_in_begin_stack);
     void          DebugNodeViewport(ImGuiViewportP* viewport);
     void          DebugRenderViewportThumbnail(ImDrawList* draw_list, ImGuiViewportP* viewport, const ImRect/*&*/ bb);
     +/

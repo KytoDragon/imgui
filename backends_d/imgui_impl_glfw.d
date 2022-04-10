@@ -286,6 +286,7 @@ static if (GLFW_HAS_NEW_CURSORS) {
 
     // Chain GLFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
     bd.PrevUserCallbackWindowFocus = NULL;
+    bd.PrevUserCallbackCursorEnter = NULL;
     bd.PrevUserCallbackMousebutton = NULL;
     bd.PrevUserCallbackScroll = NULL;
     bd.PrevUserCallbackKey = NULL;

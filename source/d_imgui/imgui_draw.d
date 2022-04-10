@@ -1,4 +1,4 @@
-// dear imgui, v1.85
+// dear imgui, v1.86
 // (drawing and font code)
 module d_imgui.imgui_draw;
 
@@ -512,6 +512,7 @@ void _PopUnusedDrawCmd()
 
 void AddCallback(ImDrawCallback callback, void* callback_data)
 {
+    IM_ASSERT_PARANOID(CmdBuffer.Size > 0);
     ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
     IM_ASSERT(curr_cmd.UserCallback == NULL);
     if (curr_cmd.ElemCount != 0)
@@ -536,6 +537,7 @@ static pragma(inline, true) void* ImDrawCmd_HeaderCopy(ImDrawCmd* CMD_DST, ImDra
 // Try to merge two last draw commands
 void _TryMergeDrawCmds()
 {
+    IM_ASSERT_PARANOID(CmdBuffer.Size > 0);
     ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
     ImDrawCmd* prev_cmd = curr_cmd - 1;
     if (ImDrawCmd_HeaderCompare(curr_cmd, prev_cmd) == 0 && curr_cmd.UserCallback == NULL && prev_cmd.UserCallback == NULL)
@@ -550,6 +552,7 @@ void _TryMergeDrawCmds()
 void _OnChangedClipRect()
 {
     // If current command is used with different settings we need to add a new command
+    IM_ASSERT_PARANOID(CmdBuffer.Size > 0);
     ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
     if (curr_cmd.ElemCount != 0 && memcmp(&curr_cmd.ClipRect, &_CmdHeader.ClipRect, sizeof!(ImVec4)) != 0)
     {
@@ -572,6 +575,7 @@ void _OnChangedClipRect()
 void _OnChangedTextureID()
 {
     // If current command is used with different settings we need to add a new command
+    IM_ASSERT_PARANOID(CmdBuffer.Size > 0);
     ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
     if (curr_cmd.ElemCount != 0 && curr_cmd.TextureId != _CmdHeader.TextureId)
     {
@@ -595,6 +599,7 @@ void _OnChangedVtxOffset()
 {
     // We don't need to compare curr_cmd->VtxOffset != _CmdHeader.VtxOffset because we know it'll be different at the time we call this.
     _VtxCurrentIdx = 0;
+    IM_ASSERT_PARANOID(CmdBuffer.Size > 0);
     ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
     //IM_ASSERT(curr_cmd->VtxOffset != _CmdHeader.VtxOffset); // See #3349
     if (curr_cmd.ElemCount != 0)
@@ -1995,36 +2000,37 @@ this(bool dummy)
 
 // A work of art lies ahead! (. = white layer, X = black layer, others are blank)
 // The 2x2 white texels on the top left are the ones we'll use everywhere in Dear ImGui to render filled shapes.
-__gshared const int FONT_ATLAS_DEFAULT_TEX_DATA_W = 108; // Actual texture will be 2 times that + 1 spacing.
-__gshared const int FONT_ATLAS_DEFAULT_TEX_DATA_H = 27;
+// (This is used when io.MouseDrawCursor = true)
+const int FONT_ATLAS_DEFAULT_TEX_DATA_W = 122; // Actual texture will be 2 times that + 1 spacing.
+const int FONT_ATLAS_DEFAULT_TEX_DATA_H = 27;
 __gshared immutable(string) FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS =
-    "..-         -XXXXXXX-    X    -           X           -XXXXXXX          -          XXXXXXX-     XX          "
-    ~"..-         -X.....X-   X.X   -          X.X          -X.....X          -          X.....X-    X..X         "
-    ~"---         -XXX.XXX-  X...X  -         X...X         -X....X           -           X....X-    X..X         "
-    ~"X           -  X.X  - X.....X -        X.....X        -X...X            -            X...X-    X..X         "
-    ~"XX          -  X.X  -X.......X-       X.......X       -X..X.X           -           X.X..X-    X..X         "
-    ~"X.X         -  X.X  -XXXX.XXXX-       XXXX.XXXX       -X.X X.X          -          X.X X.X-    X..XXX       "
-    ~"X..X        -  X.X  -   X.X   -          X.X          -XX   X.X         -         X.X   XX-    X..X..XXX    "
-    ~"X...X       -  X.X  -   X.X   -    XX    X.X    XX    -      X.X        -        X.X      -    X..X..X..XX  "
-    ~"X....X      -  X.X  -   X.X   -   X.X    X.X    X.X   -       X.X       -       X.X       -    X..X..X..X.X "
-    ~"X.....X     -  X.X  -   X.X   -  X..X    X.X    X..X  -        X.X      -      X.X        -XXX X..X..X..X..X"
-    ~"X......X    -  X.X  -   X.X   - X...XXXXXX.XXXXXX...X -         X.X   XX-XX   X.X         -X..XX........X..X"
-    ~"X.......X   -  X.X  -   X.X   -X.....................X-          X.X X.X-X.X X.X          -X...X...........X"
-    ~"X........X  -  X.X  -   X.X   - X...XXXXXX.XXXXXX...X -           X.X..X-X..X.X           - X..............X"
-    ~"X.........X -XXX.XXX-   X.X   -  X..X    X.X    X..X  -            X...X-X...X            -  X.............X"
-    ~"X..........X-X.....X-   X.X   -   X.X    X.X    X.X   -           X....X-X....X           -  X.............X"
-    ~"X......XXXXX-XXXXXXX-   X.X   -    XX    X.X    XX    -          X.....X-X.....X          -   X............X"
-    ~"X...X..X    ---------   X.X   -          X.X          -          XXXXXXX-XXXXXXX          -   X...........X "
-    ~"X..X X..X   -       -XXXX.XXXX-       XXXX.XXXX       -------------------------------------    X..........X "
-    ~"X.X  X..X   -       -X.......X-       X.......X       -    XX           XX    -           -    X..........X "
-    ~"XX    X..X  -       - X.....X -        X.....X        -   X.X           X.X   -           -     X........X  "
-    ~"      X..X          -  X...X  -         X...X         -  X..X           X..X  -           -     X........X  "
-    ~"       XX           -   X.X   -          X.X          - X...XXXXXXXXXXXXX...X -           -     XXXXXXXXXX  "
-    ~"------------        -    X    -           X           -X.....................X-           ------------------"
-    ~"                    ----------------------------------- X...XXXXXXXXXXXXX...X -                             "
-    ~"                                                      -  X..X           X..X  -                             "
-    ~"                                                      -   X.X           X.X   -                             "
-    ~"                                                      -    XX           XX    -                             "
+    "..-         -XXXXXXX-    X    -           X           -XXXXXXX          -          XXXXXXX-     XX          - XX       XX "
+    ~"..-         -X.....X-   X.X   -          X.X          -X.....X          -          X.....X-    X..X         -X..X     X..X"
+    ~"---         -XXX.XXX-  X...X  -         X...X         -X....X           -           X....X-    X..X         -X...X   X...X"
+    ~"X           -  X.X  - X.....X -        X.....X        -X...X            -            X...X-    X..X         - X...X X...X "
+    ~"XX          -  X.X  -X.......X-       X.......X       -X..X.X           -           X.X..X-    X..X         -  X...X...X  "
+    ~"X.X         -  X.X  -XXXX.XXXX-       XXXX.XXXX       -X.X X.X          -          X.X X.X-    X..XXX       -   X.....X   "
+    ~"X..X        -  X.X  -   X.X   -          X.X          -XX   X.X         -         X.X   XX-    X..X..XXX    -    X...X    "
+    ~"X...X       -  X.X  -   X.X   -    XX    X.X    XX    -      X.X        -        X.X      -    X..X..X..XX  -     X.X     "
+    ~"X....X      -  X.X  -   X.X   -   X.X    X.X    X.X   -       X.X       -       X.X       -    X..X..X..X.X -    X...X    "
+    ~"X.....X     -  X.X  -   X.X   -  X..X    X.X    X..X  -        X.X      -      X.X        -XXX X..X..X..X..X-   X.....X   "
+    ~"X......X    -  X.X  -   X.X   - X...XXXXXX.XXXXXX...X -         X.X   XX-XX   X.X         -X..XX........X..X-  X...X...X  "
+    ~"X.......X   -  X.X  -   X.X   -X.....................X-          X.X X.X-X.X X.X          -X...X...........X- X...X X...X "
+    ~"X........X  -  X.X  -   X.X   - X...XXXXXX.XXXXXX...X -           X.X..X-X..X.X           - X..............X-X...X   X...X"
+    ~"X.........X -XXX.XXX-   X.X   -  X..X    X.X    X..X  -            X...X-X...X            -  X.............X-X..X     X..X"
+    ~"X..........X-X.....X-   X.X   -   X.X    X.X    X.X   -           X....X-X....X           -  X.............X- XX       XX "
+    ~"X......XXXXX-XXXXXXX-   X.X   -    XX    X.X    XX    -          X.....X-X.....X          -   X............X--------------"
+    ~"X...X..X    ---------   X.X   -          X.X          -          XXXXXXX-XXXXXXX          -   X...........X -             "
+    ~"X..X X..X   -       -XXXX.XXXX-       XXXX.XXXX       -------------------------------------    X..........X -             "
+    ~"X.X  X..X   -       -X.......X-       X.......X       -    XX           XX    -           -    X..........X -             "
+    ~"XX    X..X  -       - X.....X -        X.....X        -   X.X           X.X   -           -     X........X  -             "
+    ~"      X..X  -       -  X...X  -         X...X         -  X..X           X..X  -           -     X........X  -             "
+    ~"       XX   -       -   X.X   -          X.X          - X...XXXXXXXXXXXXX...X -           -     XXXXXXXXXX  -             "
+    ~"-------------       -    X    -           X           -X.....................X-           -------------------             "
+    ~"                    ----------------------------------- X...XXXXXXXXXXXXX...X -                                           "
+    ~"                                                      -  X..X           X..X  -                                           "
+    ~"                                                      -   X.X           X.X   -                                           "
+    ~"                                                      -    XX           XX    -                                           "
 ;
 static assert(FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS.length == FONT_ATLAS_DEFAULT_TEX_DATA_W * FONT_ATLAS_DEFAULT_TEX_DATA_H);
 
@@ -2039,6 +2045,7 @@ __gshared const ImVec2[3][ImGuiMouseCursor.COUNT] FONT_ATLAS_DEFAULT_TEX_CURSOR_
     [ ImVec2(73,0), ImVec2(17,17), ImVec2( 8, 8) ], // ImGuiMouseCursor_ResizeNESW
     [ ImVec2(55,0), ImVec2(17,17), ImVec2( 8, 8) ], // ImGuiMouseCursor_ResizeNWSE
     [ ImVec2(91,0), ImVec2(17,22), ImVec2( 5, 0) ], // ImGuiMouseCursor_Hand
+    [ ImVec2(109,0),ImVec2(13,15), ImVec2( 6, 7) ], // ImGuiMouseCursor_NotAllowed
 ];
 
 // D_IMGUI: Wrapper for ImFontAtlas
@@ -3203,8 +3210,8 @@ void AddText(string text)
 void AddRanges(const (ImWchar)* ranges)
 {
     for (; ranges[0]; ranges += 2)
-        for (ImWchar c = ranges[0]; c <= ranges[1]; c++)
-            AddChar(c);
+        for (uint c = ranges[0]; c <= ranges[1] && c <= IM_UNICODE_CODEPOINT_MAX; c++) //-V560
+            AddChar(cast(ImWchar)c);
 }
 
 void BuildRanges(ImVector!ImWchar* out_ranges)
@@ -4040,10 +4047,10 @@ void RenderRectFilledWithHole(ImDrawList* draw_list, ImRect outer, ImRect inner,
     const bool fill_R = (inner.Max.x < outer.Max.x);
     const bool fill_U = (inner.Min.y > outer.Min.y);
     const bool fill_D = (inner.Max.y < outer.Max.y);
-    if (fill_L) draw_list.AddRectFilled(ImVec2(outer.Min.x, inner.Min.y), ImVec2(inner.Min.x, inner.Max.y), col, rounding, (fill_U ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopLeft)  | (fill_D ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomLeft));
-    if (fill_R) draw_list.AddRectFilled(ImVec2(inner.Max.x, inner.Min.y), ImVec2(outer.Max.x, inner.Max.y), col, rounding, (fill_U ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopRight) | (fill_D ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomRight));
-    if (fill_U) draw_list.AddRectFilled(ImVec2(inner.Min.x, outer.Min.y), ImVec2(inner.Max.x, inner.Min.y), col, rounding, (fill_L ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopLeft)  | (fill_R ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopRight));
-    if (fill_D) draw_list.AddRectFilled(ImVec2(inner.Min.x, inner.Max.y), ImVec2(inner.Max.x, outer.Max.y), col, rounding, (fill_L ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomLeft)  | (fill_R ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomRight));
+    if (fill_L) draw_list.AddRectFilled(ImVec2(outer.Min.x, inner.Min.y), ImVec2(inner.Min.x, inner.Max.y), col, rounding, ImDrawFlags.RoundCornersNone | (fill_U ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopLeft)    | (fill_D ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomLeft));
+    if (fill_R) draw_list.AddRectFilled(ImVec2(inner.Max.x, inner.Min.y), ImVec2(outer.Max.x, inner.Max.y), col, rounding, ImDrawFlags.RoundCornersNone | (fill_U ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopRight)   | (fill_D ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomRight));
+    if (fill_U) draw_list.AddRectFilled(ImVec2(inner.Min.x, outer.Min.y), ImVec2(inner.Max.x, inner.Min.y), col, rounding, ImDrawFlags.RoundCornersNone | (fill_L ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopLeft)    | (fill_R ? ImDrawFlags.None : ImDrawFlags.RoundCornersTopRight));
+    if (fill_D) draw_list.AddRectFilled(ImVec2(inner.Min.x, inner.Max.y), ImVec2(inner.Max.x, outer.Max.y), col, rounding, ImDrawFlags.RoundCornersNone | (fill_L ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomLeft) | (fill_R ? ImDrawFlags.None : ImDrawFlags.RoundCornersBottomRight));
     if (fill_L && fill_U) draw_list.AddRectFilled(ImVec2(outer.Min.x, outer.Min.y), ImVec2(inner.Min.x, inner.Min.y), col, rounding, ImDrawFlags.RoundCornersTopLeft);
     if (fill_R && fill_U) draw_list.AddRectFilled(ImVec2(inner.Max.x, outer.Min.y), ImVec2(outer.Max.x, inner.Min.y), col, rounding, ImDrawFlags.RoundCornersTopRight);
     if (fill_L && fill_D) draw_list.AddRectFilled(ImVec2(outer.Min.x, inner.Max.y), ImVec2(inner.Min.x, outer.Max.y), col, rounding, ImDrawFlags.RoundCornersBottomLeft);
