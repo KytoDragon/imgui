@@ -55,9 +55,7 @@ examples/example_sdl_opengl3/example_sdl_opengl3
 
 ## Dub build directory
 /.dub
+dub.selections.json
 
 ## VS Code settings
 /.vscode
-
-## imconfig file used for testing
-/source/d_imgui/imconfig.d
