@@ -1866,7 +1866,7 @@ version (CRuntime_Microsoft) {
     MultiByteToWideChar(CP_UTF8, 0, filename.ptr, cast(int)filename.length, cast(wchar*)&buf[0], filename_wsize);
     MultiByteToWideChar(CP_UTF8, 0, mode.ptr, cast(int)mode.length, cast(wchar*)&buf[filename_wsize + 1], mode_wsize);
     buf[filename_wsize] = 0;
-    buf[filename_wsize + 1 + mode_wsize] = 0;   // + 1 as we added a terminating \0 between filename and mode
+    buf[filename_wsize + 1 + mode_wsize] = 0;   // D_IMGUI: + 1 as we added a terminating \0 between filename and mode
     return _wfopen(cast(const wchar*)&buf[0], cast(const wchar*)&buf[filename_wsize + 1]);
 } else {
     // D_IMGUI: Append a zero to each string
@@ -9811,7 +9811,7 @@ static bool NavScoreItem(ImGuiNavItemData* result)
         quadrant = (g.LastItemData.ID < g.NavId) ? ImGuiDir.Left : ImGuiDir.Right;
     }
 
-version (IMGUI_DEBUG_NAV_SCORING) {
+static if (IMGUI_DEBUG_NAV_SCORING) {
     char[128] buf;
     if (IsMouseHoveringRect(cand.Min, cand.Max))
     {
@@ -10423,7 +10423,7 @@ static void NavUpdate()
 
     // [DEBUG]
     g.NavScoringDebugCount = 0;
-version (IMGUI_DEBUG_NAV_RECTS) {
+static if (IMGUI_DEBUG_NAV_RECTS) {
     if (g.NavWindow)
     {
         ImDrawList* draw_list = GetForegroundDrawList(g.NavWindow);
@@ -10494,7 +10494,7 @@ void NavUpdateCreateMoveRequest()
     }
 
     // [DEBUG] Always send a request
-version (IMGUI_DEBUG_NAV_SCORING) {
+static if (IMGUI_DEBUG_NAV_SCORING) {
     if (io.KeyCtrl && IsKeyPressed(ImGuiKey.C))
         g.NavMoveDirForDebug = cast(ImGuiDir)((g.NavMoveDirForDebug + 1) & 3);
     if (io.KeyCtrl && g.NavMoveDir == ImGuiDir.None)
@@ -10586,7 +10586,7 @@ void NavUpdateCreateTabbingRequest()
 void NavMoveRequestApplyResult()
 {
     ImGuiContext* g = GImGui;
-version (IMGUI_DEBUG_NAV_SCORING) {
+static if (IMGUI_DEBUG_NAV_SCORING) {
     if (g.NavMoveFlags & ImGuiNavMoveFlags.DebugNoResult) // [DEBUG] Scoring all items in NavWindow at all times
         return;
 }
@@ -11736,7 +11736,7 @@ ImGuiWindowSettings* CreateNewWindowSettings(string name)
 {
     ImGuiContext* g = GImGui;
 
-version (IMGUI_DEBUG_INI_SETTINGS) {} else {
+static if (!IMGUI_DEBUG_INI_SETTINGS) {
     // Skip to the "###" marker if any. We don't skip past to match the behavior of GetID()
     // Preserve the full string when IMGUI_DEBUG_INI_SETTINGS is set to make .ini inspection easier.
     ptrdiff_t index = ImIndexOf(name, "###");

@@ -14,10 +14,13 @@ module d_imgui.imconfig;
 // Without DUB, just copy this file into the source/d_imgui folder of this library.
 //-----------------------------------------------------------------------------
 
+nothrow:
+@nogc:
+
 //---- Define assertion handler. Defaults to calling assert().
 enum D_IMGUI_USER_DEFINED_ASSERT = false;
-// void IM_ASSERT(bool expr)
-// void IM_ASSERT(bool expr, string msg)
+// void IM_ASSERT(T)(T expr)
+// void IM_ASSERT(T)(T expr, string msg)
 
 //---- Define attributes of all API symbols declarations, e.g. for DLL under Windows
 // Using Dear ImGui via a shared library is not recommended, because of function call overhead and because we don't guarantee backward nor forward ABI compatibility.
@@ -65,6 +68,15 @@ enum IMGUI_DISABLE_DEFAULT_MATH_FUNCTIONS = false;              // Don't impleme
 // float ImCeil(float x)
 // float ImPow(float base, float exponent)
 // double ImPow(double base, double exponent)
+// float ImLog(float x)
+// double ImLog(double x)
+// int ImAbs(int x)
+// float ImAbs(float x)
+// double ImAbs(double x)
+// float ImSign(float x)
+// double ImSign(double x)
+// float ImRsqrt(float x)
+// double ImRsqrt(double x)
 
 enum IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS = false;              // Don't implement ImFileOpen/ImFileClose/ImFileRead/ImFileWrite so you can implement them yourself if you don't want to link with fopen/fclose/fread/fwrite. This will also disable the LogToTTY() function.
 // alias ImFileHandle = FILE*;

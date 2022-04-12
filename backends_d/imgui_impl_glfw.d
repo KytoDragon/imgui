@@ -53,6 +53,7 @@
 // The 'glsl_version' initialization parameter defaults to "#version 150" if NULL.
 // Only override if your GL version doesn't handle this GLSL version. Keep NULL if unsure!
 
+version (IMGUI_GLFW):
 nothrow @nogc:
 
 import ImGui = d_imgui.imgui;

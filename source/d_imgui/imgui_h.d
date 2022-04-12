@@ -48,7 +48,7 @@ Index of this file:
 // #include IMGUI_USER_CONFIG
 // #endif
 // #if !defined(IMGUI_DISABLE_INCLUDE_IMCONFIG_H) || defined(IMGUI_INCLUDE_IMCONFIG_H)
-import d_imgui.imconfig;
+public import d_imgui.imconfig;
 // #endif
 
 // #ifndef IMGUI_DISABLE
@@ -269,10 +269,9 @@ typedef int ImGuiWindowFlags;       // -> enum ImGuiWindowFlags_     // Flags: f
 // ImDrawIdx: vertex index. [Compile-time configurable type]
 // - To use 16-bit indices + allow large meshes: backend need to set 'io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset' and handle ImDrawCmd::VtxOffset (recommended).
 // - To use 32-bit indices: override with '#define ImDrawIdx unsigned int' in your imconfig.h file.
-// TODO D_IMGUI add to imconfig
-//#ifndef ImDrawIdx
+static if (!D_IMGUI_USER_DEFINED_DRAW_IDX) {
+} // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
 alias ImDrawIdx = ushort;   // Default: 16-bit (for maximum compatibility with renderer backends)
-//#endif
 
 // Scalar data types
 alias ImGuiID = uint;// A unique ID used by widgets (typically the result of hashing a stack of string)
@@ -1952,7 +1951,7 @@ pragma(inline) T* IM_NEW(T, A...)(A args) {
     emplace(result, args);
     return result;
 }
-pragma(inline) void IM_DELETE(T)(T* p)   { if (p) { p.destroy(); MemFree(p); } }
+pragma(inline) void IM_DELETE(T)(T* p)   { if (p) { (*p).destroy(); MemFree(p); } }
 // D_IMGUI separate definition for string
 pragma(inline) void IM_DELETE(string s)   { if (s !is NULL) { MemFree(cast(char*)s.ptr); } }
 

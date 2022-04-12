@@ -2297,7 +2297,7 @@ int AddCustomRectRegular(int width, int height)
 
 int AddCustomRectFontGlyph(ImFont* font, ImWchar id, int width, int height, float advance_x, const ImVec2/*&*/ offset)
 {
-version (IMGUI_USE_WCHAR32) {
+static if (IMGUI_USE_WCHAR32) {
     IM_ASSERT(id <= IM_UNICODE_CODEPOINT_MAX);
 }
     IM_ASSERT(font != NULL);

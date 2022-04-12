@@ -37,7 +37,12 @@
 			"subConfigurations"	: {
 				"bindbc-glfw"	: "dynamicBC",
 			},
-			"versions"		: ["GLFW_33", "BindGLFW_NoGC_Callbacks"],
+			"versions": [
+				"GLFW_33",
+				"BindGLFW_NoGC_Callbacks",
+				"IMGUI_GLFW",
+				"IMGUI_VULKAN",
+			],
 			"libs-windows"	: ["Imm32", "User32"],
 		},
 		{
@@ -55,7 +60,13 @@
 			"subConfigurations"	: {
 				"bindbc-glfw"	: "dynamicBC",
 			},
-			"versions"		: ["GLFW_33", "BindGLFW_NoGC_Callbacks", "GL_33"],
+			"versions": [
+				"GLFW_33",
+				"BindGLFW_NoGC_Callbacks",
+				"GL_33",
+				"IMGUI_GLFW",
+				"IMGUI_OPENGL3",
+			],
 			"libs-windows"	: ["Imm32", "User32"],
 		},
 	],

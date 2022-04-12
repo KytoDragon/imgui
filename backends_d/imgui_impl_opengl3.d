@@ -88,6 +88,7 @@
 //  ES 3.0    300       "#version 300 es"   = WebGL 2.0
 //----------------------------------------
 
+version (IMGUI_OPENGL3):
 nothrow @nogc:
 
 /+
