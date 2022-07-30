@@ -3564,20 +3564,20 @@ bool InputTextWithHint(string label, string hint, char[] buf, ImGuiInputTextFlag
     return InputTextEx(label, hint, buf, ImVec2(0, 0), flags, callback, user_data);
 }
 
-static int InputTextCalcTextLenAndLineCount(const char[] text_begin, size_t* out_text_end)
+static int InputTextCalcTextLenAndLineCount(const char[] s, size_t* out_text_end)
 {
     int line_count = 0;
-    const (char)*s = text_begin.ptr;
-    char c = *s++;
-    while (c) { // We are only matching for \n so we can ignore UTF-8 decoding
-        if (c == '\n')
+    size_t index = 0;
+    for (; index < s.length; index++) {
+        char c = s[index];
+        if (c == '\0')
+            break;
+        if (c == '\n') // We are only matching for \n so we can ignore UTF-8 decoding
             line_count++;
-        c = *s++;
     }
-    s--;
-    if (s[0] != '\n' && s[0] != '\r')
+    if (index > 0 && s[index - 1] != '\n' && s[index - 1] != '\r')
         line_count++;
-    *out_text_end = s - text_begin.ptr;
+    *out_text_end = index;
     return line_count;
 }
 
