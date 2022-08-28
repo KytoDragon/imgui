@@ -28,6 +28,7 @@ module backends_d.imgui_impl_opengl3_loader;
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+version (IMGUI_OPENGL3):
 nothrow @nogc:
 
 import bindbc.opengl;

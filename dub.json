@@ -26,7 +26,6 @@
 			"name"			: "glfw_vulkan",
 			"description"	: "Example GLFW Vulkan",
 			"targetType"	: "executable",
-			"dflags"		: ["-preview=intpromote"],
 			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_glfw_vulkan"],
 			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_vulkan.d"],
 			"dependencies"	: {
@@ -49,7 +48,6 @@
 			"name"			: "glfw_opengl3",
 			"description"	: "Example GLFW OpenGl 3",
 			"targetType"	: "executable",
-			"dflags"		: ["-preview=intpromote"],
 			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_glfw_opengl3"],
 			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_opengl3.d", "backends_d/imgui_impl_opengl3_loader.d"],
 			"dependencies"	: {
