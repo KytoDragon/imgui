@@ -1,4 +1,4 @@
-// dear imgui, v1.87
+// dear imgui, v1.88
 // (drawing and font code)
 module d_imgui.imgui_draw;
 
@@ -103,7 +103,7 @@ nothrow:
 +/
 
 //-------------------------------------------------------------------------
-// [SECTION] STB libraries implementation
+// [SECTION] STB libraries implementation (for stb_truetype and stb_rect_pack)
 //-------------------------------------------------------------------------
 
 // Compile time options:
@@ -421,7 +421,7 @@ void SetCircleTessellationMaxError(float max_error)
     for (int i = 0; i < IM_ARRAYSIZE(CircleSegmentCounts); i++)
     {
         const float radius = cast(float)i;
-        CircleSegmentCounts[i] = cast(ImU8)((i > 0) ? IM_DRAWLIST_CIRCLE_AUTO_SEGMENT_CALC(radius, CircleSegmentMaxError) : 0);
+        CircleSegmentCounts[i] = cast(ImU8)((i > 0) ? IM_DRAWLIST_CIRCLE_AUTO_SEGMENT_CALC(radius, CircleSegmentMaxError) : IM_DRAWLIST_ARCFAST_SAMPLE_MAX);
     }
     ArcFastRadiusCutoff = IM_DRAWLIST_CIRCLE_AUTO_SEGMENT_CALC_R(IM_DRAWLIST_ARCFAST_SAMPLE_MAX, CircleSegmentMaxError);
 }
@@ -622,7 +622,7 @@ int _CalcCircleAutoSegmentCount(float radius) const
 }
 
 // Render-level scissoring. This is passed down to your render function but not used for CPU-side coarse clipping. Prefer using higher-level ImGui::PushClipRect() to affect logic (hit-testing and widget culling)
-void PushClipRect(ImVec2 cr_min, ImVec2 cr_max, bool intersect_with_current_clip_rect)
+void PushClipRect(const ImVec2/*&*/ cr_min, const ImVec2/*&*/ cr_max, bool intersect_with_current_clip_rect)
 {
     ImVec4 cr = ImVec4(cr_min.x, cr_min.y, cr_max.x, cr_max.y);
     if (intersect_with_current_clip_rect)
@@ -1015,7 +1015,8 @@ void AddPolyline(const ImVec2* points, const int points_count, ImU32 col, ImDraw
     }
 }
 
-// We intentionally avoid using ImVec2 and its math operators here to reduce cost to a minimum for debug/non-inlined builds.
+// - We intentionally avoid using ImVec2 and its math operators here to reduce cost to a minimum for debug/non-inlined builds.
+// - Filled shapes must always use clockwise winding order. The anti-aliasing fringe depends on it. Counter-clockwise shapes will have "inward" anti-aliasing.
 void AddConvexPolyFilled(const ImVec2* points, const int points_count, ImU32 col)
 {
     if (points_count < 3)
@@ -1099,7 +1100,7 @@ void AddConvexPolyFilled(const ImVec2* points, const int points_count, ImU32 col
 
 void _PathArcToFastEx(const ImVec2/*&*/ center, float radius, int a_min_sample, int a_max_sample, int a_step)
 {
-    if (radius <= 0.0f)
+    if (radius < 0.5f)
     {
         _Path.push_back(center);
         return;
@@ -1191,7 +1192,7 @@ void _PathArcToFastEx(const ImVec2/*&*/ center, float radius, int a_min_sample, 
 
 void _PathArcToN(const ImVec2/*&*/ center, float radius, float a_min, float a_max, int num_segments)
 {
-    if (radius <= 0.0f)
+    if (radius < 0.5f)
     {
         _Path.push_back(center);
         return;
@@ -1210,7 +1211,7 @@ void _PathArcToN(const ImVec2/*&*/ center, float radius, float a_min, float a_ma
 // 0: East, 3: South, 6: West, 9: North, 12: East
 void PathArcToFast(const ImVec2/*&*/ center, float radius, int a_min_of_12, int a_max_of_12)
 {
-    if (radius <= 0.0f)
+    if (radius < 0.5f)
     {
         _Path.push_back(center);
         return;
@@ -1220,7 +1221,7 @@ void PathArcToFast(const ImVec2/*&*/ center, float radius, int a_min_of_12, int 
 
 void PathArcTo(const ImVec2/*&*/ center, float radius, float a_min, float a_max, int num_segments)
 {
-    if (radius <= 0.0f)
+    if (radius < 0.5f)
     {
         _Path.push_back(center);
         return;
@@ -1248,8 +1249,8 @@ void PathArcTo(const ImVec2/*&*/ center, float radius, float a_min, float a_max,
 
         const float a_min_segment_angle = a_min_sample * IM_PI * 2.0f / IM_DRAWLIST_ARCFAST_SAMPLE_MAX;
         const float a_max_segment_angle = a_max_sample * IM_PI * 2.0f / IM_DRAWLIST_ARCFAST_SAMPLE_MAX;
-        const bool a_emit_start = (a_min_segment_angle - a_min) != 0.0f;
-        const bool a_emit_end = (a_max - a_max_segment_angle) != 0.0f;
+        const bool a_emit_start = ImAbs(a_min_segment_angle - a_min) >= 1e-5f;
+        const bool a_emit_end = ImAbs(a_max - a_max_segment_angle) >= 1e-5f;
 
         _Path.reserve(_Path.Size + (a_mid_samples + 1 + (a_emit_start ? 1 : 0) + (a_emit_end ? 1 : 0)));
         if (a_emit_start)
@@ -1401,7 +1402,7 @@ void PathRect(const ImVec2/*&*/ a, const ImVec2/*&*/ b, float rounding, ImDrawFl
     rounding = ImMin(rounding, ImFabs(b.x - a.x) * ( ((flags & ImDrawFlags.RoundCornersTop)  == ImDrawFlags.RoundCornersTop)  || ((flags & ImDrawFlags.RoundCornersBottom) == ImDrawFlags.RoundCornersBottom) ? 0.5f : 1.0f ) - 1.0f);
     rounding = ImMin(rounding, ImFabs(b.y - a.y) * ( ((flags & ImDrawFlags.RoundCornersLeft) == ImDrawFlags.RoundCornersLeft) || ((flags & ImDrawFlags.RoundCornersRight)  == ImDrawFlags.RoundCornersRight)  ? 0.5f : 1.0f ) - 1.0f);
 
-    if (rounding <= 0.0f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
+    if (rounding < 0.5f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
     {
         PathLineTo(a);
         PathLineTo(ImVec2(b.x, a.y));
@@ -1447,7 +1448,7 @@ void AddRectFilled(const ImVec2/*&*/ p_min, const ImVec2/*&*/ p_max, ImU32 col, 
 {
     if ((col & IM_COL32_A_MASK) == 0)
         return;
-    if (rounding <= 0.0f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
+    if (rounding < 0.5f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
     {
         PrimReserve(6, 4);
         PrimRect(p_min, p_max, col);
@@ -1523,7 +1524,7 @@ void AddTriangleFilled(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/
 
 void AddCircle(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments, float thickness)
 {
-    if ((col & IM_COL32_A_MASK) == 0 || radius <= 0.0f)
+    if ((col & IM_COL32_A_MASK) == 0 || radius < 0.5f)
         return;
 
     if (num_segments <= 0)
@@ -1547,7 +1548,7 @@ void AddCircle(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segmen
 
 void AddCircleFilled(const ImVec2/*&*/ center, float radius, ImU32 col, int num_segments)
 {
-    if ((col & IM_COL32_A_MASK) == 0 || radius <= 0.0f)
+    if ((col & IM_COL32_A_MASK) == 0 || radius < 0.5f)
         return;
 
     if (num_segments <= 0)
@@ -1685,7 +1686,7 @@ void AddImageRounded(ImTextureID user_texture_id, const ImVec2/*&*/ p_min, const
         return;
 
     flags = FixRectCornerFlags(flags);
-    if (rounding <= 0.0f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
+    if (rounding < 0.5f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
     {
         AddImage(user_texture_id, p_min, p_max, uv_min, uv_max, col);
         return;
@@ -2745,8 +2746,8 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, void* stbrp_context_opa
     for (int i = 0; i < pack_rects.Size; i++)
         if (pack_rects[i].was_packed)
         {
-            (*user_rects)[i].X = pack_rects[i].x;
-            (*user_rects)[i].Y = pack_rects[i].y;
+            (*user_rects)[i].X = cast(ushort)pack_rects[i].x;
+            (*user_rects)[i].Y = cast(ushort)pack_rects[i].y;
             IM_ASSERT(pack_rects[i].w == (*user_rects)[i].Width && pack_rects[i].h == (*user_rects)[i].Height);
             atlas.TexHeight = ImMax(atlas.TexHeight, pack_rects[i].y + pack_rects[i].h);
         }
@@ -2848,13 +2849,13 @@ static void ImFontAtlasBuildRenderLinesTexData(ImFontAtlas* atlas)
         {
             uint* write_ptr = &atlas.TexPixelsRGBA32[r.X + ((r.Y + y) * atlas.TexWidth)];
             for (uint i = 0; i < pad_left; i++)
-                *(write_ptr + i) = IM_COL32_BLACK_TRANS;
+                *(write_ptr + i) = IM_COL32(255, 255, 255, 0);
 
             for (uint i = 0; i < line_width; i++)
                 *(write_ptr + pad_left + i) = IM_COL32_WHITE;
 
             for (uint i = 0; i < pad_right; i++)
-                *(write_ptr + pad_left + line_width + i) = IM_COL32_BLACK_TRANS;
+                *(write_ptr + pad_left + line_width + i) = IM_COL32(255, 255, 255, 0);
         }
 
         // Calculate UVs for this line
@@ -3661,7 +3662,7 @@ ImVec2 CalcTextSizeA(float size, float max_width, float wrap_width, string text,
 }
 
 // Note: as with every ImDrawList drawing function, this expects that the font atlas texture is bound.
-void RenderChar(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, ImWchar c) const
+void RenderChar(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 col, ImWchar c) const
 {
     const ImFontGlyph* glyph = FindGlyph(c);
     if (!glyph || !glyph.Visible)
@@ -3669,23 +3670,22 @@ void RenderChar(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, ImWcha
     if (glyph.Colored)
         col |= ~IM_COL32_A_MASK;
     float scale = (size >= 0.0f) ? (size / FontSize) : 1.0f;
-    pos.x = IM_FLOOR(pos.x);
-    pos.y = IM_FLOOR(pos.y);
+    float x = IM_FLOOR(pos.x);
+    float y = IM_FLOOR(pos.y);
     draw_list.PrimReserve(6, 4);
-    draw_list.PrimRectUV(ImVec2(pos.x + glyph.X0 * scale, pos.y + glyph.Y0 * scale), ImVec2(pos.x + glyph.X1 * scale, pos.y + glyph.Y1 * scale), ImVec2(glyph.U0, glyph.V0), ImVec2(glyph.U1, glyph.V1), col);
+    draw_list.PrimRectUV(ImVec2(x + glyph.X0 * scale, y + glyph.Y0 * scale), ImVec2(x + glyph.X1 * scale, y + glyph.Y1 * scale), ImVec2(glyph.U0, glyph.V0), ImVec2(glyph.U1, glyph.V1), col);
 }
 
 // Note: as with every ImDrawList drawing function, this expects that the font atlas texture is bound.
-void RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4/*&*/ clip_rect, string text, float wrap_width, bool cpu_fine_clip) const
+void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 col, const ImVec4/*&*/ clip_rect, string text, float wrap_width, bool cpu_fine_clip) const
 {
     // Align to be pixel perfect
-    pos.x = IM_FLOOR(pos.x);
-    pos.y = IM_FLOOR(pos.y);
-    float x = pos.x;
-    float y = pos.y;
+    float x = IM_FLOOR(pos.x);
+    float y = IM_FLOOR(pos.y);
     if (y > clip_rect.w)
         return;
 
+    const float start_x = x;
     const float scale = size / FontSize;
     const float line_height = FontSize * scale;
     const bool word_wrap_enabled = (wrap_width > 0.0f);
@@ -3737,14 +3737,14 @@ void RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const 
             // Calculate how far we can render. Requires two passes on the string data but keeps the code simple and not intrusive for what's essentially an uncommon feature.
             if (!word_wrap_eol)
             {
-                word_wrap_eol = s + CalcWordWrapPositionA(scale, text[s..$], wrap_width - (x - pos.x));
+                word_wrap_eol = s + CalcWordWrapPositionA(scale, text[s..$], wrap_width - (x - start_x));
                 if (word_wrap_eol == s) // Wrap_width is too small to fit anything. Force displaying 1 character to minimize the height discontinuity.
                     word_wrap_eol++;    // +1 may not be a character start point in UTF-8 but it's ok because we use s >= word_wrap_eol below
             }
 
             if (s >= word_wrap_eol)
             {
-                x = pos.x;
+                x = start_x;
                 y += line_height;
                 word_wrap_eol = 0;
 
@@ -3775,7 +3775,7 @@ void RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const 
         {
             if (c == '\n')
             {
-                x = pos.x;
+                x = start_x;
                 y += line_height;
                 if (y > clip_rect.w)
                     break; // break out of main loop
@@ -3873,7 +3873,6 @@ void RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const 
 // - RenderArrow()
 // - RenderBullet()
 // - RenderCheckMark()
-// - RenderMouseCursor()
 // - RenderArrowPointingAt()
 // - RenderRectFilledRangeH()
 // - RenderRectFilledWithHole()
@@ -3934,28 +3933,6 @@ void RenderCheckMark(ImDrawList* draw_list, ImVec2 pos, ImU32 col, float sz)
     draw_list.PathLineTo(ImVec2(bx, by));
     draw_list.PathLineTo(ImVec2(bx + third * 2.0f, by - third * 2.0f));
     draw_list.PathStroke(col, ImDrawFlags.None, thickness);
-}
-
-void RenderMouseCursor(ImDrawList* draw_list, ImVec2 pos, float scale, ImGuiMouseCursor mouse_cursor, ImU32 col_fill, ImU32 col_border, ImU32 col_shadow)
-{
-    if (mouse_cursor == ImGuiMouseCursor.None)
-        return;
-    IM_ASSERT(mouse_cursor > ImGuiMouseCursor.None && mouse_cursor < ImGuiMouseCursor.COUNT);
-
-    ImFontAtlas* font_atlas = cast(ImFontAtlas*) draw_list._Data.Font.ContainerAtlas;
-    ImVec2 offset, size;
-    ImVec2[4] uv;
-    if (font_atlas.GetMouseCursorTexData(mouse_cursor, &offset, &size, uv[0..2], uv[2..4]))
-    {
-        pos -= offset;
-        ImTextureID tex_id = font_atlas.TexID;
-        draw_list.PushTextureID(tex_id);
-        draw_list.AddImage(tex_id, pos + ImVec2(1, 0) * scale, pos + (ImVec2(1, 0) + size) * scale,    uv[2], uv[3], col_shadow);
-        draw_list.AddImage(tex_id, pos + ImVec2(2, 0) * scale, pos + (ImVec2(2, 0) + size) * scale,    uv[2], uv[3], col_shadow);
-        draw_list.AddImage(tex_id, pos,                        pos + size * scale,                     uv[2], uv[3], col_border);
-        draw_list.AddImage(tex_id, pos,                        pos + size * scale,                     uv[0], uv[1], col_fill);
-        draw_list.PopTextureID();
-    }
 }
 
 // Render an arrow. 'pos' is position of the arrow tip. half_sz.x is length from base to tip. half_sz.y is length on each side.
@@ -4041,7 +4018,7 @@ void RenderRectFilledRangeH(ImDrawList* draw_list, const ImRect/*&*/ rect, ImU32
     draw_list.PathFillConvex(col);
 }
 
-void RenderRectFilledWithHole(ImDrawList* draw_list, ImRect outer, ImRect inner, ImU32 col, float rounding)
+void RenderRectFilledWithHole(ImDrawList* draw_list, const ImRect/*&*/ outer, const ImRect/*&*/ inner, ImU32 col, float rounding)
 {
     const bool fill_L = (inner.Min.x > outer.Min.x);
     const bool fill_R = (inner.Max.x < outer.Max.x);

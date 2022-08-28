@@ -1,4 +1,4 @@
-// dear imgui, v1.87
+// dear imgui, v1.88
 // (tables and columns code)
 module d_imgui.imgui_tables;
 
@@ -25,7 +25,7 @@ Index of this file:
 */
 
 // Navigating this file:
-// - In Visual Studio IDE: CTRL+comma ("Edit.NavigateTo") can follow symbols in comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
+// - In Visual Studio IDE: CTRL+comma ("Edit.GoToAll") can follow symbols in comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
 // - With Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols in comments.
 
 //-----------------------------------------------------------------------------
@@ -377,6 +377,8 @@ bool    BeginTableEx(string name, ImGuiID id, int columns_count, ImGuiTableFlags
     table.IsLayoutLocked = false;
     table.InnerWidth = inner_width;
     temp_data.UserOuterSize = outer_size;
+    if (instance_no > 0 && table.InstanceDataExtra.Size < instance_no)
+        table.InstanceDataExtra.push_back(ImGuiTableInstanceData());
 
     // When not using a child window, WorkRect.Max will grow as we append contents.
     if (use_child_window)
@@ -553,7 +555,7 @@ bool    BeginTableEx(string name, ImGuiID id, int columns_count, ImGuiTableFlags
     if (table.RefScale != 0.0f && table.RefScale != new_ref_scale_unit)
     {
         const float scale_factor = new_ref_scale_unit / table.RefScale;
-        //IMGUI_DEBUG_LOG("[table] %08X RefScaleUnit %.3f -> %.3f, scaling width by %.3f\n", table->ID, table->RefScaleUnit, new_ref_scale_unit, scale_factor);
+        //IMGUI_DEBUG_PRINT("[table] %08X RefScaleUnit %.3f -> %.3f, scaling width by %.3f\n", table->ID, table->RefScaleUnit, new_ref_scale_unit, scale_factor);
         for (int n = 0; n < columns_count; n++)
             table.Columns[n].WidthRequest = table.Columns[n].WidthRequest * scale_factor;
     }
@@ -902,6 +904,7 @@ void TableUpdateLayout(ImGuiTable* table)
         sum_width_requests += table.CellPaddingX * 2.0f;
     }
     table.ColumnsEnabledFixedCount = cast(ImGuiTableColumnIdx)count_fixed;
+    table.ColumnsStretchSumWeights = stretch_sum_weights;
 
     // [Part 4] Apply final widths based on requested widths
     const ImRect work_rect = table.WorkRect;
@@ -949,9 +952,10 @@ void TableUpdateLayout(ImGuiTable* table)
             width_remaining_for_stretched_columns -= 1.0f;
         }
 
+    ImGuiTableInstanceData* table_instance = TableGetInstanceData(table, table.InstanceCurrent);
     table.HoveredColumnBody = -1;
     table.HoveredColumnBorder = -1;
-    const ImRect mouse_hit_rect = ImRect(table.OuterRect.Min.x, table.OuterRect.Min.y, table.OuterRect.Max.x, ImMax(table.OuterRect.Max.y, table.OuterRect.Min.y + table.LastOuterHeight));
+    const ImRect mouse_hit_rect = ImRect(table.OuterRect.Min.x, table.OuterRect.Min.y, table.OuterRect.Max.x, ImMax(table.OuterRect.Max.y, table.OuterRect.Min.y + table_instance.LastOuterHeight));
     const bool is_hovering_table = ItemHoverable(mouse_hit_rect, 0);
 
     // [Part 6] Setup final position, offset, skip/clip states and clipping rectangles, detect hovered column
@@ -1112,7 +1116,7 @@ void TableUpdateLayout(ImGuiTable* table)
     // [Part 10] Hit testing on borders
     if (table.Flags & ImGuiTableFlags.Resizable)
         TableUpdateBorders(table);
-    table.LastFirstRowHeight = 0.0f;
+    table_instance.LastFirstRowHeight = 0.0f;
     table.IsLayoutLocked = true;
     table.IsUsingHeaders = false;
 
@@ -1157,10 +1161,11 @@ void TableUpdateBorders(ImGuiTable* table)
     // use the final height from last frame. Because this is only affecting _interaction_ with columns, it is not
     // really problematic (whereas the actual visual will be displayed in EndTable() and using the current frame height).
     // Actual columns highlight/render will be performed in EndTable() and not be affected.
+    ImGuiTableInstanceData* table_instance = TableGetInstanceData(table, table.InstanceCurrent);
     const float hit_half_width = TABLE_RESIZE_SEPARATOR_HALF_THICKNESS;
     const float hit_y1 = table.OuterRect.Min.y;
-    const float hit_y2_body = ImMax(table.OuterRect.Max.y, hit_y1 + table.LastOuterHeight);
-    const float hit_y2_head = hit_y1 + table.LastFirstRowHeight;
+    const float hit_y2_body = ImMax(table.OuterRect.Max.y, hit_y1 + table_instance.LastOuterHeight);
+    const float hit_y2_head = hit_y1 + table_instance.LastFirstRowHeight;
 
     for (int order_n = 0; order_n < table.ColumnsCount; order_n++)
     {
@@ -1239,6 +1244,7 @@ void    EndTable()
             TableOpenContextMenu(cast(int)table.HoveredColumnBody);
 
     // Finalize table height
+    ImGuiTableInstanceData* table_instance = TableGetInstanceData(table, table.InstanceCurrent);
     inner_window.DC.PrevLineSize = temp_data.HostBackupPrevLineSize;
     inner_window.DC.CurrLineSize = temp_data.HostBackupCurrLineSize;
     inner_window.DC.CursorMaxPos = temp_data.HostBackupCursorMaxPos;
@@ -1249,7 +1255,7 @@ void    EndTable()
     else if (!(flags & ImGuiTableFlags.NoHostExtendY))
         table.OuterRect.Max.y = table.InnerRect.Max.y = ImMax(table.OuterRect.Max.y, inner_content_max_y); // Patch OuterRect/InnerRect height
     table.WorkRect.Max.y = ImMax(table.WorkRect.Max.y, table.OuterRect.Max.y);
-    table.LastOuterHeight = table.OuterRect.GetHeight();
+    table_instance.LastOuterHeight = table.OuterRect.GetHeight();
 
     // Setup inner scrolling range
     // FIXME: This ideally should be done earlier, in BeginTable() SetNextWindowContentSize call, just like writing to inner_window->DC.CursorMaxPos.y,
@@ -1295,17 +1301,23 @@ static if (false) {
     splitter.Merge(inner_window.DrawList);
 
     // Update ColumnsAutoFitWidth to get us ahead for host using our size to auto-resize without waiting for next BeginTable()
-    const float width_spacings = (table.OuterPaddingX * 2.0f) + (table.CellSpacingX1 + table.CellSpacingX2) * (table.ColumnsEnabledCount - 1);
-    table.ColumnsAutoFitWidth = width_spacings + (table.CellPaddingX * 2.0f) * table.ColumnsEnabledCount;
+    float auto_fit_width_for_fixed = 0.0f;
+    float auto_fit_width_for_stretched = 0.0f;
+    float auto_fit_width_for_stretched_min = 0.0f;
     for (int column_n = 0; column_n < table.ColumnsCount; column_n++)
         if (table.EnabledMaskByIndex & (cast(ImU64)1 << column_n))
         {
             ImGuiTableColumn* column = &table.Columns[column_n];
-            if ((column.Flags & ImGuiTableColumnFlags.WidthFixed) && !(column.Flags & ImGuiTableColumnFlags.NoResize))
-                table.ColumnsAutoFitWidth += column.WidthRequest;
+            float column_width_request = ((column.Flags & ImGuiTableColumnFlags.WidthFixed) && !(column.Flags & ImGuiTableColumnFlags.NoResize)) ? column.WidthRequest : TableGetColumnWidthAuto(table, column);
+            if (column.Flags & ImGuiTableColumnFlags.WidthFixed)
+                auto_fit_width_for_fixed += column_width_request;
             else
-                table.ColumnsAutoFitWidth += TableGetColumnWidthAuto(table, column);
+                auto_fit_width_for_stretched += column_width_request;
+            if ((column.Flags & ImGuiTableColumnFlags.WidthStretch) && (column.Flags & ImGuiTableColumnFlags.NoResize) != 0)
+                auto_fit_width_for_stretched_min = ImMax(auto_fit_width_for_stretched_min, column_width_request / (column.StretchWeight / table.ColumnsStretchSumWeights));
         }
+    const float width_spacings = (table.OuterPaddingX * 2.0f) + (table.CellSpacingX1 + table.CellSpacingX2) * (table.ColumnsEnabledCount - 1);
+    table.ColumnsAutoFitWidth = width_spacings + (table.CellPaddingX * 2.0f) * table.ColumnsEnabledCount + auto_fit_width_for_fixed + ImMax(auto_fit_width_for_stretched, auto_fit_width_for_stretched_min);
 
     // Update scroll
     if ((table.Flags & ImGuiTableFlags.ScrollX) == 0 && inner_window != outer_window)
@@ -1766,7 +1778,7 @@ void TableEndRow(ImGuiTable* table)
     const bool unfreeze_rows_actual = (table.CurrentRow + 1 == table.FreezeRowsCount);
     const bool unfreeze_rows_request = (table.CurrentRow + 1 == table.FreezeRowsRequest);
     if (table.CurrentRow == 0)
-        table.LastFirstRowHeight = bg_y2 - bg_y1;
+        TableGetInstanceData(table, table.InstanceCurrent).LastFirstRowHeight = bg_y2 - bg_y1;
 
     const bool is_visible = (bg_y2 >= table.InnerClipRect.Min.y && bg_y1 <= table.InnerClipRect.Max.y);
     if (is_visible)
@@ -2105,7 +2117,7 @@ void TableSetColumnWidth(int column_n, float width)
     if (column_0.WidthGiven == column_0_width || column_0.WidthRequest == column_0_width)
         return;
 
-    //IMGUI_DEBUG_LOG("TableSetColumnWidth(%d, %.1f->%.1f)\n", column_0_idx, column_0->WidthGiven, column_0_width);
+    //IMGUI_DEBUG_PRINT("TableSetColumnWidth(%d, %.1f->%.1f)\n", column_0_idx, column_0->WidthGiven, column_0_width);
     ImGuiTableColumn* column_1 = (column_0.NextEnabledColumn != -1) ? &table.Columns[column_0.NextEnabledColumn] : NULL;
 
     // In this surprisingly not simple because of how we support mixing Fixed and multiple Stretch columns.
@@ -2375,7 +2387,7 @@ void TableMergeDrawChannels(ImGuiTable* table)
 
             // Don't attempt to merge if there are multiple draw calls within the column
             ImDrawChannel* src_channel = &splitter._Channels[channel_no];
-            if (src_channel._CmdBuffer.Size > 0 && src_channel._CmdBuffer.back().ElemCount == 0 && src_channel._CmdBuffer.back().UserCallback != NULL) // Equivalent of PopUnusedDrawCmd()
+            if (src_channel._CmdBuffer.Size > 0 && src_channel._CmdBuffer.back().ElemCount == 0 && src_channel._CmdBuffer.back().UserCallback == NULL) // Equivalent of PopUnusedDrawCmd()
                 src_channel._CmdBuffer.pop_back();
             if (src_channel._CmdBuffer.Size != 1)
                 continue;
@@ -2519,10 +2531,11 @@ void TableDrawBorders(ImGuiTable* table)
     inner_drawlist.PushClipRect(table.Bg0ClipRectForDrawCmd.Min, table.Bg0ClipRectForDrawCmd.Max, false);
 
     // Draw inner border and resizing feedback
+    ImGuiTableInstanceData* table_instance = TableGetInstanceData(table, table.InstanceCurrent);
     const float border_size = TABLE_BORDER_SIZE;
     const float draw_y1 = table.InnerRect.Min.y;
     const float draw_y2_body = table.InnerRect.Max.y;
-    const float draw_y2_head = table.IsUsingHeaders ? ImMin(table.InnerRect.Max.y, (table.FreezeRowsCount >= 1 ? table.InnerRect.Min.y : table.WorkRect.Min.y) + table.LastFirstRowHeight) : draw_y1;
+    const float draw_y2_head = table.IsUsingHeaders ? ImMin(table.InnerRect.Max.y, (table.FreezeRowsCount >= 1 ? table.InnerRect.Min.y : table.WorkRect.Min.y) + table_instance.LastFirstRowHeight) : draw_y1;
     if (table.Flags & ImGuiTableFlags.BordersInnerV)
     {
         for (int order_n = 0; order_n < table.ColumnsCount; order_n++)
@@ -3444,9 +3457,8 @@ static void TableSettingsHandler_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandle
     }
 }
 
-void TableSettingsInstallHandler(ImGuiContext* context)
+void TableSettingsAddSettingsHandler()
 {
-    ImGuiContext* g = context;
     ImGuiSettingsHandler ini_handler;
     ini_handler.TypeName = "Table";
     ini_handler.TypeHash = ImHashStr("Table");
@@ -3455,7 +3467,7 @@ void TableSettingsInstallHandler(ImGuiContext* context)
     ini_handler.ReadLineFn = &TableSettingsHandler_ReadLine;
     ini_handler.ApplyAllFn = &TableSettingsHandler_ApplyAll;
     ini_handler.WriteAllFn = &TableSettingsHandler_WriteAll;
-    g.SettingsHandlers.push_back(ini_handler);
+    AddSettingsHandler(&ini_handler);
 }
 
 //-------------------------------------------------------------------------
@@ -3469,7 +3481,7 @@ void TableSettingsInstallHandler(ImGuiContext* context)
 // Remove Table (currently only used by TestEngine)
 void TableRemove(ImGuiTable* table)
 {
-    //IMGUI_DEBUG_LOG("TableRemove() id=0x%08X\n", table->ID);
+    //IMGUI_DEBUG_PRINT("TableRemove() id=0x%08X\n", table->ID);
     ImGuiContext* g = GImGui;
     int table_idx = g.Tables.GetIndex(table);
     //memset(table->RawData.Data, 0, table->RawData.size_in_bytes());
@@ -3481,7 +3493,7 @@ void TableRemove(ImGuiTable* table)
 // Free up/compact internal Table buffers for when it gets unused
 void TableGcCompactTransientBuffers(ImGuiTable* table)
 {
-    //IMGUI_DEBUG_LOG("TableGcCompactTransientBuffers() id=0x%08X\n", table->ID);
+    //IMGUI_DEBUG_PRINT("TableGcCompactTransientBuffers() id=0x%08X\n", table->ID);
     ImGuiContext* g = GImGui;
     IM_ASSERT(table.MemoryCompacted == false);
     table.SortSpecs.Specs = NULL;
@@ -3525,7 +3537,7 @@ void TableGcCompactSettings()
 // - DebugNodeTable() [Internal]
 //-------------------------------------------------------------------------
 
-static if (!IMGUI_DISABLE_METRICS_WINDOW) {
+static if (!IMGUI_DISABLE_DEBUG_TOOLS) {
 
 static string DebugNodeTableGetSizingPolicyDesc(ImGuiTableFlags sizing_policy)
 {
@@ -3553,6 +3565,8 @@ void DebugNodeTable(ImGuiTable* table)
         GetForegroundDrawList().AddRect(GetItemRectMin(), GetItemRectMax(), IM_COL32(255, 255, 0, 255));
     if (!open)
         return;
+    if (table.InstanceCurrent > 0)
+        Text("** %d instances of same table! Some data below will refer to last instance.", table.InstanceCurrent + 1);
     bool clear_settings = SmallButton("Clear settings");
     BulletText("OuterRect: Pos: (%.1f,%.1f) Size: (%.1f,%.1f) Sizing: '%s'", table.OuterRect.Min.x, table.OuterRect.Min.y, table.OuterRect.GetWidth(), table.OuterRect.GetHeight(), DebugNodeTableGetSizingPolicyDesc(table.Flags));
     BulletText("ColumnsGivenWidth: %.1f, ColumnsAutoFitWidth: %.1f, InnerWidth: %.1f%s", table.ColumnsGivenWidth, table.ColumnsAutoFitWidth, table.InnerWidth, table.InnerWidth == 0.0f ? " (auto)" : "");
@@ -3617,7 +3631,7 @@ void DebugNodeTableSettings(ImGuiTableSettings* settings)
     TreePop();
 }
 
-} else { // #ifndef IMGUI_DISABLE_METRICS_WINDOW
+} else { // #ifndef IMGUI_DISABLE_DEBUG_TOOLS
 
 void DebugNodeTable(ImGuiTable*) {}
 void DebugNodeTableSettings(ImGuiTableSettings*) {}

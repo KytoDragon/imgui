@@ -1,4 +1,4 @@
-// dear imgui, v1.87
+// dear imgui, v1.88
 // (widgets code)
 module d_imgui.imgui_widgets;
 
@@ -45,6 +45,7 @@ import d_imgui.imgui_internal;
 import d_imgui.imgui_draw;
 import d_imgui.imstb_textedit;
 import d_imgui.imgui_tables;
+import ImStb = d_imgui.imstb_textedit;
 
 //import core.stdc.string : strlen, memcpy, memcmp, memmove, memset, strcmp;
 import d_snprintf.vararg;
@@ -101,6 +102,7 @@ alias uintptr_t = size_t;
 #pragma GCC diagnostic ignored "-Wpragmas"                          // warning: unknown option after '#pragma GCC diagnostic' kind
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"                // warning: format not a string literal, format string not checked
 #pragma GCC diagnostic ignored "-Wclass-memaccess"                  // [__GNUC__ >= 8] warning: 'memset/memcpy' clearing/writing an object of type 'xxxx' with no trivial copy-assignment; use assignment or value-initialization instead
+#pragma GCC diagnostic ignored "-Wdeprecated-enum-enum-conversion"  // warning: bitwise operation between different enumeration types ('XXXFlags_' and 'XXXFlagsPrivate_') is deprecated
 #endif
 +/
 
@@ -169,7 +171,21 @@ void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
     const ImVec2 text_pos = ImVec2(window.DC.CursorPos.x, window.DC.CursorPos.y + window.DC.CurrLineTextBaseOffset);
     const float wrap_pos_x = window.DC.TextWrapPos;
     const bool wrap_enabled = (wrap_pos_x >= 0.0f);
-    if (text.length > 2000 && !wrap_enabled)
+    if (text.length <= 2000 || wrap_enabled)
+    {
+        // Common case
+        const float wrap_width = wrap_enabled ? CalcWrapWidthForPos(window.DC.CursorPos, wrap_pos_x) : 0.0f;
+        const ImVec2 text_size = CalcTextSize(text, false, wrap_width);
+
+        ImRect bb = ImRect(text_pos, text_pos + text_size);
+        ItemSize(text_size, 0.0f);
+        if (!ItemAdd(bb, 0))
+            return;
+
+        // Render (we don't hide text after ## in this end-user function)
+        RenderTextWrapped(bb.Min, text, wrap_width);
+    }
+    else
     {
         // Long text!
         // - From this point we will only compute the width of lines that are visible. Optimization only available when word-wrapping is disabled.
@@ -241,19 +257,6 @@ void TextEx(string text, ImGuiTextFlags flags = ImGuiTextFlags.None)
         ItemSize(text_size, 0.0f);
         ItemAdd(bb, 0);
     }
-    else
-    {
-        const float wrap_width = wrap_enabled ? CalcWrapWidthForPos(window.DC.CursorPos, wrap_pos_x) : 0.0f;
-        const ImVec2 text_size = CalcTextSize(text, false, wrap_width);
-
-        ImRect bb = ImRect(text_pos, text_pos + text_size);
-        ItemSize(text_size, 0.0f);
-        if (!ItemAdd(bb, 0))
-            return;
-
-        // Render (we don't hide text after ## in this end-user function)
-        RenderTextWrapped(bb.Min, text, wrap_width);
-    }
 }
 
 void TextUnformatted(string text)
@@ -275,9 +278,9 @@ void TextV(string fmt, va_list args)
         return;
 
     // FIXME-OPT: Handle the %s shortcut?
-    ImGuiContext* g = GImGui;
-    int text_end = ImFormatStringV(g.TempBuffer, fmt, args);
-    TextEx(cast(string)g.TempBuffer[0..text_end], ImGuiTextFlags.NoWidthForLargeClippedText);
+    string text;
+    ImFormatStringToTempBufferV(&text, fmt, args);
+    TextEx(text, ImGuiTextFlags.NoWidthForLargeClippedText);
 }
 
 void TextColored(A...)(const ImVec4/*&*/ col, string fmt, A a)
@@ -354,8 +357,8 @@ void LabelTextV(string label, string fmt, va_list args)
     const ImGuiStyle* style = &g.Style;
     const float w = CalcItemWidth();
 
-    int value_text_end = ImFormatStringV(g.TempBuffer, fmt, args);
-    string value_text = cast(string)g.TempBuffer[0..value_text_end];
+    string value_text;
+    ImFormatStringToTempBufferV(&value_text, fmt, args);
     const ImVec2 value_size = CalcTextSize(value_text, false);
     const ImVec2 label_size = CalcTextSize(label, true);
 
@@ -389,8 +392,8 @@ void BulletTextV(string fmt, va_list args)
     ImGuiContext* g = GImGui;
     const ImGuiStyle* style = &g.Style;
 
-    int text_end = ImFormatStringV(g.TempBuffer, fmt, args);
-    string text = cast(string)g.TempBuffer[0..text_end];
+    string text;
+    ImFormatStringToTempBufferV(&text, fmt, args);
     const ImVec2 label_size = CalcTextSize(text, false);
     const ImVec2 total_size = ImVec2(g.FontSize + (label_size.x > 0.0f ? (label_size.x + style.FramePadding.x * 2) : 0.0f), label_size.y);  // Empty text doesn't add padding
     ImVec2 pos = window.DC.CursorPos;
@@ -542,13 +545,9 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
         {
             // Poll buttons
             ImGuiMouseButton mouse_button_clicked = ImGuiMouseButton.None;
-            ImGuiMouseButton mouse_button_released = ImGuiMouseButton.None;
             if ((flags & ImGuiButtonFlags.MouseButtonLeft) && g.IO.MouseClicked[0])         { mouse_button_clicked = ImGuiMouseButton.Left; }
             else if ((flags & ImGuiButtonFlags.MouseButtonRight) && g.IO.MouseClicked[1])   { mouse_button_clicked = ImGuiMouseButton.Right; }
             else if ((flags & ImGuiButtonFlags.MouseButtonMiddle) && g.IO.MouseClicked[2])  { mouse_button_clicked = ImGuiMouseButton.Middle; }
-            if ((flags & ImGuiButtonFlags.MouseButtonLeft) && g.IO.MouseReleased[0])        { mouse_button_released = ImGuiMouseButton.Left; }
-            else if ((flags & ImGuiButtonFlags.MouseButtonRight) && g.IO.MouseReleased[1])  { mouse_button_released = ImGuiMouseButton.Right; }
-            else if ((flags & ImGuiButtonFlags.MouseButtonMiddle) && g.IO.MouseReleased[2]) { mouse_button_released = ImGuiMouseButton.Middle; }
 
             if (mouse_button_clicked != -1 && g.ActiveId != id)
             {
@@ -573,15 +572,21 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
                     FocusWindow(window);
                 }
             }
-            if ((flags & ImGuiButtonFlags.PressedOnRelease) && mouse_button_released != -1)
+            if (flags & ImGuiButtonFlags.PressedOnRelease)
             {
-                // Repeat mode trumps on release behavior
-                const bool has_repeated_at_least_once = (flags & ImGuiButtonFlags.Repeat) && g.IO.MouseDownDurationPrev[mouse_button_released] >= g.IO.KeyRepeatDelay;
-                if (!has_repeated_at_least_once)
-                    pressed = true;
-                if (!(flags & ImGuiButtonFlags.NoNavFocus))
-                    SetFocusID(id, window);
-                ClearActiveID();
+                ImGuiMouseButton mouse_button_released = ImGuiMouseButton.None;
+                if ((flags & ImGuiButtonFlags.MouseButtonLeft) && g.IO.MouseReleased[0])        { mouse_button_released = ImGuiMouseButton.Left; }
+                else if ((flags & ImGuiButtonFlags.MouseButtonRight) && g.IO.MouseReleased[1])  { mouse_button_released = ImGuiMouseButton.Right; }
+                else if ((flags & ImGuiButtonFlags.MouseButtonMiddle) && g.IO.MouseReleased[2]) { mouse_button_released = ImGuiMouseButton.Middle; }
+                if (mouse_button_released != ImGuiMouseButton.None)
+                {
+                    const bool has_repeated_at_least_once = (flags & ImGuiButtonFlags.Repeat) && g.IO.MouseDownDurationPrev[mouse_button_released] >= g.IO.KeyRepeatDelay; // Repeat mode trumps on release behavior
+                    if (!has_repeated_at_least_once)
+                        pressed = true;
+                    if (!(flags & ImGuiButtonFlags.NoNavFocus))
+                        SetFocusID(id, window);
+                    ClearActiveID();
+                }
             }
 
             // 'Repeat' mode acts when held regardless of _PressedOn flags (see table above).
@@ -603,7 +608,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
     if (g.NavActivateDownId == id)
     {
         bool nav_activated_by_code = (g.NavActivateId == id);
-        bool nav_activated_by_inputs = IsNavInputTest(ImGuiNavInput.Activate, (flags & ImGuiButtonFlags.Repeat) ? ImGuiInputReadMode.Repeat : ImGuiInputReadMode.Pressed);
+        bool nav_activated_by_inputs = IsNavInputTest(ImGuiNavInput.Activate, (flags & ImGuiButtonFlags.Repeat) ? ImGuiNavReadMode.Repeat : ImGuiNavReadMode.Pressed);
         if (nav_activated_by_code || nav_activated_by_inputs)
         {
             // Set active id so it can be queried by user via IsItemActive(), equivalent of holding the mouse button.
@@ -838,9 +843,8 @@ bool CollapseButton(ImGuiID id, const ImVec2/*&*/ pos)
     // Render
     ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol.ButtonActive : hovered ? ImGuiCol.ButtonHovered : ImGuiCol.Button);
     ImU32 text_col = GetColorU32(ImGuiCol.Text);
-    ImVec2 center = bb.GetCenter();
     if (hovered || held)
-        window.DrawList.AddCircleFilled(center/*+ ImVec2(0.0f, -0.5f)*/, g.FontSize * 0.5f + 1.0f, bg_col, 12);
+        window.DrawList.AddCircleFilled(bb.GetCenter()/*+ ImVec2(0.0f, -0.5f)*/, g.FontSize * 0.5f + 1.0f, bg_col, 12);
     RenderArrow(window.DrawList, bb.Min + g.Style.FramePadding, text_col, window.Collapsed ? ImGuiDir.Right : ImGuiDir.Down, 1.0f);
 
     // Switch to moving the window after mouse is moved beyond the initial drag threshold
@@ -852,7 +856,7 @@ bool CollapseButton(ImGuiID id, const ImVec2/*&*/ pos)
 
 ImGuiID GetWindowScrollbarID(ImGuiWindow* window, ImGuiAxis axis)
 {
-    return window.GetIDNoKeepAlive(axis == ImGuiAxis.X ? "#SCROLLX" : "#SCROLLY");
+    return window.GetID(axis == ImGuiAxis.X ? "#SCROLLX" : "#SCROLLY");
 }
 
 // Return scrollbar rectangle, must only be called for corresponding axis if window->ScrollbarX/Y is set.
@@ -873,9 +877,7 @@ void Scrollbar(ImGuiAxis axis)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
-
     const ImGuiID id = GetWindowScrollbarID(window, axis);
-    KeepAliveID(id);
 
     // Calculate scrollbar bounding box
     ImRect bb = GetWindowScrollbarRect(window, axis);
@@ -912,6 +914,8 @@ bool ScrollbarEx(const ImRect/*&*/ bb_frame, ImGuiID id, ImGuiAxis axis, ImS64* 
     ImGuiWindow* window = g.CurrentWindow;
     if (window.SkipItems)
         return false;
+
+    KeepAliveID(id);
 
     const float bb_frame_width = bb_frame.GetWidth();
     const float bb_frame_height = bb_frame.GetHeight();
@@ -1285,7 +1289,7 @@ void Bullet()
 
     ImGuiContext* g = GImGui;
     const ImGuiStyle* style = &g.Style;
-    const float line_height = ImMax(ImMin(window.DC.CurrLineSize.y, g.FontSize + g.Style.FramePadding.y * 2), g.FontSize);
+    const float line_height = ImMax(ImMin(window.DC.CurrLineSize.y, g.FontSize + style.FramePadding.y * 2), g.FontSize);
     const ImRect bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + ImVec2(g.FontSize, line_height));
     ItemSize(bb);
     if (!ItemAdd(bb, 0))
@@ -1341,6 +1345,7 @@ void NewLine()
     ImGuiContext* g = GImGui;
     const ImGuiLayoutType backup_layout_type = window.DC.LayoutType;
     window.DC.LayoutType = ImGuiLayoutType.Vertical;
+    window.DC.IsSameLine = false;
     if (window.DC.CurrLineSize.y > 0.0f)     // In the event that we are on a line with items that is smaller that FontSize high, we will preserve its height.
         ItemSize(ImVec2(0, 0));
     else
@@ -1534,7 +1539,7 @@ void ShrinkWidths(ImGuiShrinkWidthItem* items, int count, float width_excess)
         width_excess -= width_to_remove_per_item * count_same_width;
     }
 
-    // Round width and redistribute remainder left-to-right (could make it an option of the function?)
+    // Round width and redistribute remainder
     // Ensure that e.g. the right-most tab of a shrunk tab-bar always reaches exactly at the same distance from the right-most edge of the tab bar separator.
     width_excess = 0.0f;
     for (int n = 0; n < count; n++)
@@ -1543,10 +1548,13 @@ void ShrinkWidths(ImGuiShrinkWidthItem* items, int count, float width_excess)
         width_excess += items[n].Width - width_rounded;
         items[n].Width = width_rounded;
     }
-    if (width_excess > 0.0f)
+    while (width_excess > 0.0f)
         for (int n = 0; n < count; n++)
-            if (items[n].Index < cast(int)(width_excess + 0.01f))
+            if (items[n].Width + 1.0f <= items[n].InitialWidth)
+            {
                 items[n].Width += 1.0f;
+                width_excess -= 1.0f;
+            }
 }
 
 //-------------------------------------------------------------------------
@@ -1731,6 +1739,7 @@ bool BeginComboPreview()
     window.DC.CursorPos = preview_data.PreviewRect.Min + g.Style.FramePadding;
     window.DC.CursorMaxPos = window.DC.CursorPos;
     window.DC.LayoutType = ImGuiLayoutType.Horizontal;
+    window.DC.IsSameLine = false;
     PushClipRect(preview_data.PreviewRect.Min, preview_data.PreviewRect.Max, true);
 
     return true;
@@ -1756,6 +1765,7 @@ void EndComboPreview()
     window.DC.CursorPosPrevLine = preview_data.BackupCursorPosPrevLine;
     window.DC.PrevLineTextBaseOffset = preview_data.BackupPrevLineTextBaseOffset;
     window.DC.LayoutType = preview_data.BackupLayout;
+    window.DC.IsSameLine = false;
     preview_data.PreviewRect = ImRect();
 }
 
@@ -1897,9 +1907,9 @@ static string PatchFormatStringFloatToInt(string fmt)
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
         if (fmt_start == 0 && fmt_end == fmt.length)
             return "%d";
-        ImGuiContext* g = GImGui;
-        int length = ImFormatString(g.TempBuffer, "%.*s%%d%s", cast(int)(fmt_start), fmt, fmt[fmt_end..$]); // Honor leading and trailing decorations, but lose alignment/precision.
-        return cast(string)g.TempBuffer[0..length];
+        string tmp_format;
+        ImFormatStringToTempBuffer(&tmp_format, "%.*s%%d%s", cast(int)(fmt_start), fmt, fmt[fmt_end..$]); // Honor leading and trailing decorations, but lose alignment/precision.
+        return tmp_format;
 } else {
         IM_ASSERT(0, "DragInt(): Invalid format string!"); // Old versions used a default parameter of "%.0f", please replace with e.g. "%d"
 }
@@ -2008,23 +2018,20 @@ bool DataTypeApplyFromText(string buf, ImGuiDataType data_type, void* p_data, st
     ImGuiDataTypeTempStorage data_backup;
     memcpy(&data_backup, p_data, type_info.Size);
 
-    if (format == NULL)
+    // Sanitize format
+    // For float/double we have to ignore format with precision (e.g. "%.2f") because sscanf doesn't take them in, so force them into %f and %lf
+    char[32] format_sanitized;
+    if (data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
         format = type_info.ScanFmt;
-
-    if (data_type == ImGuiDataType.S32 || data_type == ImGuiDataType.U32 || data_type == ImGuiDataType.S64 || data_type == ImGuiDataType.U64 || data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
-    {
-        // For float/double we have to ignore format with precision (e.g. "%.2f") because sscanf doesn't take them in, so force them into %f and %lf
-        if (data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
-            format = type_info.ScanFmt;
-        if (sscanf(buf, format, p_data) < 1)
-            return false;
-    }
     else
+        format = ImParseFormatSanitizeForScanning(format, format_sanitized);
+
+    // Small types need a 32-bit buffer to receive the result from scanf()
+    int v32 = 0;
+    if (sscanf(buf, format, type_info.Size >= 4 ? p_data : cast(void* )&v32) < 1)
+        return false;
+    if (type_info.Size < 4)
     {
-        // Small types need a 32-bit buffer to receive the result from scanf()
-        int v32;
-        if (sscanf(buf, format, &v32) < 1)
-            return false;
         if (data_type == ImGuiDataType.S8)
             *cast(ImS8*)p_data = cast(ImS8)ImClamp(v32, cast(int)IM_S8_MIN, cast(int)IM_S8_MAX);
         else if (data_type == ImGuiDataType.U8)
@@ -2105,48 +2112,18 @@ static float GetMinimumStepAtDecimalPrecision(int decimal_precision)
     return (decimal_precision < IM_ARRAYSIZE(min_steps)) ? min_steps[decimal_precision] : ImPow(10.0f, cast(float)-decimal_precision);
 }
 
-static string ImAtoi(TYPE)(string src, TYPE* output)
-{
-    int negative = 0;
-    size_t index = 0;
-    if (index < src.length && src[index] == '-') { negative = 1; index++; }
-    if (index < src.length && src[index] == '+') { index++; }
-    TYPE v = 0;
-    while (index < src.length && src[index] >= '0' && src[index] <= '9')
-        v = (v * 10) + (src[index++] - '0');
-    *output = negative ? -v : v;
-    return src[index..$];
-}
 
-// Sanitize format
-// - Zero terminate so extra characters after format (e.g. "%f123") don't confuse atof/atoi
-// - stb_sprintf.h supports several new modifiers which format numbers in a way that also makes them incompatible atof/atoi.
-static string SanitizeFormatString(string fmt, char[] fmt_out)
+TYPE RoundScalarWithFormatT(TYPE)(string format, ImGuiDataType data_type, TYPE v)
 {
-    // IM_UNUSED(fmt_out_size);
-    size_t fmt_end = ImParseFormatFindEnd(fmt, 0);
-    fmt = fmt[0..fmt_end];
-    IM_ASSERT(cast(size_t)(fmt.length) < fmt_out.length); // Format is too long, let us know if this happens to you!
-    size_t fmt_out_index = 0;
-    for (size_t index = 0; index < fmt.length; index++)
-    {
-        char c = fmt[index];
-        if (c != '\'' && c != '$' && c != '_') // Custom flags provided by stb_sprintf.h. POSIX 2008 also supports '.
-            fmt_out[fmt_out_index++] = c;
-    }
-    // *fmt_out = 0; // Zero-terminate
-    return cast(string)fmt_out[0..fmt_out_index];
-}
-
-TYPE RoundScalarWithFormatT(TYPE, SIGNEDTYPE)(string format, ImGuiDataType data_type, TYPE v)
-{
-    format = ImParseFormatTrimDecorations(format);
-    if (1 >= format.length || format[0] != '%' || (2 <= format.length && format[1] == '%')) // Don't apply if the value is not visible in the format string
+    IM_UNUSED(data_type);
+    IM_ASSERT(data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double);
+    size_t fmt_start = ImParseFormatFindStart(format);
+    if (format.length <= fmt_start+1 || format[fmt_start] != '%' || (format.length >= fmt_start+2 && format[fmt_start+1] == '%')) // Don't apply if the value is not visible in the format string
         return v;
 
     // Sanitize format
     char[32] fmt_sanitized;
-    format = SanitizeFormatString(format, fmt_sanitized);
+    format = ImParseFormatSanitizeForPrinting(format[fmt_start..$], fmt_sanitized);
 
     // Format value with our rounding, and read back
     char[64] v_str;
@@ -2154,10 +2131,8 @@ TYPE RoundScalarWithFormatT(TYPE, SIGNEDTYPE)(string format, ImGuiDataType data_
     string p = cast(string)v_str[0..length];
     while (p.length > 0 && p[0] == ' ')
         p = p[1..$];
-    if (data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
-        v = cast(TYPE)ImAtof(p);
-    else
-        ImAtoi(p, cast(SIGNEDTYPE*)&v);
+    v = cast(TYPE)ImAtof(p);
+
     return v;
 }
 
@@ -2206,7 +2181,7 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
     else if (g.ActiveIdSource == ImGuiInputSource.Nav)
     {
         const int decimal_precision = is_floating_point ? ImParseFormatPrecision(format, 3) : 0;
-        adjust_delta = GetNavInputAmount2d(ImGuiNavDirSourceFlags.Keyboard | ImGuiNavDirSourceFlags.PadDPad, ImGuiInputReadMode.RepeatFast, 1.0f / 10.0f, 10.0f)[axis];
+        adjust_delta = GetNavInputAmount2d(ImGuiNavDirSourceFlags.Keyboard | ImGuiNavDirSourceFlags.PadDPad, ImGuiNavReadMode.RepeatFast, 1.0f / 10.0f, 10.0f)[axis];
         v_speed = ImMax(v_speed, GetMinimumStepAtDecimalPrecision(decimal_precision));
     }
     adjust_delta *= v_speed;
@@ -2260,8 +2235,8 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
     }
 
     // Round to user desired precision based on format string
-    if (!(flags & ImGuiSliderFlags.NoRoundToFormat))
-        v_cur = RoundScalarWithFormatT!(TYPE, SIGNEDTYPE)(format, data_type, v_cur);
+    if (is_floating_point && !(flags & ImGuiSliderFlags.NoRoundToFormat))
+        v_cur = RoundScalarWithFormatT!(TYPE)(format, data_type, v_cur);
 
     // Preserve remainder after rounding has been applied. This also allow slow tweaking of values.
     g.DragCurrentAccumDirty = false;
@@ -2361,26 +2336,20 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
     else if (data_type == ImGuiDataType.S32 && format != "%d") // (FIXME-LEGACY: Patch old "%.0f" format string to use "%d", read function more details.)
         format = PatchFormatStringFloatToInt(format);
 
-    // Tabbing or CTRL-clicking on Drag turns it into an InputText
     const bool hovered = ItemHoverable(frame_bb, id);
     bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
     if (!temp_input_is_active)
     {
+        // Tabbing or CTRL-clicking on Drag turns it into an InputText
         const bool input_requested_by_tabbing = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags.FocusedByTabbing) != 0;
         const bool clicked = (hovered && g.IO.MouseClicked[0]);
         const bool double_clicked = (hovered && g.IO.MouseClickedCount[0] == 2);
-        if (input_requested_by_tabbing || clicked || double_clicked || g.NavActivateId == id || g.NavActivateInputId == id)
-        {
-            SetActiveID(id, window);
-            SetFocusID(id, window);
-            FocusWindow(window);
-            g.ActiveIdUsingNavDirMask = (1 << ImGuiDir.Left) | (1 << ImGuiDir.Right);
-            if (temp_input_allowed)
-                if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || double_clicked || g.NavActivateInputId == id)
-                    temp_input_is_active = true;
-        }
+        const bool make_active = (input_requested_by_tabbing || clicked || double_clicked || g.NavActivateId == id || g.NavActivateInputId == id);
+        if (make_active && temp_input_allowed)
+            if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || double_clicked || g.NavActivateInputId == id)
+                temp_input_is_active = true;
 
-        // Experimental: simple click (without moving) turns Drag into an InputText
+        // (Optional) simple click (without moving) turns Drag into an InputText
         if (g.IO.ConfigDragClickToInputText && temp_input_allowed && !temp_input_is_active)
             if (g.ActiveId == id && hovered && g.IO.MouseReleased[0] && !IsMouseDragPastThreshold(ImGuiMouseButton.Left, g.IO.MouseDragThreshold * DRAG_MOUSE_THRESHOLD_FACTOR))
             {
@@ -2388,6 +2357,14 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
                 g.NavActivateFlags = ImGuiActivateFlags.PreferInput;
                 temp_input_is_active = true;
             }
+
+        if (make_active && !temp_input_is_active)
+        {
+            SetActiveID(id, window);
+            SetFocusID(id, window);
+            FocusWindow(window);
+            g.ActiveIdUsingNavDirMask = (1 << ImGuiDir.Left) | (1 << ImGuiDir.Right);
+        }
     }
 
     if (temp_input_is_active)
@@ -2646,7 +2623,6 @@ float ScaleRatioFromValueT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type,
             v_max_fudged = -logarithmic_zero_epsilon;
 
         float result;
-
         if (v_clamped <= v_min_fudged)
             result = 0.0f; // Workaround for values that are in-range but below our fudge
         else if (v_clamped >= v_max_fudged)
@@ -2670,90 +2646,80 @@ float ScaleRatioFromValueT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type,
 
         return flipped ? (1.0f - result) : result;
     }
-
-    // Linear slider
-    return cast(float)(cast(FLOATTYPE)cast(SIGNEDTYPE)(v_clamped - v_min) / cast(FLOATTYPE)cast(SIGNEDTYPE)(v_max - v_min));
+    else
+    {
+        // Linear slider
+        return cast(float)(cast(FLOATTYPE)cast(SIGNEDTYPE)(v_clamped - v_min) / cast(FLOATTYPE)cast(SIGNEDTYPE)(v_max - v_min));
+    }
 }
 
 // Convert a parametric position on a slider into a value v in the output space (the logical opposite of ScaleRatioFromValueT)
 TYPE ScaleValueFromRatioT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, float t, TYPE v_min, TYPE v_max, bool is_logarithmic, float logarithmic_zero_epsilon, float zero_deadzone_halfsize)
 {
-    if (v_min == v_max)
+    // We special-case the extents because otherwise our logarithmic fudging can lead to "mathematically correct"
+    // but non-intuitive behaviors like a fully-left slider not actually reaching the minimum value. Also generally simpler.
+    if (t <= 0.0f || v_min == v_max)
         return v_min;
-    const bool is_floating_point = (data_type == ImGuiDataType.Float) || (data_type == ImGuiDataType.Double);
+    if (t >= 1.0f)
+        return v_max;
 
-    TYPE result;
+    TYPE result = cast(TYPE)0;
     if (is_logarithmic)
     {
-        // We special-case the extents because otherwise our fudging can lead to "mathematically correct" but non-intuitive behaviors like a fully-left slider not actually reaching the minimum value
-        if (t <= 0.0f)
-            result = v_min;
-        else if (t >= 1.0f)
-            result = v_max;
-        else
+        // Fudge min/max to avoid getting silly results close to zero
+        FLOATTYPE v_min_fudged = (ImAbs(cast(FLOATTYPE)v_min) < logarithmic_zero_epsilon) ? ((v_min < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_min;
+        FLOATTYPE v_max_fudged = (ImAbs(cast(FLOATTYPE)v_max) < logarithmic_zero_epsilon) ? ((v_max < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_max;
+
+        const bool flipped = v_max < v_min; // Check if range is "backwards"
+        if (flipped)
+            ImSwap(v_min_fudged, v_max_fudged);
+
+        // Awkward special case - we need ranges of the form (-100 .. 0) to convert to (-100 .. -epsilon), not (-100 .. epsilon)
+        if ((v_max == 0.0f) && (v_min < 0.0f))
+            v_max_fudged = -logarithmic_zero_epsilon;
+
+        float t_with_flip = flipped ? (1.0f - t) : t; // t, but flipped if necessary to account for us flipping the range
+
+        if ((v_min * v_max) < 0.0f) // Range crosses zero, so we have to do this in two parts
         {
-            bool flipped = v_max < v_min; // Check if range is "backwards"
-
-            // Fudge min/max to avoid getting silly results close to zero
-            FLOATTYPE v_min_fudged = (ImAbs(cast(FLOATTYPE)v_min) < logarithmic_zero_epsilon) ? ((v_min < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_min;
-            FLOATTYPE v_max_fudged = (ImAbs(cast(FLOATTYPE)v_max) < logarithmic_zero_epsilon) ? ((v_max < 0.0f) ? -logarithmic_zero_epsilon : logarithmic_zero_epsilon) : cast(FLOATTYPE)v_max;
-
-            if (flipped)
-                ImSwap(v_min_fudged, v_max_fudged);
-
-            // Awkward special case - we need ranges of the form (-100 .. 0) to convert to (-100 .. -epsilon), not (-100 .. epsilon)
-            if ((v_max == 0.0f) && (v_min < 0.0f))
-                v_max_fudged = -logarithmic_zero_epsilon;
-
-            float t_with_flip = flipped ? (1.0f - t) : t; // t, but flipped if necessary to account for us flipping the range
-
-            if ((v_min * v_max) < 0.0f) // Range crosses zero, so we have to do this in two parts
-            {
-                float zero_point_center = (-cast(float)ImMin(v_min, v_max)) / ImAbs(cast(float)v_max - cast(float)v_min); // The zero point in parametric space
-                float zero_point_snap_L = zero_point_center - zero_deadzone_halfsize;
-                float zero_point_snap_R = zero_point_center + zero_deadzone_halfsize;
-                if (t_with_flip >= zero_point_snap_L && t_with_flip <= zero_point_snap_R)
-                    result = cast(TYPE)0.0f; // Special case to make getting exactly zero possible (the epsilon prevents it otherwise)
-                else if (t_with_flip < zero_point_center)
-                    result = cast(TYPE)-(logarithmic_zero_epsilon * ImPow(-v_min_fudged / logarithmic_zero_epsilon, cast(FLOATTYPE)(1.0f - (t_with_flip / zero_point_snap_L))));
-                else
-                    result = cast(TYPE)(logarithmic_zero_epsilon * ImPow(v_max_fudged / logarithmic_zero_epsilon, cast(FLOATTYPE)((t_with_flip - zero_point_snap_R) / (1.0f - zero_point_snap_R))));
-            }
-            else if ((v_min < 0.0f) || (v_max < 0.0f)) // Entirely negative slider
-                result = cast(TYPE)-(-v_max_fudged * ImPow(-v_min_fudged / -v_max_fudged, cast(FLOATTYPE)(1.0f - t_with_flip)));
+            float zero_point_center = (-cast(float)ImMin(v_min, v_max)) / ImAbs(cast(float)v_max - cast(float)v_min); // The zero point in parametric space
+            float zero_point_snap_L = zero_point_center - zero_deadzone_halfsize;
+            float zero_point_snap_R = zero_point_center + zero_deadzone_halfsize;
+            if (t_with_flip >= zero_point_snap_L && t_with_flip <= zero_point_snap_R)
+                result = cast(TYPE)0.0f; // Special case to make getting exactly zero possible (the epsilon prevents it otherwise)
+            else if (t_with_flip < zero_point_center)
+                result = cast(TYPE)-(logarithmic_zero_epsilon * ImPow(-v_min_fudged / logarithmic_zero_epsilon, cast(FLOATTYPE)(1.0f - (t_with_flip / zero_point_snap_L))));
             else
-                result = cast(TYPE)(v_min_fudged * ImPow(v_max_fudged / v_min_fudged, cast(FLOATTYPE)t_with_flip));
+                result = cast(TYPE)(logarithmic_zero_epsilon * ImPow(v_max_fudged / logarithmic_zero_epsilon, cast(FLOATTYPE)((t_with_flip - zero_point_snap_R) / (1.0f - zero_point_snap_R))));
         }
+        else if ((v_min < 0.0f) || (v_max < 0.0f)) // Entirely negative slider
+            result = cast(TYPE)-(-v_max_fudged * ImPow(-v_min_fudged / -v_max_fudged, cast(FLOATTYPE)(1.0f - t_with_flip)));
+        else
+            result = cast(TYPE)(v_min_fudged * ImPow(v_max_fudged / v_min_fudged, cast(FLOATTYPE)t_with_flip));
     }
     else
     {
         // Linear slider
+        const bool is_floating_point = (data_type == ImGuiDataType.Float) || (data_type == ImGuiDataType.Double);
         if (is_floating_point)
         {
             result = ImLerp(v_min, v_max, t);
         }
-        else
+        else if (t < 1.0)
         {
             // - For integer values we want the clicking position to match the grab box so we round above
             //   This code is carefully tuned to work with large values (e.g. high ranges of U64) while preserving this property..
             // - Not doing a *1.0 multiply at the end of a range as it tends to be lossy. While absolute aiming at a large s64/u64
             //   range is going to be imprecise anyway, with this check we at least make the edge values matches expected limits.
-            if (t < 1.0)
-            {
-                FLOATTYPE v_new_off_f = cast(SIGNEDTYPE)(v_max - v_min) * t;
-                result = cast(TYPE)(cast(SIGNEDTYPE)v_min + cast(SIGNEDTYPE)(v_new_off_f + cast(FLOATTYPE)(v_min > v_max ? -0.5 : 0.5)));
-            }
-            else
-            {
-                result = v_max;
-            }
+            FLOATTYPE v_new_off_f = cast(SIGNEDTYPE)(v_max - v_min) * t;
+            result = cast(TYPE)(cast(SIGNEDTYPE)v_min + cast(SIGNEDTYPE)(v_new_off_f + cast(FLOATTYPE)(v_min > v_max ? -0.5 : 0.5)));
         }
     }
 
     return result;
 }
 
-// FIXME: Move more of the code into SliderBehavior()
+// FIXME: Try to move more of the code into shared SliderBehavior()
 bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGuiID id, ImGuiDataType data_type, TYPE* v, TYPE v_min, TYPE v_max, string format, ImGuiSliderFlags flags, ImRect* out_grab_bb)
 {
     ImGuiContext* g = GImGui;
@@ -2762,13 +2728,14 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
     const ImGuiAxis axis = (flags & ImGuiSliderFlags.Vertical) ? ImGuiAxis.Y : ImGuiAxis.X;
     const bool is_logarithmic = (flags & ImGuiSliderFlags.Logarithmic) != 0;
     const bool is_floating_point = (data_type == ImGuiDataType.Float) || (data_type == ImGuiDataType.Double);
+    const SIGNEDTYPE v_range = (v_min < v_max ? v_max - v_min : v_min - v_max);
 
-    const float grab_padding = 2.0f;
+    // Calculate bounds
+    const float grab_padding = 2.0f; // FIXME: Should be part of style.
     const float slider_sz = (bb.Max[axis] - bb.Min[axis]) - grab_padding * 2.0f;
     float grab_sz = style.GrabMinSize;
-    SIGNEDTYPE v_range = (v_min < v_max ? v_max - v_min : v_min - v_max);
-    if (!is_floating_point && v_range >= 0)                                             // v_range < 0 may happen on integer overflows
-        grab_sz = ImMax(cast(float)(slider_sz / (v_range + 1)), style.GrabMinSize);  // For integer sliders: if possible have the grab size represent 1 unit
+    if (!is_floating_point && v_range >= 0)                                     // v_range < 0 may happen on integer overflows
+        grab_sz = ImMax(cast(float)(slider_sz / (v_range + 1)), style.GrabMinSize); // For integer sliders: if possible have the grab size represent 1 unit
     grab_sz = ImMin(grab_sz, slider_sz);
     const float slider_usable_sz = slider_sz - grab_sz;
     const float slider_usable_pos_min = bb.Min[axis] + grab_padding + grab_sz * 0.5f;
@@ -2799,7 +2766,17 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
             else
             {
                 const float mouse_abs_pos = g.IO.MousePos[axis];
-                clicked_t = (slider_usable_sz > 0.0f) ? ImClamp((mouse_abs_pos - slider_usable_pos_min) / slider_usable_sz, 0.0f, 1.0f) : 0.0f;
+                if (g.ActiveIdIsJustActivated)
+                {
+                    float grab_t = ScaleRatioFromValueT!(TYPE, SIGNEDTYPE, FLOATTYPE)(data_type, *v, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
+                    if (axis == ImGuiAxis.Y)
+                        grab_t = 1.0f - grab_t;
+                    const float grab_pos = ImLerp(slider_usable_pos_min, slider_usable_pos_max, grab_t);
+                    const bool clicked_around_grab = (mouse_abs_pos >= grab_pos - grab_sz * 0.5f - 1.0f) && (mouse_abs_pos <= grab_pos + grab_sz * 0.5f + 1.0f); // No harm being extra generous here.
+                    g.SliderGrabClickOffset = (clicked_around_grab && is_floating_point) ? mouse_abs_pos - grab_pos : 0.0f;
+                }
+                if (slider_usable_sz > 0.0f)
+                    clicked_t = ImSaturate((mouse_abs_pos - g.SliderGrabClickOffset - slider_usable_pos_min) / slider_usable_sz);
                 if (axis == ImGuiAxis.Y)
                     clicked_t = 1.0f - clicked_t;
                 set_new_value = true;
@@ -2813,7 +2790,7 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
                 g.SliderCurrentAccumDirty = false;
             }
 
-            const ImVec2 input_delta2 = GetNavInputAmount2d(ImGuiNavDirSourceFlags.Keyboard | ImGuiNavDirSourceFlags.PadDPad, ImGuiInputReadMode.RepeatFast, 0.0f, 0.0f);
+            const ImVec2 input_delta2 = GetNavInputAmount2d(ImGuiNavDirSourceFlags.Keyboard | ImGuiNavDirSourceFlags.PadDPad, ImGuiNavReadMode.RepeatFast, 0.0f, 0.0f);
             float input_delta = (axis == ImGuiAxis.X) ? input_delta2.x : -input_delta2.y;
             if (input_delta != 0.0f)
             {
@@ -2860,8 +2837,8 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
 
                     // Calculate what our "new" clicked_t will be, and thus how far we actually moved the slider, and subtract this from the accumulator
                     TYPE v_new = ScaleValueFromRatioT!(TYPE, SIGNEDTYPE, FLOATTYPE)(data_type, clicked_t, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
-                    if (!(flags & ImGuiSliderFlags.NoRoundToFormat))
-                        v_new = RoundScalarWithFormatT!(TYPE, SIGNEDTYPE)(format, data_type, v_new);
+                    if (is_floating_point && !(flags & ImGuiSliderFlags.NoRoundToFormat))
+                        v_new = RoundScalarWithFormatT!(TYPE)(format, data_type, v_new);
                     float new_clicked_t = ScaleRatioFromValueT!(TYPE, SIGNEDTYPE, FLOATTYPE)(data_type, v_new, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
 
                     if (delta > 0)
@@ -2879,8 +2856,8 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
             TYPE v_new = ScaleValueFromRatioT!(TYPE, SIGNEDTYPE, FLOATTYPE)(data_type, clicked_t, v_min, v_max, is_logarithmic, logarithmic_zero_epsilon, zero_deadzone_halfsize);
 
             // Round to user desired precision based on format string
-            if (!(flags & ImGuiSliderFlags.NoRoundToFormat))
-                v_new = RoundScalarWithFormatT!(TYPE, SIGNEDTYPE)(format, data_type, v_new);
+            if (is_floating_point && !(flags & ImGuiSliderFlags.NoRoundToFormat))
+                v_new = RoundScalarWithFormatT!(TYPE)(format, data_type, v_new);
 
             // Apply result
             if (*v != v_new)
@@ -2982,21 +2959,24 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
     else if (data_type == ImGuiDataType.S32 && format != "%d") // (FIXME-LEGACY: Patch old "%.0f" format string to use "%d", read function more details.)
         format = PatchFormatStringFloatToInt(format);
 
-    // Tabbing or CTRL-clicking on Slider turns it into an input box
     const bool hovered = ItemHoverable(frame_bb, id);
     bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
     if (!temp_input_is_active)
     {
+        // Tabbing or CTRL-clicking on Slider turns it into an input box
         const bool input_requested_by_tabbing = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags.FocusedByTabbing) != 0;
         const bool clicked = (hovered && g.IO.MouseClicked[0]);
-        if (input_requested_by_tabbing || clicked || g.NavActivateId == id || g.NavActivateInputId == id)
+        const bool make_active = (input_requested_by_tabbing || clicked || g.NavActivateId == id || g.NavActivateInputId == id);
+        if (make_active && temp_input_allowed)
+            if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || g.NavActivateInputId == id)
+                temp_input_is_active = true;
+
+        if (make_active && !temp_input_is_active)
         {
             SetActiveID(id, window);
             SetFocusID(id, window);
             FocusWindow(window);
             g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir.Left) | (1 << ImGuiDir.Right);
-            if (temp_input_allowed && (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || g.NavActivateInputId == id))
-                temp_input_is_active = true;
         }
     }
 
@@ -3229,6 +3209,8 @@ bool SliderScalarN(string label, ImGuiDataType data_type, void* v, int component
 // - ImParseFormatFindStart() [Internal]
 // - ImParseFormatFindEnd() [Internal]
 // - ImParseFormatTrimDecorations() [Internal]
+// - ImParseFormatSanitizeForPrinting() [Internal]
+// - ImParseFormatSanitizeForScanning() [Internal]
 // - ImParseFormatPrecision() [Internal]
 // - TempInputTextScalar() [Internal]
 // - InputScalar()
@@ -3294,6 +3276,60 @@ string ImParseFormatTrimDecorations(string fmt)
     return fmt[fmt_start..fmt_end];
 }
 
+// Sanitize format
+// - Zero terminate so extra characters after format (e.g. "%f123") don't confuse atof/atoi
+// - stb_sprintf.h supports several new modifiers which format numbers in a way that also makes them incompatible atof/atoi.
+string ImParseFormatSanitizeForPrinting(string fmt_in, char[] fmt_out)
+{
+    size_t fmt_end = ImParseFormatFindEnd(fmt_in, 0);
+    IM_UNUSED(fmt_out.length);
+    IM_ASSERT(cast(size_t)(fmt_end + 1) < fmt_out.length); // Format is too long, let us know if this happens to you!
+    int j = 0;
+    for (int i = 0; i < fmt_end; i++)
+    {
+        char c = fmt_in[i];
+        if (c != '\'' && c != '$' && c != '_') // Custom flags provided by stb_sprintf.h. POSIX 2008 also supports '.
+            fmt_out[j++] = c;
+    }
+    //*fmt_out = 0; // Zero-terminate
+    return cast(string)fmt_out[0..j];
+}
+
+// - For scanning we need to remove all width and precision fields "%3.7f" -> "%f". BUT don't strip types like "%I64d" which includes digits. ! "%07I64d" -> "%I64d"
+string ImParseFormatSanitizeForScanning(string fmt_in, char[] fmt_out)
+{
+    size_t fmt_end = ImParseFormatFindEnd(fmt_in, 0);
+    //string fmt_out_begin = fmt_out;
+    IM_UNUSED(fmt_out.length);
+    IM_ASSERT(cast(size_t)(fmt_end + 1) < fmt_out.length); // Format is too long, let us know if this happens to you!
+    bool has_type = false;
+    int j = 0;
+    for (int i = 0; i < fmt_end; i++)
+    {
+        char c = fmt_in[i];
+        if (!has_type && ((c >= '0' && c <= '9') || c == '.'))
+            continue;
+        has_type |= ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')); // Stop skipping digits
+        if (c != '\'' && c != '$' && c != '_') // Custom flags provided by stb_sprintf.h. POSIX 2008 also supports '.
+            fmt_out[j++] = c;
+    }
+    //*fmt_out = 0; // Zero-terminate
+    return cast(string)fmt_out[0..j];
+}
+
+static string ImAtoi(TYPE)(string src, TYPE* output)
+{
+    int negative = 0;
+    int index = 0;
+    if (src[index] == '-') { negative = 1; index++; }
+    if (src[index] == '+') { index++; }
+    TYPE v = 0;
+    while (index < src.length && src[index] >= '0' && src[index] <= '9')
+        v = (v * 10) + (src[index++] - '0');
+    *output = negative ? -v : v;
+    return src;
+}
+
 // Parse display precision back from the display format string
 // FIXME: This is still used by some navigation code path to infer a minimum tweak step, but we should aim to rework widgets so it isn't needed.
 int ImParseFormatPrecision(string fmt, int default_precision)
@@ -3340,6 +3376,14 @@ bool TempInputText(const ImRect/*&*/ bb, ImGuiID id, string label, char[] buf, I
     return value_changed;
 }
 
+static pragma(inline, true) ImGuiInputTextFlags InputScalar_DefaultCharsFilter(ImGuiDataType data_type, string format)
+{
+    if (data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double)
+        return ImGuiInputTextFlags.CharsScientific;
+    const char format_last_char = format.length > 0 ? format[format.length - 1] : 0;
+    return (format_last_char == 'x' || format_last_char == 'X') ? ImGuiInputTextFlags.CharsHexadecimal : ImGuiInputTextFlags.CharsDecimal;
+}
+
 // Note that Drag/Slider functions are only forwarding the min/max values clamping values if the ImGuiSliderFlags_AlwaysClamp flag is set!
 // This is intended: this way we allow CTRL+Click manual input to set a value out of bounds, for maximum flexibility.
 // However this may not be ideal for all uses, as some user code may break on out of bound values.
@@ -3352,7 +3396,8 @@ bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataTy
         data_buf[length] = 0;
 
     ImGuiInputTextFlags flags = ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.NoMarkEdited;
-    flags |= ((data_type == ImGuiDataType.Float || data_type == ImGuiDataType.Double) ? ImGuiInputTextFlags.CharsScientific : ImGuiInputTextFlags.CharsDecimal);
+    flags |= InputScalar_DefaultCharsFilter(data_type, format);
+
     bool value_changed = false;
     if (TempInputText(bb, id, label, data_buf, flags))
     {
@@ -3362,7 +3407,7 @@ bool TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataTy
         memcpy(&data_backup, p_data, data_type_size);
 
         // Apply new value (or operations) then clamp
-        DataTypeApplyFromText(ImCstring(data_buf), data_type, p_data, NULL);
+        DataTypeApplyFromText(ImCstring(data_buf), data_type, p_data, format);
         if (p_clamp_min || p_clamp_max)
         {
             if (p_clamp_min && p_clamp_max && DataTypeCompare(data_type, p_clamp_min, p_clamp_max) > 0)
@@ -3395,12 +3440,12 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
     char[64] buf;
     DataTypeFormatString(buf, data_type, p_data, format);
 
-    bool value_changed = false;
-    if ((flags & (ImGuiInputTextFlags.CharsHexadecimal | ImGuiInputTextFlags.CharsScientific)) == 0)
-        flags |= ImGuiInputTextFlags.CharsDecimal;
-    flags |= ImGuiInputTextFlags.AutoSelectAll;
-    flags |= ImGuiInputTextFlags.NoMarkEdited;  // We call MarkItemEdited() ourselves by comparing the actual data rather than the string.
+    // Testing ActiveId as a minor optimization as filtering is not needed until active
+    if (g.ActiveId == 0 && (flags & (ImGuiInputTextFlags.CharsDecimal | ImGuiInputTextFlags.CharsHexadecimal | ImGuiInputTextFlags.CharsScientific)) == 0)
+        flags |= InputScalar_DefaultCharsFilter(data_type, format);
+    flags |= ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.NoMarkEdited; // We call MarkItemEdited() ourselves by comparing the actual data rather than the string.
 
+    bool value_changed = false;
     if (p_step != NULL)
     {
         const float button_size = GetFrameHeight();
@@ -3544,7 +3589,11 @@ bool InputDouble(string label, double* v, double step = 0.0, double step_fast = 
 // - InputText()
 // - InputTextWithHint()
 // - InputTextMultiline()
+// - InputTextGetCharInfo() [Internal]
+// - InputTextReindexLines() [Internal]
+// - InputTextReindexLinesRange() [Internal]
 // - InputTextEx() [Internal]
+// - DebugNodeInputTextState() [Internal]
 //-------------------------------------------------------------------------
 
 bool InputText(string label, char[] buf, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None, ImGuiInputTextCallback callback = NULL, void* user_data = NULL)
@@ -3855,7 +3904,7 @@ static bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, Im
     if (c < 0x20)
     {
         bool pass = false;
-        pass |= (c == '\n' && (flags & ImGuiInputTextFlags.Multiline));
+        pass |= (c == '\n' && (flags & ImGuiInputTextFlags.Multiline)); // Note that an Enter KEY will emit \r and be ignored (we poll for KEY in InputText() code)
         pass |= (c == '\t' && (flags & ImGuiInputTextFlags.AllowTabInput));
         if (!pass)
             return false;
@@ -3931,6 +3980,41 @@ static bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, Im
     }
 
     return true;
+}
+
+// Find the shortest single replacement we can make to get the new text from the old text.
+// Important: needs to be run before TextW is rewritten with the new characters because calling STB_TEXTEDIT_GETCHAR() at the end.
+// FIXME: Ideally we should transition toward (1) making InsertChars()/DeleteChars() update undo-stack (2) discourage (and keep reconcile) or obsolete (and remove reconcile) accessing buffer directly.
+static void InputTextReconcileUndoStateAfterUserCallback(ImGuiInputTextState* state, string new_buf_a)
+{
+    ImGuiContext* g = GImGui;
+    const ImWchar* old_buf = state.TextW.Data;
+    const int old_length = state.CurLenW;
+    const int new_length = ImTextCountCharsFromUtf8(new_buf_a);
+    g.TempBuffer.reserve_discard((new_length + 1) * sizeof!(ImWchar));
+    ImWchar* new_buf = cast(ImWchar*)cast(void*)g.TempBuffer.Data;
+    ImTextStrFromUtf8(new_buf, new_length + 1, new_buf_a);
+
+    const int shorter_length = ImMin(old_length, new_length);
+    int first_diff;
+    for (first_diff = 0; first_diff < shorter_length; first_diff++)
+        if (old_buf[first_diff] != new_buf[first_diff])
+            break;
+    if (first_diff == old_length && first_diff == new_length)
+        return;
+
+    int old_last_diff = old_length - 1;
+    int new_last_diff = new_length - 1;
+    for (; old_last_diff >= first_diff && new_last_diff >= first_diff; old_last_diff--, new_last_diff--)
+        if (old_buf[old_last_diff] != new_buf[new_last_diff])
+            break;
+
+    const int insert_len = new_last_diff - first_diff + 1;
+    const int delete_len = old_last_diff - first_diff + 1;
+    if (insert_len > 0 || delete_len > 0)
+        if (STB_TEXTEDIT_CHARTYPE* p = stb_text_createundo(&state.Stb.undostate, first_diff, delete_len, insert_len))
+            for (int i = 0; i < delete_len; i++)
+                p[i] = STB_TEXTEDIT_GETCHAR(state, first_diff + i);
 }
 
 // Edit a string of text
@@ -4054,17 +4138,21 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         state.InitialTextA.resize(buf_len + 1);    // UTF-8. we use +1 to make sure that .Data is always pointing to at least an empty string.
         memcpy(state.InitialTextA.asArray(), buf, buf_len + 1);
 
+        // Preserve cursor position and undo/redo stack if we come back to same widget
+        // FIXME: Since we reworked this on 2022/06, may want to differenciate recycle_cursor vs recycle_undostate?
+        bool recycle_state = (state.ID == id && !init_changed_specs);
+        if (recycle_state && (state.CurLenA != buf_len || (state.TextAIsValid && strcmp(state.TextA.asArray(), buf) != 0)))
+            recycle_state = false;
+
         // Start edition
         string buf_end = NULL;
-        state.TextW.resize(cast(int)buf.length + 1);          // wchar count <= UTF-8 count. we use +1 to make sure that .Data is always pointing to at least an empty string.
+        state.ID = id;
+        state.TextW.resize(cast(int)buf_size + 1);          // wchar count <= UTF-8 count. we use +1 to make sure that .Data is always pointing to at least an empty string.
         state.TextA.resize(0);
         state.TextAIsValid = false;                // TextA is not valid yet (we will display buf until then)
         state.CurLenW = ImTextStrFromUtf8(state.TextW.Data, cast(int)buf.length, cast(string)buf[0..buf_len], &buf_end);
         state.CurLenA = cast(int)(buf_end.ptr - buf.ptr);      // We can't get the result from ImStrncpy() above because it is not UTF-8 aware. Here we'll cut off malformed UTF-8.
 
-        // Preserve cursor position and undo/redo stack if we come back to same widget
-        // FIXME: For non-readonly widgets we might be able to require that TextAIsValid && TextA == buf ? (untested) and discard undo stack if user buffer has changed.
-        const bool recycle_state = (state.ID == id && !init_changed_specs);
         if (recycle_state)
         {
             // Recycle existing cursor/selection/undo stack but clamp position
@@ -4073,7 +4161,6 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         }
         else
         {
-            state.ID = id;
             state.ScrollX = 0.0f;
             stb_textedit_initialize_state(&state.Stb, !is_multiline);
         }
@@ -4242,16 +4329,15 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         if (state.SelectedAllMouseLock && !io.MouseDown[0])
             state.SelectedAllMouseLock = false;
 
-        // It is ill-defined whether the backend needs to send a \t character when pressing the TAB keys.
-        // Win32 and GLFW naturally do it but not SDL.
+        // We except backends to emit a Tab key but some also emit a Tab character which we ignore (#2467, #1336)
+        // (For Tab and Enter: Win32/SFML/Allegro are sending both keys and chars, GLFW and SDL are only sending keys. For Space they all send all threes)
         const bool ignore_char_inputs = (io.KeyCtrl && !io.KeyAlt) || (is_osx && io.KeySuper);
         if ((flags & ImGuiInputTextFlags.AllowTabInput) && IsKeyPressed(ImGuiKey.Tab) && !ignore_char_inputs && !io.KeyShift && !is_readonly)
-            if (!io.InputQueueCharacters.contains('\t'))
-            {
-                uint c = '\t'; // Insert TAB
-                if (InputTextFilterCharacter(&c, flags, callback, callback_user_data, ImGuiInputSource.Keyboard))
-                    state.OnKeyPressed(cast(int)c);
-            }
+        {
+            uint c = '\t'; // Insert TAB
+            if (InputTextFilterCharacter(&c, flags, callback, callback_user_data, ImGuiInputSource.Keyboard))
+                state.OnKeyPressed(cast(int)c);
+        }
 
         // Process regular text input (before we check for Return because using some IME will effectively send a Return?)
         // We ignore CTRL inputs, but need to allow ALT+CTRL as some keyboards (e.g. German) use AltGR (which _is_ Alt+Ctrl) to input certain characters.
@@ -4262,7 +4348,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 {
                     // Insert character if they pass filtering
                     uint c = cast(uint)io.InputQueueCharacters[n];
-                    if (c == '\t' && io.KeyShift)
+                    if (c == '\t') // Skip Tab, see above.
                         continue;
                     if (InputTextFilterCharacter(&c, flags, callback, callback_user_data, ImGuiInputSource.Keyboard))
                         state.OnKeyPressed(cast(int)c);
@@ -4278,19 +4364,18 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
     if (g.ActiveId == id && !g.ActiveIdIsJustActivated && !clear_active_id)
     {
         IM_ASSERT(state != NULL);
-        IM_ASSERT(io.KeyMods == GetMergedKeyModFlags(), "Mismatching io.KeyCtrl/io.KeyShift/io.KeyAlt/io.KeySuper vs io.KeyMods"); // We rarely do this check, but if anything let's do it here.
 
         const int row_count_per_page = ImMax(cast(int)((inner_size.y - style.FramePadding.y) / g.FontSize), 1);
         state.Stb.row_count_per_page = row_count_per_page;
 
         const int k_mask = (io.KeyShift ? STB_TEXTEDIT_K_SHIFT : 0);
         const bool is_osx = io.ConfigMacOSXBehaviors;
-        const bool is_osx_shift_shortcut = is_osx && (io.KeyMods == (ImGuiKeyModFlags.Super | ImGuiKeyModFlags.Shift));
+        const bool is_osx_shift_shortcut = is_osx && (io.KeyMods == (ImGuiModFlags.Super | ImGuiModFlags.Shift));
         const bool is_wordmove_key_down = is_osx ? io.KeyAlt : io.KeyCtrl;                     // OS X style: Text editing cursor movement using Alt instead of Ctrl
         const bool is_startend_key_down = is_osx && io.KeySuper && !io.KeyCtrl && !io.KeyAlt;  // OS X style: Line/Text Start and End using Cmd+Arrows instead of Home/End
-        const bool is_ctrl_key_only = (io.KeyMods == ImGuiKeyModFlags.Ctrl);
-        const bool is_shift_key_only = (io.KeyMods == ImGuiKeyModFlags.Shift);
-        const bool is_shortcut_key = g.IO.ConfigMacOSXBehaviors ? (io.KeyMods == ImGuiKeyModFlags.Super) : (io.KeyMods == ImGuiKeyModFlags.Ctrl);
+        const bool is_ctrl_key_only = (io.KeyMods == ImGuiModFlags.Ctrl);
+        const bool is_shift_key_only = (io.KeyMods == ImGuiModFlags.Shift);
+        const bool is_shortcut_key = g.IO.ConfigMacOSXBehaviors ? (io.KeyMods == ImGuiModFlags.Super) : (io.KeyMods == ImGuiModFlags.Ctrl);
 
         const bool is_cut   = ((is_shortcut_key && IsKeyPressed(ImGuiKey.X)) || (is_shift_key_only && IsKeyPressed(ImGuiKey.Delete))) && !is_readonly && !is_password && (!is_multiline || state.HasSelection());
         const bool is_copy  = ((is_shortcut_key && IsKeyPressed(ImGuiKey.C)) || (is_ctrl_key_only  && IsKeyPressed(ImGuiKey.Insert))) && !is_password && (!is_multiline || state.HasSelection());
@@ -4300,8 +4385,8 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
         // We allow validate/cancel with Nav source (gamepad) to makes it easier to undo an accidental NavInput press with no keyboard wired, but otherwise it isn't very useful.
         const bool is_validate_enter = IsKeyPressed(ImGuiKey.Enter) || IsKeyPressed(ImGuiKey.KeypadEnter);
-        const bool is_validate_nav = (IsNavInputTest(ImGuiNavInput.Activate, ImGuiInputReadMode.Pressed) && !IsKeyPressed(ImGuiKey.Space)) || IsNavInputTest(ImGuiNavInput.Input, ImGuiInputReadMode.Pressed);
-        const bool is_cancel   = IsKeyPressed(ImGuiKey.Escape) || IsNavInputTest(ImGuiNavInput.Cancel, ImGuiInputReadMode.Pressed);
+        const bool is_validate_nav = (IsNavInputTest(ImGuiNavInput.Activate, ImGuiNavReadMode.Pressed) && !IsKeyPressed(ImGuiKey.Space)) || IsNavInputTest(ImGuiNavInput.Input, ImGuiNavReadMode.Pressed);
+        const bool is_cancel   = IsKeyPressed(ImGuiKey.Escape) || IsNavInputTest(ImGuiNavInput.Cancel, ImGuiNavReadMode.Pressed);
 
         if (IsKeyPressed(ImGuiKey.LeftArrow))                        { state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_LINESTART : is_wordmove_key_down ? STB_TEXTEDIT_K_WORDLEFT : STB_TEXTEDIT_K_LEFT) | k_mask); }
         else if (IsKeyPressed(ImGuiKey.RightArrow))                  { state.OnKeyPressed((is_startend_key_down ? STB_TEXTEDIT_K_LINEEND : is_wordmove_key_down ? STB_TEXTEDIT_K_WORDRIGHT : STB_TEXTEDIT_K_RIGHT) | k_mask); }
@@ -4434,22 +4519,24 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             }
         }
 
+        // Apply ASCII value
+        if (!is_readonly)
+        {
+            state.TextAIsValid = true;
+            state.TextA.resize(state.TextW.Size * 4 + 1);
+            ImTextStrToUtf8(state.TextA.Data, state.TextA.Size, state.TextW.Data, NULL);
+        }
+
         // When using 'ImGuiInputTextFlags_EnterReturnsTrue' as a special case we reapply the live buffer back to the input buffer before clearing ActiveId, even though strictly speaking it wasn't modified on this frame.
         // If we didn't do that, code like InputInt() with ImGuiInputTextFlags_EnterReturnsTrue would fail.
         // This also allows the user to use InputText() with ImGuiInputTextFlags_EnterReturnsTrue without maintaining any user-side storage (please note that if you use this property along ImGuiInputTextFlags_CallbackResize you can end up with your temporary string object unnecessarily allocating once a frame, either store your string data, either if you don't then don't use ImGuiInputTextFlags_CallbackResize).
-        bool apply_edit_back_to_user_buffer = !cancel_edit || (enter_pressed && (flags & ImGuiInputTextFlags.EnterReturnsTrue) != 0);
+        const bool apply_edit_back_to_user_buffer = !cancel_edit || (enter_pressed && (flags & ImGuiInputTextFlags.EnterReturnsTrue) != 0);
         if (apply_edit_back_to_user_buffer)
         {
             // Apply new value immediately - copy modified buffer back
             // Note that as soon as the input box is active, the in-widget value gets priority over any underlying modification of the input buffer
             // FIXME: We actually always render 'buf' when calling DrawList->AddText, making the comment above incorrect.
             // FIXME-OPT: CPU waste to do this every time the widget is active, should mark dirty state from the stb_textedit callbacks.
-            if (!is_readonly)
-            {
-                state.TextAIsValid = true;
-                state.TextA.resize(state.TextW.Size * 4 + 1);
-                ImTextStrToUtf8(state.TextA.Data, state.TextA.Size, state.TextW.Data, NULL);
-            }
 
             // User callback
             if ((flags & (ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.CallbackHistory | ImGuiInputTextFlags.CallbackEdit | ImGuiInputTextFlags.CallbackAlways)) != 0)
@@ -4519,8 +4606,9 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                     if (buf_dirty)
                     {
                         IM_ASSERT(callback_data.BufTextLen == cast(int)strlen(callback_data.Buf)); // You need to maintain BufTextLen if you change the text!
+                        InputTextReconcileUndoStateAfterUserCallback(state, cast(string)callback_data.Buf[0..callback_data.BufTextLen]); // FIXME: Move the rest of this block inside function and rename to InputTextReconcileStateAfterUserCallback() ?
                         if (callback_data.BufTextLen > backup_current_text_length && is_resizable)
-                            state.TextW.resize(state.TextW.Size + (callback_data.BufTextLen - backup_current_text_length));
+                            state.TextW.resize(state.TextW.Size + (callback_data.BufTextLen - backup_current_text_length)); // Worse case scenario resize
                         state.CurLenW = ImTextStrFromUtf8(state.TextW.Data, state.TextW.Size, cast(string)callback_data.Buf[0..callback_data.BufTextLen]);
                         state.CurLenA = callback_data.BufTextLen;  // Assume correct length and valid UTF-8 from user, saves us an extra strlen()
                         state.CursorAnimReset();
@@ -4562,7 +4650,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             apply_new_text_length = ImMin(callback_data.BufTextLen, buf_size - 1);
             IM_ASSERT(apply_new_text_length <= buf_size);
         }
-        //IMGUI_DEBUG_LOG("InputText(\"%s\"): apply_new_text length %d\n", label, apply_new_text_length);
+        //IMGUI_DEBUG_PRINT("InputText(\"%s\"): apply_new_text length %d\n", label, apply_new_text_length);
 
         // If the underlying buffer resize was denied or not carried to the next frame, apply_new_text_length+1 may be >= buf_size.
         ImStrncpy(buf[], apply_new_text[0..ImMin(apply_new_text_length, buf_size)]);
@@ -4823,6 +4911,40 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         return value_changed;
 }
 
+void DebugNodeInputTextState(ImGuiInputTextState* state)
+{
+static if (!IMGUI_DISABLE_DEBUG_TOOLS) {
+    ImGuiContext* g = GImGui;
+    ImStb.STB_TexteditState* stb_state = &state.Stb;
+    ImStb.StbUndoState* undo_state = &stb_state.undostate;
+    Text("ID: 0x%08X, ActiveID: 0x%08X", state.ID, g.ActiveId);
+    Text("CurLenW: %d, CurLenA: %d, Cursor: %d, Selection: %d..%d", state.CurLenA, state.CurLenW, stb_state.cursor, stb_state.select_start, stb_state.select_end);
+    Text("undo_point: %d, redo_point: %d, undo_char_point: %d, redo_char_point: %d", undo_state.undo_point, undo_state.redo_point, undo_state.undo_char_point, undo_state.redo_char_point);
+    if (BeginChild("undopoints", ImVec2(0.0f, GetTextLineHeight() * 15), true)) // Visualize undo state
+    {
+        PushStyleVar(ImGuiStyleVar.ItemSpacing, ImVec2(0, 0));
+        for (int n = 0; n < STB_TEXTEDIT_UNDOSTATECOUNT; n++)
+        {
+            ImStb.StbUndoRecord* undo_rec = &undo_state.undo_rec[n];
+            const char undo_rec_type = (n < undo_state.undo_point) ? 'u' : (n >= undo_state.redo_point) ? 'r' : ' ';
+            if (undo_rec_type == ' ')
+                BeginDisabled();
+            char[64] buf = "";
+            if (undo_rec_type != ' ' && undo_rec.char_storage != -1)
+                ImTextStrToUtf8(buf.ptr, IM_ARRAYSIZE(buf), undo_state.undo_char.ptr + undo_rec.char_storage, undo_state.undo_char.ptr + undo_rec.char_storage + undo_rec.insert_length);
+            Text("%c [%02d] where %03d, insert %03d, delete %03d, char_storage %03d \"%s\"",
+                undo_rec_type, n, undo_rec.where, undo_rec.insert_length, undo_rec.delete_length, undo_rec.char_storage, buf);
+            if (undo_rec_type == ' ')
+                EndDisabled();
+        }
+        PopStyleVar();
+    }
+    EndChild();
+} else {
+    IM_UNUSED(state);
+}
+}
+
 //-------------------------------------------------------------------------
 // [SECTION] Widgets: ColorEdit, ColorPicker, ColorButton, etc.
 //-------------------------------------------------------------------------
@@ -5041,8 +5163,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
 
     if (label_display_end.length != 0 && !(flags & ImGuiColorEditFlags.NoLabel))
     {
-        const float text_offset_x = (flags & ImGuiColorEditFlags.NoInputs) ? w_button : w_full + style.ItemInnerSpacing.x;
-        window.DC.CursorPos = ImVec2(pos.x + text_offset_x, pos.y + style.FramePadding.y);
+        SameLine(0.0f, style.ItemInnerSpacing.x);
         TextEx(label_display_end);
     }
 
@@ -5515,7 +5636,7 @@ bool ColorPicker4(string label, ImVec4* col, ImGuiColorEditFlags flags = ImGuiCo
 // FIXME: May want to display/ignore the alpha component in the color display? Yet show it in the tooltip.
 // 'desc_id' is not called 'label' because we don't display it next to the button, but only in the tooltip.
 // Note that 'col' may be encoded in HSV if ImGuiColorEditFlags_InputHSV is set.
-bool ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, ImVec2 size = ImVec2(0, 0))
+bool ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, const ImVec2/*&*/ size_arg = ImVec2(0, 0))
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)
@@ -5523,11 +5644,8 @@ bool ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flag
 
     ImGuiContext* g = GImGui;
     const ImGuiID id = window.GetID(desc_id);
-    float default_size = GetFrameHeight();
-    if (size.x == 0.0f)
-        size.x = default_size;
-    if (size.y == 0.0f)
-        size.y = default_size;
+    const float default_size = GetFrameHeight();
+    const ImVec2 size = ImVec2(size_arg.x == 0.0f ? default_size : size_arg.x, size_arg.y == 0.0f ? default_size : size_arg.y);
     const ImRect bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + size);
     ItemSize(bb, (size.y >= default_size) ? g.Style.FramePadding.y : 0.0f);
     if (!ItemAdd(bb, id))
@@ -5821,9 +5939,9 @@ bool TreeNodeExV(string str_id, ImGuiTreeNodeFlags flags, string fmt, va_list ar
     if (window.SkipItems)
         return false;
 
-    ImGuiContext* g = GImGui;
-    int label_end = ImFormatStringV(g.TempBuffer, fmt, args);
-    return TreeNodeBehavior(window.GetID(str_id), flags, cast(string)g.TempBuffer[0..label_end]);
+    string label;
+    ImFormatStringToTempBufferV(&label, fmt, args);
+    return TreeNodeBehavior(window.GetID(str_id), flags, label);
 }
 
 bool TreeNodeExV(const void* ptr_id, ImGuiTreeNodeFlags flags, string fmt, va_list args)
@@ -5832,9 +5950,9 @@ bool TreeNodeExV(const void* ptr_id, ImGuiTreeNodeFlags flags, string fmt, va_li
     if (window.SkipItems)
         return false;
 
-    ImGuiContext* g = GImGui;
-    int label_end = ImFormatStringV(g.TempBuffer, fmt, args);
-    return TreeNodeBehavior(window.GetID(ptr_id), flags, cast(string)g.TempBuffer[0..label_end]);
+    string label;
+    ImFormatStringToTempBufferV(&label, fmt, args);
+    return TreeNodeBehavior(window.GetID(ptr_id), flags, label);
 }
 
 bool TreeNodeBehaviorIsOpen(ImGuiID id, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.None)
@@ -6786,6 +6904,7 @@ bool BeginMenuBar()
     // We overwrite CursorMaxPos because BeginGroup sets it to CursorPos (essentially the .EmitItem hack in EndMenuBar() would need something analogous here, maybe a BeginGroupEx() with flags).
     window.DC.CursorPos = window.DC.CursorMaxPos = ImVec2(bar_rect.Min.x + window.DC.MenuBarOffset.x, bar_rect.Min.y + window.DC.MenuBarOffset.y);
     window.DC.LayoutType = ImGuiLayoutType.Horizontal;
+    window.DC.IsSameLine = false;
     window.DC.NavLayerCurrent = ImGuiNavLayer.Menu;
     window.DC.MenuBarAppending = true;
     AlignTextToFramePadding();
@@ -6829,6 +6948,7 @@ void EndMenuBar()
     g.GroupStack.back().EmitItem = false;
     EndGroup(); // Restore position on layer 0
     window.DC.LayoutType = ImGuiLayoutType.Vertical;
+    window.DC.IsSameLine = false;
     window.DC.NavLayerCurrent = ImGuiNavLayer.Main;
     window.DC.MenuBarAppending = false;
 }
@@ -6912,14 +7032,19 @@ static bool IsRootOfOpenMenuSet()
     if ((g.OpenPopupStack.Size <= g.BeginPopupStack.Size) || (window.Flags & ImGuiWindowFlags.ChildMenu))
         return false;
 
-    // Initially we used 'OpenParentId' to differentiate multiple menu sets from each others (e.g. inside menu bar vs loose menu items) based on parent ID.
+    // Initially we used 'upper_popup->OpenParentId == window->IDStack.back()' to differentiate multiple menu sets from each others
+    // (e.g. inside menu bar vs loose menu items) based on parent ID.
     // This would however prevent the use of e.g. PuhsID() user code submitting menus.
     // Previously this worked between popup and a first child menu because the first child menu always had the _ChildWindow flag,
     // making  hovering on parent popup possible while first child menu was focused - but this was generally a bug with other side effects.
     // Instead we don't treat Popup specifically (in order to consistently support menu features in them), maybe the first child menu of a Popup
-    // doesn't have the _ChildWindow flag, and we rely on this IsRootOfOpenMenuSet() check to allow hovering between root window/popup and first chilld menu.
+    // doesn't have the _ChildWindow flag, and we rely on this IsRootOfOpenMenuSet() check to allow hovering between root window/popup and first child menu.
+    // In the end, lack of ID check made it so we could no longer differentiate between separate menu sets. To compensate for that, we at least check parent window nav layer.
+    // This fixes the most common case of menu opening on hover when moving between window content and menu bar. Multiple different menu sets in same nav layer would still
+    // open on hover, but that should be a lesser problem, because if such menus are close in proximity in window content then it won't feel weird and if they are far apart
+    // it likely won't be a problem anyone runs into.
     const ImGuiPopupData* upper_popup = &g.OpenPopupStack[g.BeginPopupStack.Size];
-    return (/*upper_popup->OpenParentId == window->IDStack.back() &&*/ upper_popup.Window && (upper_popup.Window.Flags & ImGuiWindowFlags.ChildMenu));
+    return (window.DC.NavLayerCurrent == upper_popup.ParentNavLayer && upper_popup.Window && (upper_popup.Window.Flags & ImGuiWindowFlags.ChildMenu));
 }
 
 bool BeginMenuEx(string label, string icon, bool enabled)
@@ -6934,7 +7059,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
     bool menu_is_open = IsPopupOpen(id, ImGuiPopupFlags.None);
 
     // Sub-menus are ChildWindow so that mouse can be hovering across them (otherwise top-most popup menu would steal focus and not allow hovering on parent menu)
-    // The first menu in a hierarchy isn't so hovering doesn't get accross (otherwise e.g. resizing borders with ImGuiButtonFlags_FlattenChildren would react), but top-most BeginMenu() will bypass that limitation.
+    // The first menu in a hierarchy isn't so hovering doesn't get across (otherwise e.g. resizing borders with ImGuiButtonFlags_FlattenChildren would react), but top-most BeginMenu() will bypass that limitation.
     ImGuiWindowFlags flags = ImGuiWindowFlags.ChildMenu | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoNavFocus;
     if (window.Flags & ImGuiWindowFlags.ChildMenu)
         flags |= ImGuiWindowFlags.ChildWindow;
@@ -7007,7 +7132,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
     if (!enabled)
         EndDisabled();
 
-    const bool hovered = (g.HoveredId == id) && enabled;
+    const bool hovered = (g.HoveredId == id) && enabled && !g.NavDisableMouseHover;
     if (menuset_is_open)
         g.NavWindow = backed_nav_window;
 
@@ -7017,7 +7142,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
     {
         // Close menu when not hovering it anymore unless we are moving roughly in the direction of the menu
         // Implement http://bjk5.com/post/44698559168/breaking-down-amazons-mega-dropdown to avoid using timers, so menus feels more reactive.
-        bool moving_toward_other_child_menu = false;
+        bool moving_toward_child_menu = false;
         ImGuiWindow* child_menu_window = (g.BeginPopupStack.Size < g.OpenPopupStack.Size && g.OpenPopupStack[g.BeginPopupStack.Size].SourceWindow == window) ? g.OpenPopupStack[g.BeginPopupStack.Size].Window : NULL;
         if (g.HoveredWindow == window && child_menu_window != NULL && !(window.Flags & ImGuiWindowFlags.MenuBar))
         {
@@ -7028,18 +7153,22 @@ bool BeginMenuEx(string label, string icon, bool enabled)
             ImVec2 tc = (window.Pos.x < child_menu_window.Pos.x) ? next_window_rect.GetBL() : next_window_rect.GetBR();
             float extra = ImClamp(ImFabs(ta.x - tb.x) * 0.30f, ref_unit * 0.5f, ref_unit * 2.5f);   // add a bit of extra slack.
             ta.x += (window.Pos.x < child_menu_window.Pos.x) ? -0.5f : +0.5f;                     // to avoid numerical issues (FIXME: ??)
-            tb.y = ta.y + ImMax((tb.y - extra) - ta.y, -ref_unit * 8.0f);                           // triangle is maximum 200 high to limit the slope and the bias toward large sub-menus // FIXME: Multiply by fb_scale?
+            tb.y = ta.y + ImMax((tb.y - extra) - ta.y, -ref_unit * 8.0f);                           // triangle has maximum height to limit the slope and the bias toward large sub-menus
             tc.y = ta.y + ImMin((tc.y + extra) - ta.y, +ref_unit * 8.0f);
-            moving_toward_other_child_menu = ImTriangleContainsPoint(ta, tb, tc, g.IO.MousePos);
+            moving_toward_child_menu = ImTriangleContainsPoint(ta, tb, tc, g.IO.MousePos);
             //GetForegroundDrawList()->AddTriangleFilled(ta, tb, tc, moving_toward_other_child_menu ? IM_COL32(0,128,0,128) : IM_COL32(128,0,0,128)); // [DEBUG]
         }
-        if (menu_is_open && !hovered && g.HoveredWindow == window && g.HoveredIdPreviousFrame != 0 && g.HoveredIdPreviousFrame != id && !moving_toward_other_child_menu)
+
+        // The 'HovereWindow == window' check creates an inconsistency (e.g. moving away from menu slowly tends to hit same window, whereas moving away fast does not)
+        // But we also need to not close the top-menu menu when moving over void. Perhaps we should extend the triangle check to a larger polygon.
+        // (Remember to test this on BeginPopup("A")->BeginMenu("B") sequence which behaves slightly differently as B isn't a Child of A and hovering isn't shared.)
+        if (menu_is_open && !hovered && g.HoveredWindow == window && !moving_toward_child_menu)
             want_close = true;
 
         // Open
         if (!menu_is_open && pressed) // Click/activate to open
             want_open = true;
-        else if (!menu_is_open && hovered && !moving_toward_other_child_menu) // Hover to open
+        else if (!menu_is_open && hovered && !moving_toward_child_menu) // Hover to open
             want_open = true;
         if (g.NavId == id && g.NavMoveDir == ImGuiDir.Right) // Nav-Right to open
         {
@@ -7165,8 +7294,8 @@ bool MenuItemEx(string label, string icon, string shortcut = NULL, bool selected
         // Menu item inside a vertical menu
         // (In a typical menu window where all items are BeginMenu() or MenuItem() calls, extra_w will always be 0.0f.
         //  Only when they are other items sticking out we're going to add spacing, yet only register minimum width into the layout system.
-        float icon_w = (icon && icon[0]) ? CalcTextSize(icon).x : 0.0f;
-        float shortcut_w = (shortcut && shortcut[0]) ? CalcTextSize(shortcut).x : 0.0f;
+        float icon_w = (icon.length > 0) ? CalcTextSize(icon).x : 0.0f;
+        float shortcut_w = (shortcut.length > 0) ? CalcTextSize(shortcut).x : 0.0f;
         float checkmark_w = IM_FLOOR(g.FontSize * 1.20f);
         float min_w = window.DC.MenuColumns.DeclColumns(icon_w, label_size.x, shortcut_w, checkmark_w); // Feedback for next frame
         float stretch_w = ImMax(0.0f, GetContentRegionAvail().x - min_w);
@@ -7519,7 +7648,7 @@ static void TabBarLayout(ImGuiTabBar* tab_bar)
         // and we cannot wait for the next BeginTabItem() call. We cannot compute this width within TabBarAddTab() because font size depends on the active window.
         string tab_name = tab_bar.GetTabName(tab);
         const bool has_close_button = (tab.Flags & ImGuiTabItemFlags.NoCloseButton) ? false : true;
-        tab.ContentWidth = TabItemCalcSize(tab_name, has_close_button).x;
+        tab.ContentWidth = (tab.RequestedWidth > 0.0f) ? tab.RequestedWidth : TabItemCalcSize(tab_name, has_close_button).x;
 
         int section_n = TabItemGetSectionIdx(tab);
         ImGuiTabBarSection* section = &sections[section_n];
@@ -7528,9 +7657,9 @@ static void TabBarLayout(ImGuiTabBar* tab_bar)
 
         // Store data so we can build an array sorted by width if we need to shrink tabs down
         // IM_MSVC_WARNING_SUPPRESS(6385);
-        int shrink_buffer_index = shrink_buffer_indexes[section_n]++;
-        g.ShrinkWidthBuffer[shrink_buffer_index].Index = tab_n;
-        g.ShrinkWidthBuffer[shrink_buffer_index].Width = tab.ContentWidth;
+        ImGuiShrinkWidthItem* shrink_width_item = &g.ShrinkWidthBuffer[shrink_buffer_indexes[section_n]++];
+        shrink_width_item.Index = tab_n;
+        shrink_width_item.Width = shrink_width_item.InitialWidth = tab.ContentWidth;
 
         IM_ASSERT(tab.ContentWidth > 0.0f);
         tab.Width = tab.ContentWidth;
@@ -8000,10 +8129,13 @@ bool    TabItemButton(string label, ImGuiTabItemFlags flags)
 bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItemFlags flags)
 {
     // Layout whole tab bar if not already done
-    if (tab_bar.WantLayout)
-        TabBarLayout(tab_bar);
-
     ImGuiContext* g = GImGui;
+    if (tab_bar.WantLayout)
+    {
+        ImGuiNextItemData backup_next_item_data = g.NextItemData;
+        TabBarLayout(tab_bar);
+        g.NextItemData = backup_next_item_data;
+    }
     ImGuiWindow* window = g.CurrentWindow;
     if (window.SkipItems)
         return false;
@@ -8029,9 +8161,6 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
     else if (p_open == NULL)
         flags |= ImGuiTabItemFlags.NoCloseButton;
 
-    // Calculate tab contents size
-    ImVec2 size = TabItemCalcSize(label, p_open != NULL);
-
     // Acquire tab data
     ImGuiTabItem* tab = TabBarFindTabByID(tab_bar, id);
     bool tab_is_new = false;
@@ -8040,11 +8169,17 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
         tab_bar.Tabs.push_back(ImGuiTabItem(false));
         tab = &tab_bar.Tabs.back();
         tab.ID = id;
-        tab.Width = size.x;
-        tab_bar.TabsAddedNew = true;
-        tab_is_new = true;
+        tab_bar.TabsAddedNew = tab_is_new = true;
     }
     tab_bar.LastTabItemIdx = cast(ImS16)tab_bar.Tabs.index_from_ptr(tab);
+
+    // Calculate tab contents size
+    ImVec2 size = TabItemCalcSize(label, p_open != NULL);
+    tab.RequestedWidth = -1.0f;
+    if (g.NextItemData.Flags & ImGuiNextItemDataFlags.HasWidth)
+        size.x = tab.RequestedWidth = g.NextItemData.Width;
+    if (tab_is_new)
+        tab.Width = size.x;
     tab.ContentWidth = size.x;
     tab.BeginOrder = tab_bar.TabsActiveCount++;
 
@@ -8061,13 +8196,14 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
     tab_bar.TabsNames.append("\0"); // D_IMGUI: Tabs use zero as a separator between entries
 
     // Update selected tab
-    if (tab_appearing && (tab_bar.Flags & ImGuiTabBarFlags.AutoSelectNewTabs) && tab_bar.NextSelectedTabId == 0)
-        if (!tab_bar_appearing || tab_bar.SelectedTabId == 0)
-            if (!is_tab_button)
+    if (!is_tab_button)
+    {
+        if (tab_appearing && (tab_bar.Flags & ImGuiTabBarFlags.AutoSelectNewTabs) && tab_bar.NextSelectedTabId == 0)
+            if (!tab_bar_appearing || tab_bar.SelectedTabId == 0)
                 tab_bar.NextSelectedTabId = id;  // New tabs gets activated
-    if ((flags & ImGuiTabItemFlags.SetSelected) && (tab_bar.SelectedTabId != id)) // SetSelected can only be passed on explicit tab bar
-        if (!is_tab_button)
+        if ((flags & ImGuiTabItemFlags.SetSelected) && (tab_bar.SelectedTabId != id)) // _SetSelected can only be passed on explicit tab bar
             tab_bar.NextSelectedTabId = id;
+    }
 
     // Lock visibility
     // (Note: tab_contents_visible != tab_selected... because CTRL+TAB operations may preview some tabs without selecting them!)

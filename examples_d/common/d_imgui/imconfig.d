@@ -33,12 +33,12 @@ enum D_IMGUI_USER_DEFINED_ASSERT = false;
 enum IMGUI_DISABLE_OBSOLETE_FUNCTIONS = false;
 enum IMGUI_DISABLE_OBSOLETE_KEYIO = false;                      // 1.87: disable legacy io.KeyMap[]+io.KeysDown[] in favor io.AddKeyEvent(). This will be folded into IMGUI_DISABLE_OBSOLETE_FUNCTIONS in a few versions.
 
-//---- Disable all of Dear ImGui or don't implement standard windows.
-// It is very strongly recommended to NOT disable the demo windows during development. Please read comments in imgui_demo.d.
+//---- Disable all of Dear ImGui or don't implement standard windows/tools.
+// It is very strongly recommended to NOT disable the demo windows and debug tool during development. They are extremely useful in day to day work. Please read comments in imgui_demo.d.
 // D_IMGUI: Disabling everything is not supported.
 //#define IMGUI_DISABLE                                         // Disable everything: all headers and source files will be empty.
-enum IMGUI_DISABLE_DEMO_WINDOWS = false;                        // Disable demo windows: ShowDemoWindow()/ShowStyleEditor() will be empty. Not recommended.
-enum IMGUI_DISABLE_METRICS_WINDOW = false;                      // Disable metrics/debugger and other debug tools: ShowMetricsWindow() will be empty.
+enum IMGUI_DISABLE_DEMO_WINDOWS = false;                        // Disable demo windows: ShowDemoWindow()/ShowStyleEditor() will be empty.
+enum IMGUI_DISABLE_DEBUG_TOOLS = false;                         // Disable metrics/debugger and other debug tools: ShowMetricsWindow(), ShowDebugLogWindow() and ShowStackToolWindow() will be empty (this was called IMGUI_DISABLE_METRICS_WINDOW before 1.88).
 
 //---- Don't implement some functions to reduce linkage requirements.
 enum IMGUI_DISABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS = false;   // [Win32] Don't implement default clipboard handler. Won't use and link with OpenClipboard/GetClipboardData/CloseClipboard etc. (user32.lib/.a, kernel32.lib/.a)
