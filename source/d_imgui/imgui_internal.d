@@ -1848,7 +1848,7 @@ struct ImGuiViewportP
 
     @disable this();
     this(bool dummy)    { DrawDataP = ImDrawData(false); DrawListsLastFrame[0] = DrawListsLastFrame[1] = -1; DrawLists[0] = DrawLists[1] = NULL; }
-    void destroy()   { if (DrawLists[0]) IM_DELETE(DrawLists[0]); if (DrawLists[1]) IM_DELETE(DrawLists[1]); }
+    void destroy()   { if (DrawLists[0]) IM_DELETE(DrawLists[0]); if (DrawLists[1]) IM_DELETE(DrawLists[1]); DrawDataBuilder.ClearFreeMemory(); }
 
     // Calculate work rect pos/size given a set of offset (we have 1 pair of offset for rect locked from last frame data, and 1 pair for currently building rect)
     ImVec2  CalcWorkRectPos(const ImVec2/*&*/ off_min) const                            { return ImVec2(Pos.x + off_min.x, Pos.y + off_min.y); }
@@ -2441,6 +2441,10 @@ struct ImGuiContext
         SettingsHandlers.destroy();
         InputEventsQueue.destroy();
         InputEventsTrail.destroy();
+		GroupStack.destroy();
+		TempBuffer.destroy();
+		ItemFlagsStack.destroy();
+        DebugLogBuf.destroy();
 
         IO.destroy();
         SettingsIniData.destroy();
@@ -2952,7 +2956,7 @@ struct ImGuiTable
 
     @disable this();
     this(bool dummy)                { memset(&this, 0, sizeof(this)); LastFrameActive = -1; }
-    void destroy()               { IM_FREE(RawData); SortSpecsMulti.destroy(); }
+    void destroy()               { IM_FREE(RawData); SortSpecsMulti.destroy(); InstanceDataExtra.destroy(); }
 }
 
 // Transient data that are only needed between BeginTable() and EndTable(), those buffers are shared (1 per level of stacked table).
