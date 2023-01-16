@@ -7,8 +7,7 @@
 	"description": "Port of Dear Imgui: Bloat-free Immediate Mode Graphical User interface with minimal dependencies",
 	"homepage": "https://github.com/KytoDragon/imgui/",
 	"license": "MIT",
-    "version": "1.88.0-beta1",
-	"dflags": ["-preview=intpromote"],
+    "version": "1.88.0-beta2",
 	"targetType": "sourceLibrary",
 	"libs-windows" : ["Imm32"],
 	"importPaths": [
@@ -66,6 +65,22 @@
 				"IMGUI_OPENGL3",
 			],
 			"libs-windows"	: ["Imm32", "User32"],
+		},
+		{
+			"name"			: "win32_directx11",
+			"description"	: "Example Win32 DirectX 11",
+			"targetType"	: "executable",
+			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_win32_directx11"],
+			"sourceFiles"	: ["backends_d/imgui_impl_win32.d", "backends_d/imgui_impl_dx11.d", "backends_d/imgui_windows.d"],
+			"dependencies"	: {
+				"d_snprintf"	: "~>1.1.1",
+                "directx-d"     : "~>0.14.1",
+			},
+			"versions": [
+				"IMGUI_WIN32",
+				"IMGUI_D3D11",
+			],
+			"libs-windows"	: ["Imm32", "User32", "D3D11"],
 		},
 	],
 }

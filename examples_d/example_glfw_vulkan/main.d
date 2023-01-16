@@ -21,8 +21,8 @@ import core.stdc.stdlib : abort, exit;
 //#define GLFW_INCLUDE_VULKAN
 
 import erupted;
-import bindbc.glfw;
-mixin(bindGLFW_Vulkan);                           // mixin vulkan related glfw functions
+//import bindbc.glfw;
+//mixin(bindGLFW_Vulkan);                           // mixin vulkan related glfw functions
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.

@@ -145,7 +145,11 @@ enum IMGUI_DEBUG_PARANOID = false;
 enum D_IMGUI_NORMAL_NEWLINE_ON_WINDOWS = false;
 
 //---- Define your own backend texture id
-alias ImTextureID = int;
+version(IMGUI_D3D11) {
+    alias ImTextureID = void*;
+} else {
+    alias ImTextureID = int;
+}
 
 //---- Don't assert on recoverable errors
 enum D_IMGUI_USER_DEFINED_RECOVERABLE_ERROR = false;

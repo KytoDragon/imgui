@@ -1064,7 +1064,7 @@ bool ImageButton(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVe
         return false;
 
     // Default to using texture ID as ID. User can still push string/integer prefixes.
-    PushID(cast(void*)cast(intptr_t)user_texture_id);
+    PushID(cast(void*)/*cast(intptr_t)*/user_texture_id);
     const ImGuiID id = window.GetID("#image");
     PopID();
 

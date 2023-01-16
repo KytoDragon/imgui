@@ -1953,7 +1953,14 @@ pragma(inline) T* IM_NEW(T, A...)(A args) {
     emplace(result, args);
     return result;
 }
-pragma(inline) void IM_DELETE(T)(T* p)   { if (p) { (*p).destroy(); MemFree(p); } }
+pragma(inline) void IM_DELETE(T)(T* p)   {
+    if (p) {
+        static if (__traits(hasMember, T, "destroy")) {
+            (*p).destroy();
+        }
+        MemFree(p);
+        }
+    }
 // D_IMGUI separate definition for string
 pragma(inline) void IM_DELETE(string s)   { if (s !is NULL) { MemFree(cast(char*)s.ptr); } }
 
@@ -1995,7 +2002,11 @@ struct ImVector(T)
     static if (is(T == U*, U)) {
     pragma(inline, true) void         clear_delete()                      { for (int n = 0; n < Size; n++) IM_DELETE(Data[n]); clear(); }     // Important: never called automatically! always explicit.
     }
+    static if (__traits(hasMember, T, "destroy")) {
     pragma(inline, true) void         clear_destruct()                    { for (int n = 0; n < Size; n++) Data[n].destroy(); clear(); }           // Important: never called automatically! always explicit.
+    } else {
+    pragma(inline, true) void         clear_destruct()                    { clear(); }           // Important: never called automatically! always explicit.
+    }
 
     pragma(inline, true) bool         empty() const                       { return Size == 0; }
     pragma(inline, true) int          size() const                        { return Size; }
@@ -2684,7 +2695,7 @@ struct ImDrawCmd
     //ImDrawCmd() { memset(&this, 0, sizeof(this)); } // Also ensure our padding fields are zeroed
 
     // Since 1.83: returns ImTextureID associated with this draw call. Warning: DO NOT assume this is always same as 'TextureId' (we will change this function for an upcoming feature)
-    pragma(inline, true) ImTextureID GetTexID() const { return TextureId; }
+    pragma(inline, true) const(ImTextureID) GetTexID() const { return TextureId; }
 }
 
 // Vertex layout

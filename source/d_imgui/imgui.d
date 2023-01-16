@@ -13003,7 +13003,7 @@ void DebugNodeDrawList(ImGuiWindow* window, const ImDrawList* draw_list, const c
 
         char[300] buf;
         ImFormatString(buf, "DrawCmd:%5d tris, Tex 0x%p, ClipRect (%4.0f,%4.0f)-(%4.0f,%4.0f)",
-            pcmd.ElemCount / 3, cast(void*)cast(intptr_t)pcmd.TextureId,
+            pcmd.ElemCount / 3, cast(void*)/*cast(intptr_t)*/pcmd.TextureId,
             pcmd.ClipRect.x, pcmd.ClipRect.y, pcmd.ClipRect.z, pcmd.ClipRect.w);
         bool pcmd_node_open = TreeNode(cast(void*)(pcmd - draw_list.CmdBuffer.begin()), "%s", buf);
         if (IsItemHovered() && (cfg.ShowDrawCmdMesh || cfg.ShowDrawCmdBoundingBoxes) && fg_draw_list)
