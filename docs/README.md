@@ -8,17 +8,18 @@ You can see the demo in action using one of the available examples found in the 
 
 - GLFW + VULKAN: `dub run d_imgui:glfw_vulkan`
 - GLFW + OpenGl: `dub run d_imgui:glfw_opengl3`
+- Win32 + DirectX 11: `dub run d_imgui:win32_directx11`
 
 GLFW backends require the 64-bit glfw dynamic library, minimum version 3.3, [found here](https://www.glfw.org/download.html).
 Debug builds of the vulkan backends require the Vulkan-SDK, [found here](https://vulkan.lunarg.com/sdk/home).
 
-All of ImGui is nothrow and @nogc.
+All of ImGui is nothrow and @nogc. (Except for the DirectX backend/examples due to a lack of suitable bindings)
 
 The C++ version of Dear Imgui relies on compile-time options to integrate the library into your codebase. In this port this is done via the file imconfig.d (found in the root folder of this repository). Copy this file into a module name "d_imgui" in your codebase and adjust the parameters found within. This library will than import that file. (If you don't use dub packages, just move the file into the source/d_imgui folder of this library) (Currently broken due to https://issues.dlang.org/show_bug.cgi?id=20905)
 
 ### TODO:
 
-- Wait for https://issues.dlang.org/show_bug.cgi?id=20905 to get fixed or add a workaround.
+- Wait for https://issues.dlang.org/show_bug.cgi?id=20905 to get fixed.
 - Further testing of all widgets.
 
 ### Original Description:
