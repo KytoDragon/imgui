@@ -1,4 +1,4 @@
-// dear imgui, v1.88
+// dear imgui, v1.89.2
 // (tables and columns code)
 module d_imgui.imgui_tables;
 
@@ -202,6 +202,7 @@ import d_imgui.imgui_widgets;
 import d_imgui.imgui_draw;
 import d_imgui.imgui_internal;
 import d_imgui.imconfig;
+import d_snprintf.snscanf : sscanf = snscanf;
 
 nothrow:
 @nogc:
@@ -411,6 +412,14 @@ bool    BeginTableEx(string name, ImGuiID id, int columns_count, ImGuiTableFlags
         table.OuterRect = table.InnerWindow.Rect();
         table.InnerRect = table.InnerWindow.InnerRect;
         IM_ASSERT(table.InnerWindow.WindowPadding.x == 0.0f && table.InnerWindow.WindowPadding.y == 0.0f && table.InnerWindow.WindowBorderSize == 0.0f);
+
+        // When using multiple instances, ensure they have the same amount of horizontal decorations (aka vertical scrollbar) so stretched columns can be aligned)
+        if (instance_no == 0)
+        {
+            table.HasScrollbarYPrev = table.HasScrollbarYCurr;
+            table.HasScrollbarYCurr = false;
+        }
+        table.HasScrollbarYCurr |= (table.InnerWindow.ScrollMax.y > 0.0f);
     }
     else
     {
@@ -909,7 +918,8 @@ void TableUpdateLayout(ImGuiTable* table)
     // [Part 4] Apply final widths based on requested widths
     const ImRect work_rect = table.WorkRect;
     const float width_spacings = (table.OuterPaddingX * 2.0f) + (table.CellSpacingX1 + table.CellSpacingX2) * (table.ColumnsEnabledCount - 1);
-    const float width_avail = ((table.Flags & ImGuiTableFlags.ScrollX) && table.InnerWidth == 0.0f) ? table.InnerClipRect.GetWidth() : work_rect.GetWidth();
+    const float width_removed = (table.HasScrollbarYPrev && !table.InnerWindow.ScrollbarY) ? g.Style.ScrollbarSize : 0.0f; // To synchronize decoration width of synched tables with mismatching scrollbar state (#5920)
+    const float width_avail = ImMax(1.0f, (((table.Flags & ImGuiTableFlags.ScrollX) && table.InnerWidth == 0.0f) ? table.InnerClipRect.GetWidth() : work_rect.GetWidth()) - width_removed);
     const float width_avail_for_stretched_columns = width_avail - width_spacings - sum_width_requests;
     float width_remaining_for_stretched_columns = width_avail_for_stretched_columns;
     table.ColumnsGivenWidth = width_spacings + (table.CellPaddingX * 2.0f) * table.ColumnsEnabledCount;
@@ -952,11 +962,19 @@ void TableUpdateLayout(ImGuiTable* table)
             width_remaining_for_stretched_columns -= 1.0f;
         }
 
+    // Determine if table is hovered which will be used to flag columns as hovered.
+    // - In principle we'd like to use the equivalent of IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem),
+    //   but because our item is partially submitted at this point we use ItemHoverable() and a workaround (temporarily
+    //   clear ActiveId, which is equivalent to the change provided by _AllowWhenBLockedByActiveItem).
+    // - This allows columns to be marked as hovered when e.g. clicking a button inside the column, or using drag and drop.
     ImGuiTableInstanceData* table_instance = TableGetInstanceData(table, table.InstanceCurrent);
     table.HoveredColumnBody = -1;
     table.HoveredColumnBorder = -1;
     const ImRect mouse_hit_rect = ImRect(table.OuterRect.Min.x, table.OuterRect.Min.y, table.OuterRect.Max.x, ImMax(table.OuterRect.Max.y, table.OuterRect.Min.y + table_instance.LastOuterHeight));
+    const ImGuiID backup_active_id = g.ActiveId;
+    g.ActiveId = 0;
     const bool is_hovering_table = ItemHoverable(mouse_hit_rect, 0);
+    g.ActiveId = backup_active_id;
 
     // [Part 6] Setup final position, offset, skip/clip states and clipping rectangles, detect hovered column
     // Process columns in their visible orders as we are comparing the visible order and adjusting host_clip_rect while looping.
@@ -972,7 +990,7 @@ void TableUpdateLayout(ImGuiTable* table)
         const int column_n = table.DisplayOrderToIndex[order_n];
         ImGuiTableColumn* column = &table.Columns[column_n];
 
-        column.NavLayerCurrent = cast(ImS8)((table.FreezeRowsCount > 0 || column_n < table.FreezeColumnsCount) ? ImGuiNavLayer.Menu : ImGuiNavLayer.Main);
+        column.NavLayerCurrent = cast(ImS8)(table.FreezeRowsCount > 0 ? ImGuiNavLayer.Menu : ImGuiNavLayer.Main); // Use Count NOT request so Header line changes layer when frozen
 
         if (offset_x_frozen && table.FreezeColumnsCount == visible_n)
         {
@@ -1121,24 +1139,23 @@ void TableUpdateLayout(ImGuiTable* table)
     table.IsUsingHeaders = false;
 
     // [Part 11] Context menu
-    if (table.IsContextPopupOpen && table.InstanceCurrent == table.InstanceInteracted)
+    if (TableBeginContextMenuPopup(table))
     {
-        const ImGuiID context_menu_id = ImHashStr("##ContextMenu", table.ID);
-        if (BeginPopupEx(context_menu_id, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings))
-        {
-            TableDrawContextMenu(table);
-            EndPopup();
-        }
-        else
-        {
-            table.IsContextPopupOpen = false;
-        }
+        TableDrawContextMenu(table);
+        EndPopup();
     }
 
     // [Part 13] Sanitize and build sort specs before we have a change to use them for display.
     // This path will only be exercised when sort specs are modified before header rows (e.g. init or visibility change)
     if (table.IsSortSpecsDirty && (table.Flags & ImGuiTableFlags.Sortable))
         TableSortSpecsBuild(table);
+
+    // [Part 14] Setup inner window decoration size (for scrolling / nav tracking to properly take account of frozen rows/columns)
+    if (table.FreezeColumnsRequest > 0)
+        table.InnerWindow.DecoInnerSizeX1 = table.Columns[table.DisplayOrderToIndex[table.FreezeColumnsRequest - 1]].MaxX - table.OuterRect.Min.x;
+    if (table.FreezeRowsRequest > 0)
+        table.InnerWindow.DecoInnerSizeY1 = table_instance.LastFrozenHeight;
+    table_instance.LastFrozenHeight = 0.0f;
 
     // Initial state
     ImGuiWindow* inner_window = table.InnerWindow;
@@ -1187,8 +1204,8 @@ void TableUpdateBorders(ImGuiTable* table)
 
         ImGuiID column_id = TableGetColumnResizeID(table, column_n, table.InstanceCurrent);
         ImRect hit_rect = ImRect(column.MaxX - hit_half_width, hit_y1, column.MaxX + hit_half_width, border_y2_hit);
+        ItemAdd(hit_rect, column_id, NULL, ImGuiItemFlags.NoNav);
         //GetForegroundDrawList()->AddRect(hit_rect.Min, hit_rect.Max, IM_COL32(255, 0, 0, 100));
-        KeepAliveID(column_id);
 
         bool hovered = false, held = false;
         bool pressed = ButtonBehavior(hit_rect, column_id, &hovered, &held, ImGuiButtonFlags.FlattenChildren | ImGuiButtonFlags.AllowItemOverlap | ImGuiButtonFlags.PressedOnClick | ImGuiButtonFlags.PressedOnDoubleClick | ImGuiButtonFlags.NoNavFocus);
@@ -1742,6 +1759,8 @@ void TableBeginRow(ImGuiTable* table)
     table.RowTextBaseline = 0.0f;
     table.RowIndentOffsetX = window.DC.Indent.x - table.HostIndentX; // Lock indent
     window.DC.PrevLineTextBaseOffset = 0.0f;
+    window.DC.CurrLineSize = ImVec2(0.0f, 0.0f);
+    window.DC.IsSameLine = window.DC.IsSetPos = false;
     window.DC.CursorMaxPos.y = next_y1;
 
     // Making the header BG color non-transparent will allow us to overlay it multiple times when handling smooth dragging.
@@ -1854,17 +1873,15 @@ void TableEndRow(ImGuiTable* table)
     // get the new cursor position.
     if (unfreeze_rows_request)
         for (int column_n = 0; column_n < table.ColumnsCount; column_n++)
-        {
-            ImGuiTableColumn* column = &table.Columns[column_n];
-            column.NavLayerCurrent = cast(ImS8)((column_n < table.FreezeColumnsCount) ? ImGuiNavLayer.Menu : ImGuiNavLayer.Main);
-        }
+            table.Columns[column_n].NavLayerCurrent = ImGuiNavLayer.Main;
     if (unfreeze_rows_actual)
     {
         IM_ASSERT(table.IsUnfrozenRows == false);
+        const float y0 = ImMax(table.RowPosY2 + 1, window.InnerClipRect.Min.y);
         table.IsUnfrozenRows = true;
+        TableGetInstanceData(table, table.InstanceCurrent).LastFrozenHeight = y0 - table.OuterRect.Min.y;
 
         // BgClipRect starts as table->InnerClipRect, reduce it now and make BgClipRectForDrawCmd == BgClipRect
-        float y0 = ImMax(table.RowPosY2 + 1, window.InnerClipRect.Min.y);
         table.BgClipRect.Min.y = table.Bg2ClipRectForDrawCmd.Min.y = ImMin(y0, window.InnerClipRect.Max.y);
         table.BgClipRect.Max.y = table.Bg2ClipRectForDrawCmd.Max.y = window.InnerClipRect.Max.y;
         table.Bg2DrawChannelCurrent = table.Bg2DrawChannelUnfrozen;
@@ -2022,6 +2039,9 @@ void TableEndCell(ImGuiTable* table)
 {
     ImGuiTableColumn* column = &table.Columns[table.CurrentColumn];
     ImGuiWindow* window = table.InnerWindow;
+
+    if (window.DC.IsSetPos)
+        ErrorCheckUsingSetCursorPosToExtendParentBoundaries();
 
     // Report maximum position so we can infer content size per column.
     float* p_max_pos_x;
@@ -2432,9 +2452,9 @@ static if (false) {
             if (merge_group.ChannelsCount == 0)
                 continue;
             char[32] buf;
-            ImFormatString(buf, 32, "MG%d:%d", merge_group_n, merge_group.ChannelsCount);
+            int length = ImFormatString(buf, 32, "MG%d:%d", merge_group_n, merge_group.ChannelsCount);
             ImVec2 text_pos = merge_group.ClipRect.Min + ImVec2(4, 4);
-            ImVec2 text_size = CalcTextSize(buf, NULL);
+            ImVec2 text_size = CalcTextSize(buf[0..length]);
             GetForegroundDrawList().AddRectFilled(text_pos, text_pos + text_size, IM_COL32(0, 0, 0, 255));
             GetForegroundDrawList().AddText(text_pos, IM_COL32(255, 255, 0, 255), buf, NULL);
             GetForegroundDrawList().AddRect(merge_group.ClipRect.Min, merge_group.ClipRect.Max, IM_COL32(255, 255, 0, 255));
@@ -3017,7 +3037,7 @@ void TableHeader(string label)
     RenderTextEllipsis(window.DrawList, label_pos, ImVec2(ellipsis_max, label_pos.y + label_height + g.Style.FramePadding.y), ellipsis_max, ellipsis_max, label_end, &label_size);
 
     const bool text_clipped = label_size.x > (ellipsis_max - label_pos.x);
-    if (text_clipped && hovered && g.HoveredIdNotActiveTimer > g.TooltipSlowDelay)
+    if (text_clipped && hovered && g.ActiveId == 0 && IsItemHovered(ImGuiHoveredFlags.DelayNormal))
         SetTooltip("%.*s", cast(int)(label_end.length), label);
 
     // We don't use BeginPopupContextItem() because we want the popup to stay up even after the column is hidden
@@ -3052,6 +3072,17 @@ void TableOpenContextMenu(int column_n)
     }
 }
 
+bool TableBeginContextMenuPopup(ImGuiTable* table)
+{
+    if (!table.IsContextPopupOpen || table.InstanceCurrent != table.InstanceInteracted)
+        return false;
+    const ImGuiID context_menu_id = ImHashStr("##ContextMenu", table.ID);
+    if (BeginPopupEx(context_menu_id, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings))
+        return true;
+    table.IsContextPopupOpen = false;
+    return false;
+}
+
 // Output context menu into current window (generally a popup)
 // FIXME-TABLE: Ideally this should be writable by the user. Full programmatic access to that data?
 void TableDrawContextMenu(ImGuiTable* table)
@@ -3071,15 +3102,15 @@ void TableDrawContextMenu(ImGuiTable* table)
         if (column != NULL)
         {
             const bool can_resize = !(column.Flags & ImGuiTableColumnFlags.NoResize) && column.IsEnabled;
-            if (MenuItem("Size column to fit###SizeOne", NULL, false, can_resize))
+            if (MenuItem(LocalizeGetMsg(ImGuiLocKey.TableSizeOne), NULL, false, can_resize)) // "###SizeOne"
                 TableSetColumnWidthAutoSingle(table, column_n);
         }
 
         string size_all_desc;
         if (table.ColumnsEnabledFixedCount == table.ColumnsEnabledCount && (table.Flags & ImGuiTableFlags.SizingMask_) != ImGuiTableFlags.SizingFixedSame)
-            size_all_desc = "Size all columns to fit###SizeAll";        // All fixed
+            size_all_desc = LocalizeGetMsg(ImGuiLocKey.TableSizeAllFit);        // "###SizeAll" All fixed
         else
-            size_all_desc = "Size all columns to default###SizeAll";    // All stretch or mixed
+            size_all_desc = LocalizeGetMsg(ImGuiLocKey.TableSizeAllDefault);    // "###SizeAll" All stretch or mixed
         if (MenuItem(size_all_desc, NULL))
             TableSetColumnWidthAutoAll(table);
         want_separator = true;
@@ -3088,7 +3119,7 @@ void TableDrawContextMenu(ImGuiTable* table)
     // Ordering
     if (table.Flags & ImGuiTableFlags.Reorderable)
     {
-        if (MenuItem("Reset order", NULL, false, !table.IsDefaultDisplayOrder))
+        if (MenuItem(LocalizeGetMsg(ImGuiLocKey.TableResetOrder), NULL, false, !table.IsDefaultDisplayOrder))
             table.IsResetDisplayOrderRequest = true;
         want_separator = true;
     }
@@ -3971,6 +4002,7 @@ void NextColumn()
     {
         // New row/line: column 0 honor IndentX.
         window.DC.ColumnsOffset.x = ImMax(column_padding - window.WindowPadding.x, 0.0f);
+        window.DC.IsSameLine = false;
         columns.LineMinY = columns.LineMaxY;
     }
     window.DC.CursorPos.x = IM_FLOOR(window.Pos.x + window.DC.Indent.x + window.DC.ColumnsOffset.x);
@@ -4022,8 +4054,7 @@ void EndColumns()
             const ImGuiID column_id = columns.ID + ImGuiID(n);
             const float column_hit_hw = COLUMNS_HIT_RECT_HALF_WIDTH;
             const ImRect column_hit_rect = ImRect(ImVec2(x - column_hit_hw, y1), ImVec2(x + column_hit_hw, y2));
-            KeepAliveID(column_id);
-            if (IsClippedEx(column_hit_rect, column_id)) // FIXME: Can be removed or replaced with a lower-level test
+            if (!ItemAdd(column_hit_rect, column_id, NULL, ImGuiItemFlags.NoNav))
                 continue;
 
             bool hovered = false, held = false;

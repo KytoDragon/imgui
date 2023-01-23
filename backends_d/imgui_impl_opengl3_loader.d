@@ -1,4 +1,30 @@
 module backends_d.imgui_impl_opengl3_loader;
+//-----------------------------------------------------------------------------
+// About imgui_impl_opengl3_loader.h:
+//
+// We embed our own OpenGL loader to not require user to provide their own or to have to use ours,
+// which proved to be endless problems for users.
+// Our loader is custom-generated, based on gl3w but automatically filtered to only include
+// enums/functions that we use in our imgui_impl_opengl3.cpp source file in order to be small.
+//
+// YOU SHOULD NOT NEED TO INCLUDE/USE THIS DIRECTLY. THIS IS USED BY imgui_impl_opengl3.cpp ONLY.
+// THE REST OF YOUR APP SHOULD USE A DIFFERENT GL LOADER: ANY GL LOADER OF YOUR CHOICE.
+//
+// IF YOU GET BUILD ERRORS IN THIS FILE (commonly macro redefinitions or function redefinitions):
+// IT LIKELY MEANS THAT YOU ARE BUILDING 'imgui_impl_opengl3.cpp' OR INCUDING 'imgui_impl_opengl3_loader.h'
+// IN THE SAME COMPILATION UNIT AS ONE OF YOUR FILE WHICH IS USING A THIRD-PARTY OPENGL LOADER.
+// (e.g. COULD HAPPEN IF YOU ARE DOING A UNITY/JUMBO BUILD, OR INCLUDING .CPP FILES FROM OTHERS)
+// YOU SHOULD NOT BUILD BOTH IN THE SAME COMPILATION UNIT.
+// BUT IF YOU REALLY WANT TO, you can '#define IMGUI_IMPL_OPENGL_LOADER_CUSTOM' and imgui_impl_opengl3.cpp
+// WILL NOT BE USING OUR LOADER, AND INSTEAD EXPECT ANOTHER/YOUR LOADER TO BE AVAILABLE IN THE COMPILATION UNIT.
+//
+// Regenerate with:
+//   python gl3w_gen.py --output ../imgui/backends/imgui_impl_opengl3_loader.h --ref ../imgui/backends/imgui_impl_opengl3.cpp ./extra_symbols.txt
+//
+// More info:
+//   https://github.com/dearimgui/gl3w_stripped
+//   https://github.com/ocornut/imgui/issues/4445
+//-----------------------------------------------------------------------------
 
 /*
  * This file was generated with gl3w_gen.py, part of imgl3w

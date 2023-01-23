@@ -1,4 +1,4 @@
-// dear imgui: Platform Backend for Windows (standard windows API for 32 and 64 bits applications)
+// dear imgui: Platform Backend for Windows (standard windows API for 32-bits AND 64-bits applications)
 // This needs to be used along with a Renderer (e.g. DirectX11, OpenGL3, Vulkan..)
 
 // Implemented features:
@@ -22,14 +22,16 @@ import d_imgui.imgui_h : NULL;
 /*
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
-#endif
+}
 */
 import d_imgui;
 import imgui_windows;
 
-//#include <windowsx.h> // GET_X_LPARAM(), GET_Y_LPARAM()
-//#include <tchar.h>
-//#include <dwmapi.h>
+/+
+#include <windowsx.h> // GET_X_LPARAM(), GET_Y_LPARAM()
+#include <tchar.h>
+#include <dwmapi.h>
++/
 
 // Configuration flags to add in your imconfig.h file:
 //#define IMGUI_IMPL_WIN32_DISABLE_GAMEPAD              // Disable gamepad support. This was meaningful before <1.81 but we now load XInput dynamically so the option is now less relevant.
@@ -43,7 +45,10 @@ alias PFN_XInputGetState = extern(Windows) DWORD function(DWORD, XINPUT_STATE*);
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
-//  2022-01-26: Inputs: replaced short-lived io.AddKeyModsEvent() (added two weeks ago)with io.AddKeyEvent() using ImGuiKey_ModXXX flags. Sorry for the confusion.
+//  2022-10-11: Using 'nullptr' instead of 'NULL' as per our switch to C++11.
+//  2022-09-28: Inputs: Convert WM_CHAR values with MultiByteToWideChar() when window class was registered as MBCS (not Unicode).
+//  2022-09-26: Inputs: Renamed ImGuiKey_ModXXX introduced in 1.87 to ImGuiMod_XXX (old names still supported).
+//  2022-01-26: Inputs: replaced short-lived io.AddKeyModsEvent() (added two weeks ago) with io.AddKeyEvent() using ImGuiKey_ModXXX flags. Sorry for the confusion.
 //  2021-01-20: Inputs: calling new io.AddKeyAnalogEvent() for gamepad support, instead of writing directly to io.NavInputs[].
 //  2022-01-17: Inputs: calling new io.AddMousePosEvent(), io.AddMouseButtonEvent(), io.AddMouseWheelEvent() API (1.87+).
 //  2022-01-17: Inputs: always update key mods next and before a key event (not in NewFrame) to fix input queue with very low framerates.
@@ -83,7 +88,7 @@ alias PFN_XInputGetState = extern(Windows) DWORD function(DWORD, XINPUT_STATE*);
 //  2018-01-05: Inputs: Added WM_LBUTTONDBLCLK double-click handlers for window classes with the CS_DBLCLKS flag.
 //  2017-10-23: Inputs: Added WM_SYSKEYDOWN / WM_SYSKEYUP handlers so e.g. the VK_MENU key can be read.
 //  2017-10-23: Inputs: Using Win32 ::SetCapture/::GetCapture() to retrieve mouse positions outside the client area when dragging.
-//  2016-11-12: Inputs: Only call Win32 ::SetCursor(NULL) when io.MouseDrawCursor is set.
+//  2016-11-12: Inputs: Only call Win32 ::SetCursor(nullptr) when io.MouseDrawCursor is set.
 
 struct ImGui_ImplWin32_Data
 {
@@ -94,10 +99,10 @@ struct ImGui_ImplWin32_Data
     INT64                       Time;
     INT64                       TicksPerSecond;
     ImGuiMouseCursor            LastMouseCursor;
-    bool                        HasGamepad;
-    bool                        WantUpdateHasGamepad;
 
 version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
+    bool                        HasGamepad;
+    bool                        WantUpdateHasGamepad;
     HMODULE                     XInputDLL;
     PFN_XInputGetCapabilities   XInputGetCapabilities;
     PFN_XInputGetState          XInputGetState;
@@ -112,14 +117,14 @@ version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
 // FIXME: some shared resources (mouse cursor shape, gamepad) are mishandled when using multi-context.
 static ImGui_ImplWin32_Data* ImGui_ImplWin32_GetBackendData()
 {
-    return ImGui.GetCurrentContext() ? cast(ImGui_ImplWin32_Data*)ImGui.GetIO().BackendPlatformUserData : NULL;
+    return ImGui.GetCurrentContext() ? cast(ImGui_ImplWin32_Data*)ImGui.GetIO().BackendPlatformUserData : null;
 }
 
 // Functions
 bool    ImGui_ImplWin32_Init(void* hwnd)
 {
     ImGuiIO* io = &ImGui.GetIO();
-    IM_ASSERT(io.BackendPlatformUserData == NULL && "Already initialized a platform backend!");
+    IM_ASSERT(io.BackendPlatformUserData == null, "Already initialized a platform backend!");
 
     INT64 perf_frequency, perf_counter;
     if (!QueryPerformanceFrequency(cast(LARGE_INTEGER*)&perf_frequency))
@@ -135,7 +140,6 @@ bool    ImGui_ImplWin32_Init(void* hwnd)
     io.BackendFlags |= ImGuiBackendFlags.HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
 
     bd.hWnd = cast(HWND)hwnd;
-    bd.WantUpdateHasGamepad = true;
     bd.TicksPerSecond = perf_frequency;
     bd.Time = perf_counter;
     bd.LastMouseCursor = ImGuiMouseCursor.COUNT;
@@ -145,6 +149,7 @@ bool    ImGui_ImplWin32_Init(void* hwnd)
 
     // Dynamically load XInput library
 version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
+    bd.WantUpdateHasGamepad = true;
     string[5] xinput_dll_names =
     [
         "xinput1_4.dll",   // Windows 8+
@@ -169,7 +174,7 @@ version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
 void    ImGui_ImplWin32_Shutdown()
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
-    IM_ASSERT(bd != NULL && "No platform backend to shutdown, or already shutdown?");
+    IM_ASSERT(bd != null, "No platform backend to shutdown, or already shutdown?");
     ImGuiIO* io = &ImGui.GetIO();
 
     // Unload XInput library
@@ -178,8 +183,8 @@ version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
         FreeLibrary(bd.XInputDLL);
 } // IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
 
-    io.BackendPlatformName = NULL;
-    io.BackendPlatformUserData = NULL;
+    io.BackendPlatformName = null;
+    io.BackendPlatformUserData = null;
     IM_DELETE(bd);
 }
 
@@ -193,7 +198,7 @@ static bool ImGui_ImplWin32_UpdateMouseCursor()
     if (imgui_cursor == ImGuiMouseCursor.None || io.MouseDrawCursor)
     {
         // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
-        SetCursor(NULL);
+        SetCursor(null);
     }
     else
     {
@@ -212,7 +217,7 @@ static bool ImGui_ImplWin32_UpdateMouseCursor()
         case ImGuiMouseCursor.NotAllowed:   win32_cursor = IDC_NO; break;
         default: break;
         }
-        SetCursor(LoadCursor(NULL, win32_cursor));
+        SetCursor(LoadCursor(null, win32_cursor));
     }
     return true;
 }
@@ -248,17 +253,17 @@ static void ImGui_ImplWin32_ProcessKeyEventsWorkarounds()
 static void ImGui_ImplWin32_UpdateKeyModifiers()
 {
     ImGuiIO* io = &ImGui.GetIO();
-    io.AddKeyEvent(ImGuiKey.ModCtrl, IsVkDown(VK_CONTROL));
-    io.AddKeyEvent(ImGuiKey.ModShift, IsVkDown(VK_SHIFT));
-    io.AddKeyEvent(ImGuiKey.ModAlt, IsVkDown(VK_MENU));
-    io.AddKeyEvent(ImGuiKey.ModSuper, IsVkDown(VK_APPS));
+    io.AddKeyEvent(ImGuiMod.Ctrl, IsVkDown(VK_CONTROL));
+    io.AddKeyEvent(ImGuiMod.Shift, IsVkDown(VK_SHIFT));
+    io.AddKeyEvent(ImGuiMod.Alt, IsVkDown(VK_MENU));
+    io.AddKeyEvent(ImGuiMod.Super, IsVkDown(VK_APPS));
 }
 
 static void ImGui_ImplWin32_UpdateMouseData()
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
     ImGuiIO* io = &ImGui.GetIO();
-    IM_ASSERT(bd.hWnd != NULL);
+    IM_ASSERT(bd.hWnd != null);
 
     const bool is_app_focused = (GetForegroundWindow() == bd.hWnd);
     if (is_app_focused)
@@ -287,8 +292,8 @@ static void ImGui_ImplWin32_UpdateGamepads()
 version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
     ImGuiIO* io = &ImGui.GetIO();
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
-    if ((io.ConfigFlags & ImGuiConfigFlags.NavEnableGamepad) == 0)
-        return;
+    //if ((io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad) == 0) // FIXME: Technically feeding gamepad shouldn't depend on this now that they are regular inputs.
+    //    return;
 
     // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
     // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
@@ -302,7 +307,7 @@ version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
     io.BackendFlags &= ~ImGuiBackendFlags.HasGamepad;
     XINPUT_STATE xinput_state;
     XINPUT_GAMEPAD* gamepad = &xinput_state.Gamepad;
-    if (!bd.HasGamepad || bd.XInputGetState == NULL || bd.XInputGetState(0, &xinput_state) != ERROR_SUCCESS)
+    if (!bd.HasGamepad || bd.XInputGetState == null || bd.XInputGetState(0, &xinput_state) != ERROR_SUCCESS)
         return;
     io.BackendFlags |= ImGuiBackendFlags.HasGamepad;
 
@@ -311,10 +316,10 @@ version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
     pragma(inline, true) void MAP_ANALOG(ImGuiKey KEY_NO, int VALUE, int V0, int V1)   { float vn = cast(float)(VALUE - V0) / cast(float)(V1 - V0); io.AddKeyAnalogEvent(KEY_NO, vn > 0.10f, IM_SATURATE(vn)); }
     MAP_BUTTON(ImGuiKey.GamepadStart,           XINPUT_GAMEPAD_START);
     MAP_BUTTON(ImGuiKey.GamepadBack,            XINPUT_GAMEPAD_BACK);
-    MAP_BUTTON(ImGuiKey.GamepadFaceDown,        XINPUT_GAMEPAD_A);
-    MAP_BUTTON(ImGuiKey.GamepadFaceRight,       XINPUT_GAMEPAD_B);
     MAP_BUTTON(ImGuiKey.GamepadFaceLeft,        XINPUT_GAMEPAD_X);
+    MAP_BUTTON(ImGuiKey.GamepadFaceRight,       XINPUT_GAMEPAD_B);
     MAP_BUTTON(ImGuiKey.GamepadFaceUp,          XINPUT_GAMEPAD_Y);
+    MAP_BUTTON(ImGuiKey.GamepadFaceDown,        XINPUT_GAMEPAD_A);
     MAP_BUTTON(ImGuiKey.GamepadDpadLeft,        XINPUT_GAMEPAD_DPAD_LEFT);
     MAP_BUTTON(ImGuiKey.GamepadDpadRight,       XINPUT_GAMEPAD_DPAD_RIGHT);
     MAP_BUTTON(ImGuiKey.GamepadDpadUp,          XINPUT_GAMEPAD_DPAD_UP);
@@ -342,7 +347,7 @@ void    ImGui_ImplWin32_NewFrame()
 {
     ImGuiIO* io = &ImGui.GetIO();
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
-    IM_ASSERT(bd != NULL && "Did you call ImGui_ImplWin32_Init()?");
+    IM_ASSERT(bd != null, "Did you call ImGui_ImplWin32_Init()?");
 
     // Setup display size (every frame to accommodate for window resizing)
     RECT rect = { 0, 0, 0, 0 };
@@ -490,12 +495,14 @@ static ImGuiKey ImGui_ImplWin32_VirtualKeyToImGuiKey(WPARAM wParam)
 }
 
 // Allow compilation with old Windows SDK. MinGW doesn't have default _WIN32_WINNT/WINVER versions.
-//#ifndef WM_MOUSEHWHEEL
-//enum WM_MOUSEHWHEEL = 0x020E;
-//#endif
-//#ifndef DBT_DEVNODES_CHANGED
-//enum DBT_DEVNODES_CHANGED = 0x0007;
-//#endif
+/+
+#ifndef WM_MOUSEHWHEEL
+#define WM_MOUSEHWHEEL 0x020E
+}
+#ifndef DBT_DEVNODES_CHANGED
+#define DBT_DEVNODES_CHANGED 0x0007
+}
++/
 
 // Win32 message handler (process Win32 mouse/keyboard inputs, etc.)
 // Call from your application's message handler. Keep calling your message handler unless this function returns TRUE.
@@ -511,7 +518,7 @@ extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam
 }
 LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if (ImGui.GetCurrentContext() == NULL)
+    if (ImGui.GetCurrentContext() == null)
         return 0;
 
     ImGuiIO* io = &ImGui.GetIO();
@@ -532,7 +539,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         break;
     case WM_MOUSELEAVE:
         if (bd.MouseHwnd == hwnd)
-            bd.MouseHwnd = NULL;
+            bd.MouseHwnd = null;
         bd.MouseTracked = false;
         io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
         break;
@@ -546,7 +553,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK) { button = 1; }
         if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONDBLCLK) { button = 2; }
         if (msg == WM_XBUTTONDOWN || msg == WM_XBUTTONDBLCLK) { button = (GET_XBUTTON_WPARAM(wParam) == XBUTTON1) ? 3 : 4; }
-        if (bd.MouseButtonsDown == 0 && GetCapture() == NULL)
+        if (bd.MouseButtonsDown == 0 && GetCapture() == null)
             SetCapture(hwnd);
         bd.MouseButtonsDown |= 1 << button;
         io.AddMouseButtonEvent(button, true);
@@ -622,9 +629,18 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         io.AddFocusEvent(msg == WM_SETFOCUS);
         return 0;
     case WM_CHAR:
-        // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
-        if (wParam > 0 && wParam < 0x10000)
-            io.AddInputCharacterUTF16(cast(short)wParam);
+        if (IsWindowUnicode(hwnd))
+        {
+            // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
+            if (wParam > 0 && wParam < 0x10000)
+                io.AddInputCharacterUTF16(cast(ushort)wParam);
+        }
+        else
+        {
+            wchar wch = 0;
+            MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, cast(char*)&wParam, 1, &wch, 1);
+            io.AddInputCharacter(wch);
+        }
         return 0;
     case WM_SETCURSOR:
         // This is required to restore cursor when transitioning from e.g resize borders to client area.
@@ -632,8 +648,10 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             return 1;
         return 0;
     case WM_DEVICECHANGE:
+version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
         if (cast(UINT)wParam == DBT_DEVNODES_CHANGED)
             bd.WantUpdateHasGamepad = true;
+}
         return 0;
     default:
         break;
@@ -673,11 +691,11 @@ pragma(inline, true) void VER_SET_CONDITION(ref ULONGLONG ConditionMask, DWORD T
 static BOOL _IsWindowsVersionOrGreater(WORD major, WORD minor, WORD)
 {
     alias PFN_RtlVerifyVersionInfo = extern(Windows) LONG function(OSVERSIONINFOEXW*, ULONG, ULONGLONG) nothrow @nogc;
-    static PFN_RtlVerifyVersionInfo RtlVerifyVersionInfoFn = NULL;
-	if (RtlVerifyVersionInfoFn == NULL)
+    static PFN_RtlVerifyVersionInfo RtlVerifyVersionInfoFn = null;
+	if (RtlVerifyVersionInfoFn == null)
 		if (HMODULE ntdllModule = GetModuleHandleA("ntdll.dll"))
 			RtlVerifyVersionInfoFn = cast(PFN_RtlVerifyVersionInfo)GetProcAddress(ntdllModule, "RtlVerifyVersionInfo");
-    if (RtlVerifyVersionInfoFn == NULL)
+    if (RtlVerifyVersionInfoFn == null)
         return FALSE;
 
     OSVERSIONINFOEXW versionInfo;
@@ -746,10 +764,10 @@ float ImGui_ImplWin32_GetDpiScaleForMonitor(void* monitor)
     if (_IsWindows8Point1OrGreater())
     {
 		/*static*/ HINSTANCE shcore_dll = LoadLibraryA("shcore.dll"); // Reference counted per-process
-		static PFN_GetDpiForMonitor GetDpiForMonitorFn = NULL;
-		if (GetDpiForMonitorFn == NULL && shcore_dll != NULL)
+		static PFN_GetDpiForMonitor GetDpiForMonitorFn = null;
+		if (GetDpiForMonitorFn == null && shcore_dll != null)
             GetDpiForMonitorFn = cast(PFN_GetDpiForMonitor)GetProcAddress(shcore_dll, "GetDpiForMonitor");
-		if (GetDpiForMonitorFn != NULL)
+		if (GetDpiForMonitorFn != null)
 		{
 			GetDpiForMonitorFn(cast(HMONITOR)monitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, &xdpi, &ydpi);
             IM_ASSERT(xdpi == ydpi); // Please contact me if you hit this assert!
@@ -757,11 +775,11 @@ float ImGui_ImplWin32_GetDpiScaleForMonitor(void* monitor)
 		}
     }
 //#ifndef NOGDI
-    /*const*/ HDC dc = GetDC(NULL);
+    /*const*/ HDC dc = GetDC(null);
     xdpi = GetDeviceCaps(dc, LOGPIXELSX);
     ydpi = GetDeviceCaps(dc, LOGPIXELSY);
     IM_ASSERT(xdpi == ydpi); // Please contact me if you hit this assert!
-    ReleaseDC(NULL, dc);
+    ReleaseDC(null, dc);
 //#endif
     return xdpi / 96.0f;
 }

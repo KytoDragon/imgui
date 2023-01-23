@@ -2,12 +2,11 @@
 	"authors": [
 		"Kyto"
 	],
-	"copyright": "Copyright © 2022 KytoDragon, Copyright (c) 2014-2022 Omar Cornut",
+	"copyright": "Copyright © 2022-2023 KytoDragon, Copyright (c) 2014-2023 Omar Cornut",
 	"name": "d_imgui",
 	"description": "Port of Dear Imgui: Bloat-free Immediate Mode Graphical User interface with minimal dependencies",
 	"homepage": "https://github.com/KytoDragon/imgui/",
 	"license": "MIT",
-    "version": "1.88.0-beta2",
 	"targetType": "sourceLibrary",
 	"libs-windows" : ["Imm32"],
 	"importPaths": [
@@ -17,7 +16,7 @@
 		"source/", "backends_d/"
 	],
 	"dependencies": {
-		"d_snprintf": "~>1.1.1"
+		"d_snprintf": "~>1.2.1"
 	},
 
 	"subPackages" : [
@@ -28,7 +27,7 @@
 			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_glfw_vulkan"],
 			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_vulkan.d"],
 			"dependencies"	: {
-				"d_snprintf"	: "~>1.1.1",
+				"d_snprintf"	: "~>1.2.1",
 				"bindbc-glfw"	: "~>1.0.0",
 				"erupted"		: "~>2.1",
 			},
@@ -50,7 +49,7 @@
 			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_glfw_opengl3"],
 			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_opengl3.d", "backends_d/imgui_impl_opengl3_loader.d"],
 			"dependencies"	: {
-				"d_snprintf"	: "~>1.1.1",
+				"d_snprintf"	: "~>1.2.1",
 				"bindbc-glfw"	: "~>1.0.0",
 		        "bindbc-opengl"	: "~>1.0.0",
 			},
@@ -73,7 +72,7 @@
 			"sourcePaths"	: ["source", "examples_d/common", "examples_d/example_win32_directx11"],
 			"sourceFiles"	: ["backends_d/imgui_impl_win32.d", "backends_d/imgui_impl_dx11.d", "backends_d/imgui_windows.d"],
 			"dependencies"	: {
-				"d_snprintf"	: "~>1.1.1",
+				"d_snprintf"	: "~>1.2.1",
                 "directx-d"     : "~>0.14.1",
 			},
 			"versions": [

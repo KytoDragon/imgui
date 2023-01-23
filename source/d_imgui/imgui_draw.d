@@ -1,4 +1,4 @@
-// dear imgui, v1.88
+// dear imgui, v1.89.2
 // (drawing and font code)
 module d_imgui.imgui_draw;
 
@@ -38,25 +38,13 @@ import d_imgui.imgui;
 
 import d_imgui.imgui_internal;
 
-/+#ifdef IMGUI_ENABLE_FREETYPE
+/+
+#ifdef IMGUI_ENABLE_FREETYPE
 #include "misc/freetype/imgui_freetype.h"
 #endif
 
 #include <stdio.h>      // vsnprintf, sscanf, printf
-#if !defined(alloca)
-#if defined(__GLIBC__) || defined(__sun) || defined(__APPLE__) || defined(__NEWLIB__)
-#include <alloca.h>     // alloca (glibc uses <alloca.h>. Note that Cygwin may have _WIN32 defined, so the order matters here)
-#elif defined(_WIN32)
-#include <malloc.h>     // alloca
-#if !defined(alloca)
-#define alloca _alloca  // for clang with MS Codegen
-#endif
-#else
-#include <stdlib.h>     // alloca
-#endif
-#endif
 +/
-import core.stdc.stdlib : alloca;
 
 nothrow:
 @nogc:
@@ -67,7 +55,6 @@ nothrow:
 #pragma warning (disable: 4127)     // condition expression is constant
 #pragma warning (disable: 4505)     // unreferenced local function has been removed (stb stuff)
 #pragma warning (disable: 4996)     // 'This function or variable may be unsafe': strcpy, strdup, sprintf, vsnprintf, sscanf, fopen
-#pragma warning (disable: 6255)     // [Static Analyzer] _alloca indicates failure by raising a stack overflow exception.  Consider using _malloca instead.
 #pragma warning (disable: 26451)    // [Static Analyzer] Arithmetic overflow : Using operator 'xxx' on a 4 byte value and then casting the result to a 8 byte value. Cast the value to the wider type before calling operator 'xxx' to avoid overflow(io.2).
 #pragma warning (disable: 26812)    // [Static Analyzer] The enum type 'xxx' is unscoped. Prefer 'enum class' over 'enum' (Enum.3). [MSVC Static Analyzer)
 #endif
@@ -78,9 +65,6 @@ nothrow:
 #if defined(__clang__)
 #if __has_warning("-Wunknown-warning-option")
 #pragma clang diagnostic ignored "-Wunknown-warning-option"         // warning: unknown warning group 'xxx'                      // not all warnings are known by all Clang versions and they tend to be rename-happy.. so ignoring warnings triggers new warnings on some configuration. Great!
-#endif
-#if __has_warning("-Walloca")
-#pragma clang diagnostic ignored "-Walloca"                         // warning: use of function '__builtin_alloca' is discouraged
 #endif
 #pragma clang diagnostic ignored "-Wunknown-pragmas"                // warning: unknown warning group 'xxx'
 #pragma clang diagnostic ignored "-Wold-style-cast"                 // warning: use of old-style cast                            // yes, they are more terse.
@@ -478,7 +462,7 @@ void _ClearFreeMemory()
 
 ImDrawList* CloneOutput() const
 {
-    ImDrawList* dst = IM_NEW!ImDrawList(_Data);
+    ImDrawList* dst = IM_NEW!ImDrawList(cast(ImDrawListSharedData*)_Data);
     dst.CmdBuffer = cast(ImVector!(ImDrawCmd))CmdBuffer;
     dst.IdxBuffer = cast(ImVector!(ushort))IdxBuffer;
     dst.VtxBuffer = cast(ImVector!(ImDrawVert))VtxBuffer;
@@ -502,11 +486,13 @@ void AddDrawCmd()
 // Note that this leaves the ImDrawList in a state unfit for further commands, as most code assume that CmdBuffer.Size > 0 && CmdBuffer.back().UserCallback == NULL
 void _PopUnusedDrawCmd()
 {
-    if (CmdBuffer.Size == 0)
-        return;
-    ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
-    if (curr_cmd.ElemCount == 0 && curr_cmd.UserCallback == NULL)
+    while (CmdBuffer.Size > 0)
+    {
+        ImDrawCmd* curr_cmd = &CmdBuffer.Data[CmdBuffer.Size - 1];
+        if (curr_cmd.ElemCount != 0 || curr_cmd.UserCallback != NULL)
+            return;// break;
         CmdBuffer.pop_back();
+    }
 }
 
 void AddCallback(ImDrawCallback callback, void* callback_data)
@@ -795,7 +781,8 @@ void AddPolyline(const ImVec2* points, const int points_count, ImU32 col, ImDraw
 
         // Temporary buffer
         // The first <points_count> items are normals at each line point, then after that there are either 2 or 4 temp points for each line point
-        ImVec2* temp_normals = cast(ImVec2*)alloca(points_count * ((use_texture || !thick_line) ? 3 : 5) * sizeof!(ImVec2)); //-V630
+        _Data.TempBuffer.reserve_discard(points_count * ((use_texture || !thick_line) ? 3 : 5));
+        ImVec2* temp_normals = _Data.TempBuffer.Data;
         ImVec2* temp_points = temp_normals + points_count;
 
         // Calculate normals (tangents) for each line segment
@@ -1043,7 +1030,8 @@ void AddConvexPolyFilled(const ImVec2* points, const int points_count, ImU32 col
         }
 
         // Compute normals
-        ImVec2* temp_normals = cast(ImVec2*)alloca(points_count * sizeof!(ImVec2)); //-V630
+        _Data.TempBuffer.reserve_discard(points_count);
+        ImVec2* temp_normals = _Data.TempBuffer.Data;
         for (int i0 = points_count - 1, i1 = 0; i1 < points_count; i0 = i1++)
         {
             const ImVec2/*&*/ p0 = points[i0];
@@ -1337,6 +1325,7 @@ void PathBezierCubicCurveTo(const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const Im
     ImVec2 p1 = _Path.back();
     if (num_segments == 0)
     {
+        IM_ASSERT(_Data.CurveTessellationTol > 0.0f);
         PathBezierCubicCurveToCasteljau(&_Path, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, _Data.CurveTessellationTol, 0); // Auto-tessellated
     }
     else
@@ -1352,6 +1341,7 @@ void PathBezierQuadraticCurveTo(const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, int 
     ImVec2 p1 = _Path.back();
     if (num_segments == 0)
     {
+        IM_ASSERT(_Data.CurveTessellationTol > 0.0f);
         PathBezierQuadraticCurveToCasteljau(&_Path, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, _Data.CurveTessellationTol, 0);// Auto-tessellated
     }
     else
@@ -1366,6 +1356,7 @@ static assert(ImDrawFlags.RoundCornersTopLeft == (1 << 4));
 static pragma(inline, true) ImDrawFlags FixRectCornerFlags(ImDrawFlags flags)
 {
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    // Obsoleted in 1.82 (from February 2021)
     // Legacy Support for hard coded ~0 (used to be a suggested equivalent to ImDrawCornerFlags_All)
     //   ~0   --> ImDrawFlags_RoundCornersAll or 0
     if (flags == ~0)
@@ -2386,10 +2377,11 @@ void    ImFontAtlasBuildMultiplyCalcLookupTable(ubyte[/*256*/] out_table, float 
 
 void    ImFontAtlasBuildMultiplyRectAlpha8(const ubyte[/*256*/] table, ubyte[] pixels, int x, int y, int w, int h, int stride)
 {
+    IM_ASSERT_PARANOID(w <= stride);
     ubyte* data = pixels.ptr + x + y * stride;
-    for (int j = h; j > 0; j--, data += stride)
-        for (int i = 0; i < w; i++)
-            data[i] = table[data[i]];
+    for (int j = h; j > 0; j--, data += stride - w)
+        for (int i = w; i > 0; i--, data++)
+            *data = table[*data];
 }
 
 static if (IMGUI_ENABLE_STB_TRUETYPE) {
@@ -2409,7 +2401,7 @@ struct ImFontBuildSrcData
     int                 GlyphsHighest;      // Highest requested codepoint
     int                 GlyphsCount;        // Glyph count (excluding missing glyphs and glyphs already set by an earlier source font)
     ImBitVector         GlyphsSet;          // Glyph bit map (random access, 1-bit per codepoint. This will be a maximum of 8KB)
-    ImVector!int       GlyphsList;         // Glyph codepoints list (flattened version of GlyphsMap)
+    ImVector!int       GlyphsList;         // Glyph codepoints list (flattened version of GlyphsSet)
 
     void destroy() {
         GlyphsSet.destroy();
@@ -2932,6 +2924,17 @@ const (ImWchar)*   GetGlyphRangesDefault()
     __gshared const ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        0,
+    ];
+    return &ranges[0];
+}
+
+const (ImWchar)*   GetGlyphRangesGreek()
+{
+    __gshared const ImWchar[] ranges =
+    [
+        0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        0x0370, 0x03FF, // Greek and Coptic
         0,
     ];
     return &ranges[0];
@@ -3471,11 +3474,22 @@ const (ImFontGlyph)* FindGlyphNoFallback(ImWchar c) const
     return &Glyphs.Data[i];
 }
 
+// Wrapping skips upcoming blanks
+static pragma(inline, true) size_t CalcWordWrapNextLineStartA(string text)
+{
+    size_t s;
+    while (s < text.length && ImCharIsBlankA(text[s]))
+        s++;
+    if (s < text.length && text[s] == '\n')
+        s++;
+    return s;
+}
+
+// Simple word-wrapping for English, not full-featured. Please submit failing cases!
+// This will return the next location to wrap from. If no wrapping if necessary, this will fast-forward to e.g. text_end.
+// FIXME: Much possible improvements (don't cut things like "word !", "word!!!" but cut within "word,,,,", more sensible support for punctuations, support for Unicode punctuations, etc.)
 size_t CalcWordWrapPositionA(float scale, string text, float wrap_width) const
 {
-    // Simple word-wrapping for English, not full-featured. Please submit failing cases!
-    // FIXME: Much possible improvements (don't cut things like "word !", "word!!!" but cut within "word,,,,", more sensible support for punctuations, support for Unicode punctuations, etc.)
-
     // For references, possible wrap point marked with ^
     //  "aaa bbb, ccc,ddd. eee   fff. ggg!"
     //      ^    ^    ^   ^   ^__    ^    ^
@@ -3487,7 +3501,6 @@ size_t CalcWordWrapPositionA(float scale, string text, float wrap_width) const
 
     // Cut words that cannot possibly fit within one line.
     // e.g.: "The tropical fish" with ~5 characters worth of width --> "The tr" "opical" "fish"
-
     float line_width = 0.0f;
     float word_width = 0.0f;
     float blank_width = 0.0f;
@@ -3567,6 +3580,10 @@ size_t CalcWordWrapPositionA(float scale, string text, float wrap_width) const
         s = next_s;
     }
 
+    // Wrap_width is too small to fit anything. Force displaying 1 character to minimize the height discontinuity.
+    // +1 may not be a character start point in UTF-8 but it's ok because caller loops use (text >= word_wrap_eol).
+    if (s == 0 && text.length > 0)
+        return s + 1;
     return s;
 }
 
@@ -3588,11 +3605,7 @@ ImVec2 CalcTextSizeA(float size, float max_width, float wrap_width, string text,
         {
             // Calculate how far we can render. Requires two passes on the string data but keeps the code simple and not intrusive for what's essentially an uncommon feature.
             if (word_wrap_eol == 0)
-            {
                 word_wrap_eol = s + CalcWordWrapPositionA(scale, text[s..$], wrap_width - line_width);
-                if (word_wrap_eol == s) // Wrap_width is too small to fit anything. Force displaying 1 character to minimize the height discontinuity.
-                    word_wrap_eol++;    // +1 may not be a character start point in UTF-8 but it's ok because we use s >= word_wrap_eol below
-            }
 
             if (s >= word_wrap_eol)
             {
@@ -3601,13 +3614,7 @@ ImVec2 CalcTextSizeA(float size, float max_width, float wrap_width, string text,
                 text_size.y += line_height;
                 line_width = 0.0f;
                 word_wrap_eol = 0;
-
-                // Wrapping skips upcoming blanks
-                while (s < text.length)
-                {
-                    char c = text[s];
-                    if (ImCharIsBlankA(c)) { s++; } else if (c == '\n') { s++; break; } else { break; }
-                }
+                s = s + CalcWordWrapNextLineStartA(text[s..$]); // Wrapping skips upcoming blanks
                 continue;
             }
         }
@@ -3689,15 +3696,26 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
     const float scale = size / FontSize;
     const float line_height = FontSize * scale;
     const bool word_wrap_enabled = (wrap_width > 0.0f);
-    size_t word_wrap_eol = 0;
 
     // Fast-forward to first visible line
     size_t s = 0;
-    if (y + line_height < clip_rect.y && !word_wrap_enabled)
+    if (y + line_height < clip_rect.y)
         while (y + line_height < clip_rect.y && s < text.length)
         {
-            ptrdiff_t index = ImIndexOf(text[s..$], '\n');
-            s = index >= 0 ? index + s + 1 : text.length;
+            ptrdiff_t line_end = ImIndexOf(text[s..$], '\n');
+            size_t line_next = line_end >= 0 ? line_end + s + 1 : text.length;
+            if (word_wrap_enabled)
+            {
+                // FIXME-OPT: This is not optimal as do first do a search for \n before calling CalcWordWrapPositionA().
+                // If the specs for CalcWordWrapPositionA() were reworked to optionally return on \n we could combine both.
+                // However it is still better than nothing performing the fast-forward!
+                s = s + CalcWordWrapPositionA(scale, text[s..line_next], wrap_width);
+                s = s + CalcWordWrapNextLineStartA(text[s..$]);
+            }
+            else
+            {
+                s = line_next;
+            }
             y += line_height;
         }
 
@@ -3729,6 +3747,7 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
     uint vtx_current_idx = draw_list._VtxCurrentIdx;
 
     const ImU32 col_untinted = col | ~IM_COL32_A_MASK;
+    size_t word_wrap_eol = 0;
 
     while (s < text.length)
     {
@@ -3736,24 +3755,14 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
         {
             // Calculate how far we can render. Requires two passes on the string data but keeps the code simple and not intrusive for what's essentially an uncommon feature.
             if (!word_wrap_eol)
-            {
                 word_wrap_eol = s + CalcWordWrapPositionA(scale, text[s..$], wrap_width - (x - start_x));
-                if (word_wrap_eol == s) // Wrap_width is too small to fit anything. Force displaying 1 character to minimize the height discontinuity.
-                    word_wrap_eol++;    // +1 may not be a character start point in UTF-8 but it's ok because we use s >= word_wrap_eol below
-            }
 
             if (s >= word_wrap_eol)
             {
                 x = start_x;
                 y += line_height;
                 word_wrap_eol = 0;
-
-                // Wrapping skips upcoming blanks
-                while (s < text.length)
-                {
-                    char c = text[s];
-                    if (ImCharIsBlankA(c)) { s++; } else if (c == '\n') { s++; break; } else { break; }
-                }
+                s = s + CalcWordWrapNextLineStartA(text[s..$]); // Wrapping skips upcoming blanks
                 continue;
             }
         }

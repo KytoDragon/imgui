@@ -14,6 +14,11 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2022-11-09: OpenGL: Reverted use of glBufferSubData(), too many corruptions issues + old issues seemingly can't be reproed with Intel drivers nowadays (revert 2021-12-15 and 2022-05-23 changes).
+//  2022-10-11: Using 'nullptr' instead of 'NULL' as per our switch to C++11.
+//  2022-09-27: OpenGL: Added ability to '#define IMGUI_IMPL_OPENGL_DEBUG'.
+//  2022-05-23: OpenGL: Reworking 2021-12-15 "Using buffer orphaning" so it only happens on Intel GPU, seems to cause problems otherwise. (#4468, #4825, #4832, #5127).
+//  2022-05-13: OpenGL: Fix state corruption on OpenGL ES 2.0 due to not preserving GL_ELEMENT_ARRAY_BUFFER_BINDING and vertex attribute states.
 //  2021-12-15: OpenGL: Using buffer orphaning + glBufferSubData(), seems to fix leaks with multi-viewports with some Intel HD drivers.
 //  2021-08-23: OpenGL: Fixed ES 3.0 shader ("#version 300 es") use normal precision floats to avoid wobbly rendering at HD resolutions.
 //  2021-08-19: OpenGL: Embed and use our own minimal GL loader (imgui_impl_opengl3_loader.h), removing requirement and support for third-party loader.
@@ -54,7 +59,7 @@
 //  2018-06-08: Misc: Extracted imgui_impl_opengl3.cpp/.h away from the old combined GLFW/SDL+OpenGL3 examples.
 //  2018-06-08: OpenGL: Use draw_data->DisplayPos and draw_data->DisplaySize to setup projection matrix and clipping rectangle.
 //  2018-05-25: OpenGL: Removed unnecessary backup/restore of GL_ELEMENT_ARRAY_BUFFER_BINDING since this is part of the VAO state.
-//  2018-05-14: OpenGL: Making the call to glBindSampler() optional so 3.2 context won't fail if the function is a NULL pointer.
+//  2018-05-14: OpenGL: Making the call to glBindSampler() optional so 3.2 context won't fail if the function is a nullptr pointer.
 //  2018-03-06: OpenGL: Added const char* glsl_version parameter to ImGui_ImplOpenGL3_Init() so user can override the GLSL version e.g. "#version 150".
 //  2018-02-23: OpenGL: Create the VAO in the render function so the setup can more easily be used with multiple shared GL context.
 //  2018-02-16: Misc: Obsoleted the io.RenderDrawListsFn callback and exposed ImGui_ImplSdlGL3_RenderDrawData() in the .h file so you can call it yourself.
@@ -101,12 +106,16 @@ import ImGui = d_imgui.imgui;
 import d_imgui.imgui_h;
 import d_imgui.imconfig;
 //#include "imgui_impl_opengl3.h"
-import core.stdc.stdio : fprintf, sscanf, stderr;
+import core.stdc.stdio : stderr;
+import d_snprintf.snscanf;
 //#if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
 //#include <stddef.h>     // intptr_t
-//#else
+//} else {
 import core.stdc.stdint : intptr_t;
-//#endif
+//}
+//#if defined(__APPLE__)
+//#include <TargetConditionals.h>
+//}
 import core.stdc.string : strcpy, strcat, strcmp;
 
 // Clang warnings with -Weverything
@@ -115,10 +124,11 @@ import core.stdc.string : strcpy, strcat, strcmp;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"     // warning: use of old-style cast
 #pragma clang diagnostic ignored "-Wsign-conversion"    // warning: implicit conversion changes signedness
-#if __has_warning("-Wzero-as-null-pointer-constant")
-#pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
-#endif
-#endif
+}
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"   // warning: cast between incompatible function types
+}
 +/
 
 // GL includes
@@ -126,24 +136,21 @@ import core.stdc.string : strcpy, strcat, strcmp;
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #if (defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV))
 #include <OpenGLES/ES2/gl.h>    // Use GL ES 2
-#else
+} else {
 #include <GLES2/gl2.h>          // Use GL ES 2
-#endif
+}
 #if defined(__EMSCRIPTEN__)
 #ifndef GL_GLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES
-#endif
+}
 #include <GLES2/gl2ext.h>
-#endif
+}
 #elif defined(IMGUI_IMPL_OPENGL_ES3)
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#endif
 #if (defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV))
 #include <OpenGLES/ES3/gl.h>    // Use GL ES 3
-#else
+} else {
 #include <GLES3/gl3.h>          // Use GL ES 3
-#endif
+}
 #elif !defined(IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
 // Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
 // Helper libraries are often used for this purpose! Here we are using our own minimal custom loader based on gl3w.
@@ -154,7 +161,7 @@ import core.stdc.string : strcpy, strcat, strcmp;
 // Changes to this backend using new APIs should be accompanied by a regenerated stripped loader version.
 #define IMGL3W_IMPL
 #include "imgui_impl_opengl3_loader.h"
-#endif
+}
 
 // Vertex arrays are not supported on ES2/WebGL1 unless Emscripten which uses an extension
 #ifndef IMGUI_IMPL_OPENGL_ES2
@@ -179,7 +186,7 @@ enum IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY = !IMGUI_IMPL_OPENGL_ES2;
 /+
 #ifdef GL_POLYGON_MODE
 #define IMGUI_IMPL_HAS_POLYGON_MODE
-#endif
+}
 +/
 enum IMGUI_IMPL_HAS_POLYGON_MODE = glSupport >= 20;
 
@@ -187,7 +194,7 @@ enum IMGUI_IMPL_HAS_POLYGON_MODE = glSupport >= 20;
 /+
 #if !defined(IMGUI_IMPL_OPENGL_ES2) && !defined(IMGUI_IMPL_OPENGL_ES3) && defined(GL_VERSION_3_2)
 #define IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET
-#endif
+}
 +/
 enum IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET = glSupport >= 32;
 
@@ -195,7 +202,7 @@ enum IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET = glSupport >= 32;
 /+
 #if !defined(IMGUI_IMPL_OPENGL_ES2) && !defined(IMGUI_IMPL_OPENGL_ES3) && defined(GL_VERSION_3_3)
 #define IMGUI_IMPL_OPENGL_MAY_HAVE_BIND_SAMPLER
-#endif
+}
 +/
 enum IMGUI_IMPL_OPENGL_MAY_HAVE_BIND_SAMPLER = glSupport >= 33;
 
@@ -203,7 +210,7 @@ enum IMGUI_IMPL_OPENGL_MAY_HAVE_BIND_SAMPLER = glSupport >= 33;
 /+
 #if !defined(IMGUI_IMPL_OPENGL_ES2) && !defined(IMGUI_IMPL_OPENGL_ES3) && defined(GL_VERSION_3_1)
 #define IMGUI_IMPL_OPENGL_MAY_HAVE_PRIMITIVE_RESTART
-#endif
+}
 +/
 enum IMGUI_IMPL_OPENGL_MAY_HAVE_PRIMITIVE_RESTART = glSupport >= 31;
 
@@ -211,15 +218,25 @@ enum IMGUI_IMPL_OPENGL_MAY_HAVE_PRIMITIVE_RESTART = glSupport >= 31;
 /+
 #if !defined(IMGUI_IMPL_OPENGL_ES2) && !defined(IMGUI_IMPL_OPENGL_ES3)
 #define IMGUI_IMPL_OPENGL_MAY_HAVE_EXTENSIONS
-#endif
+}
 +/
 enum IMGUI_IMPL_OPENGL_MAY_HAVE_EXTENSIONS = !IMGUI_IMPL_OPENGL_ES2 && !IMGUI_IMPL_OPENGL_ES3;
+
+// [Debugging]
+// D_IMGUI: D does not allow for void parameters, making this impossible
+//#define IMGUI_IMPL_OPENGL_DEBUG
+version (IMGUI_IMPL_OPENGL_DEBUG) {
+//#include <stdio.h>
+//    void GL_CALL(T...)(T _CALL, string file = __FILE__, size_t line = __LINE__)      { GLenum gl_err = glGetError(); if (gl_err != 0) fprintf(stderr, "GL error 0x%x returned from '%s:%d'.\n", gl_err, file, line); }  // Call with error check
+} else {
+//    void GL_CALL(T...)(T _CALL)      {}   // Call without error check
+}
 
 // OpenGL Data
 struct ImGui_ImplOpenGL3_Data
 {
     GLuint          GlVersion;               // Extracted at runtime using GL_MAJOR_VERSION, GL_MINOR_VERSION queries (e.g. 320 for GL 3.2)
-    char[32]            GlslVersionString;   // Specified by user or detected based on compile time GL settings.
+    char[32]            GlslVersionString = "";   // Specified by user or detected based on compile time GL settings.
     GLuint          FontTexture;
     GLuint          ShaderHandle;
     GLint           AttribLocationTex;       // Uniforms location
@@ -231,6 +248,7 @@ struct ImGui_ImplOpenGL3_Data
     GLsizeiptr      VertexBufferSize;
     GLsizeiptr      IndexBufferSize;
     bool            HasClipOrigin;
+    bool            UseBufferSubData;
 
     //ImGui_ImplOpenGL3_Data() { memset(&this, 0, sizeof(this)); }
 };
@@ -242,11 +260,35 @@ static ImGui_ImplOpenGL3_Data* ImGui_ImplOpenGL3_GetBackendData()
     return ImGui.GetCurrentContext() ? cast(ImGui_ImplOpenGL3_Data*)ImGui.GetIO().BackendRendererUserData : NULL;
 }
 
+// OpenGL vertex attribute state (for ES 1.0 and ES 2.0 only)
+static if (!IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
+struct ImGui_ImplOpenGL3_VtxAttribState
+{
+    GLint   Enabled, Size, Type, Normalized, Stride;
+    GLvoid* Ptr;
+
+    void GetState(GLint index)
+    {
+        glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &Enabled);
+        glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_SIZE, &Size);
+        glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_TYPE, &Type);
+        glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, &Normalized);
+        glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_STRIDE, &Stride);
+        glGetVertexAttribPointerv(index, GL_VERTEX_ATTRIB_ARRAY_POINTER, &Ptr);
+    }
+    void SetState(GLint index)
+    {
+        glVertexAttribPointer(index, Size, Type, cast(GLboolean)Normalized, Stride, Ptr);
+        if (Enabled) glEnableVertexAttribArray(index); else glDisableVertexAttribArray(index);
+    }
+}
+}
+
 // Functions
 bool    ImGui_ImplOpenGL3_Init(string glsl_version = NULL)
 {
     ImGuiIO* io = &ImGui.GetIO();
-    IM_ASSERT(io.BackendRendererUserData == NULL, "Already initialized a renderer backend!");
+    IM_ASSERT(io.BackendRendererUserData == null, "Already initialized a renderer backend!");
 
     // Initialize our loader
 static if (!IMGUI_IMPL_OPENGL_ES2 && !IMGUI_IMPL_OPENGL_ES3 && !IMGUI_IMPL_OPENGL_LOADER_CUSTOM) {
@@ -271,12 +313,26 @@ static if (!IMGUI_IMPL_OPENGL_ES2) {
     if (major == 0 && minor == 0)
     {
         // Query GL_VERSION in desktop GL 2.x, the string will start with "<major>.<minor>"
-        const char* gl_version = cast(const char*)glGetString(GL_VERSION);
-        sscanf(gl_version, "%d.%d", &major, &minor);
+        string gl_version = ImGui.ImCstring(glGetString(GL_VERSION));
+        snscanf(gl_version, "%d.%d", &major, &minor);
     }
     bd.GlVersion = cast(GLuint)(major * 100 + minor * 10);
+
+    bd.UseBufferSubData = false;
+    /*
+    // Query vendor to enable glBufferSubData kludge
+#ifdef _WIN32
+    if (const char* vendor = (const char*)glGetString(GL_VENDOR))
+        if (strncmp(vendor, "Intel", 5) == 0)
+            bd->UseBufferSubData = true;
+#endif
+    */
 } else {
     bd.GlVersion = 200; // GLES 2
+}
+
+version (IMGUI_IMPL_OPENGL_DEBUG) {
+    printf("GL_MAJOR_VERSION = %d\nGL_MINOR_VERSION = %d\nGL_VENDOR = '%s'\nGL_RENDERER = '%s'\n", major, minor, cast(const char*)glGetString(GL_VENDOR), cast(const char*)glGetString(GL_RENDERER)); // [DEBUG]
 }
 
 static if (IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET) {
@@ -285,8 +341,8 @@ static if (IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET) {
 }
 
     // Store GLSL version string so we can refer to it later in case we recreate shaders.
-    // Note: GLSL version is NOT the same as GL version. Leave this to NULL if unsure.
-    if (glsl_version == NULL)
+    // Note: GLSL version is NOT the same as GL version. Leave this to nullptr if unsure.
+    if (glsl_version == null)
     {
 static if (IMGUI_IMPL_OPENGL_ES2) {
         glsl_version = "#version 100";
@@ -315,7 +371,7 @@ static if (IMGUI_IMPL_OPENGL_MAY_HAVE_EXTENSIONS) {
     for (GLint i = 0; i < num_extensions; i++)
     {
         const char* extension = cast(const char*)glGetStringi(GL_EXTENSIONS, i);
-        if (extension != NULL && strcmp(extension, "GL_ARB_clip_control") == 0)
+        if (extension != null && strcmp(extension, "GL_ARB_clip_control") == 0)
             bd.HasClipOrigin = true;
     }
 }
@@ -326,19 +382,19 @@ static if (IMGUI_IMPL_OPENGL_MAY_HAVE_EXTENSIONS) {
 void    ImGui_ImplOpenGL3_Shutdown()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
-    IM_ASSERT(bd != NULL, "No renderer backend to shutdown, or already shutdown?");
+    IM_ASSERT(bd != null, "No renderer backend to shutdown, or already shutdown?");
     ImGuiIO* io = &ImGui.GetIO();
 
     ImGui_ImplOpenGL3_DestroyDeviceObjects();
-    io.BackendRendererName = NULL;
-    io.BackendRendererUserData = NULL;
+    io.BackendRendererName = null;
+    io.BackendRendererUserData = null;
     IM_DELETE(bd);
 }
 
 void    ImGui_ImplOpenGL3_NewFrame()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
-    IM_ASSERT(bd != NULL, "Did you call ImGui_ImplOpenGL3_Init()?");
+    IM_ASSERT(bd != null, "Did you call ImGui_ImplOpenGL3_Init()?");
 
     if (!bd.ShaderHandle)
         ImGui_ImplOpenGL3_CreateDeviceObjects();
@@ -414,7 +470,7 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
     glEnableVertexAttribArray(bd.AttribLocationVtxColor);
     glVertexAttribPointer(bd.AttribLocationVtxPos,   2, GL_FLOAT,         GL_FALSE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.pos.offsetof));
     glVertexAttribPointer(bd.AttribLocationVtxUV,    2, GL_FLOAT,         GL_FALSE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.uv.offsetof));
-    glVertexAttribPointer(bd.AttribLocationVtxColor, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.col.offsetof));
+    glVertexAttribPointer(bd.AttribLocationVtxColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.col.offsetof));
 }
 
 // OpenGL3 Render function.
@@ -439,6 +495,13 @@ static if (IMGUI_IMPL_OPENGL_MAY_HAVE_BIND_SAMPLER) {
     GLuint last_sampler; if (bd.GlVersion >= 330) { glGetIntegerv(GL_SAMPLER_BINDING, cast(GLint*)&last_sampler); } else { last_sampler = 0; }
 }
     GLuint last_array_buffer; glGetIntegerv(GL_ARRAY_BUFFER_BINDING, cast(GLint*)&last_array_buffer);
+static if (!IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
+    // This is part of VAO on OpenGL 3.0+ and OpenGL ES 3.0+.
+    GLint last_element_array_buffer; glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &last_element_array_buffer);
+    ImGui_ImplOpenGL3_VtxAttribState last_vtx_attrib_state_pos; last_vtx_attrib_state_pos.GetState(bd.AttribLocationVtxPos);
+    ImGui_ImplOpenGL3_VtxAttribState last_vtx_attrib_state_uv; last_vtx_attrib_state_uv.GetState(bd.AttribLocationVtxUV);
+    ImGui_ImplOpenGL3_VtxAttribState last_vtx_attrib_state_color; last_vtx_attrib_state_color.GetState(bd.AttribLocationVtxColor);
+}
 static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
     GLuint last_vertex_array_object; glGetIntegerv(GL_VERTEX_ARRAY_BINDING, cast(GLint*)&last_vertex_array_object);
 }
@@ -481,25 +544,40 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
         const ImDrawList* cmd_list = draw_data.CmdLists[n];
 
         // Upload vertex/index buffers
+        // - OpenGL drivers are in a very sorry state nowadays....
+        //   During 2021 we attempted to switch from glBufferData() to orphaning+glBufferSubData() following reports
+        //   of leaks on Intel GPU when using multi-viewports on Windows.
+        // - After this we kept hearing of various display corruptions issues. We started disabling on non-Intel GPU, but issues still got reported on Intel.
+        // - We are now back to using exclusively glBufferData(). So bd->UseBufferSubData IS ALWAYS FALSE in this code.
+        //   We are keeping the old code path for a while in case people finding new issues may want to test the bd->UseBufferSubData path.
+        // - See https://github.com/ocornut/imgui/issues/4468 and please report any corruption issues.
         GLsizeiptr vtx_buffer_size = cast(GLsizeiptr)cmd_list.VtxBuffer.Size * cast(int)sizeof!(ImDrawVert);
         GLsizeiptr idx_buffer_size = cast(GLsizeiptr)cmd_list.IdxBuffer.Size * cast(int)sizeof!(ImDrawIdx);
-        if (bd.VertexBufferSize < vtx_buffer_size)
+        if (bd.UseBufferSubData)
         {
-            bd.VertexBufferSize = vtx_buffer_size;
-            glBufferData(GL_ARRAY_BUFFER, bd.VertexBufferSize, NULL, GL_STREAM_DRAW);
+            if (bd.VertexBufferSize < vtx_buffer_size)
+            {
+                bd.VertexBufferSize = vtx_buffer_size;
+                glBufferData(GL_ARRAY_BUFFER, bd.VertexBufferSize, null, GL_STREAM_DRAW);
+            }
+            if (bd.IndexBufferSize < idx_buffer_size)
+            {
+                bd.IndexBufferSize = idx_buffer_size;
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, bd.IndexBufferSize, null, GL_STREAM_DRAW);
+            }
+            glBufferSubData(GL_ARRAY_BUFFER, 0, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data);
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data);
         }
-        if (bd.IndexBufferSize < idx_buffer_size)
+        else
         {
-            bd.IndexBufferSize = idx_buffer_size;
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, bd.IndexBufferSize, NULL, GL_STREAM_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data, GL_STREAM_DRAW);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data, GL_STREAM_DRAW);
         }
-        glBufferSubData(GL_ARRAY_BUFFER, 0, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data);
 
         for (int cmd_i = 0; cmd_i < cmd_list.CmdBuffer.Size; cmd_i++)
         {
             const ImDrawCmd* pcmd = &cmd_list.CmdBuffer[cmd_i];
-            if (pcmd.UserCallback != NULL)
+            if (pcmd.UserCallback != null)
             {
                 // User callback, registered via ImDrawList::AddCallback()
                 // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
@@ -526,8 +604,9 @@ static if (IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET) {
                     glDrawElementsBaseVertex(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)), cast(GLint)pcmd.VtxOffset);
                 else
                     glDrawElements(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
-}
+} else {
                 glDrawElements(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
+}
             }
         }
     }
@@ -549,6 +628,12 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
     glBindVertexArray(last_vertex_array_object);
 }
     glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
+static if (!IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, last_element_array_buffer);
+    last_vtx_attrib_state_pos.SetState(bd.AttribLocationVtxPos);
+    last_vtx_attrib_state_uv.SetState(bd.AttribLocationVtxUV);
+    last_vtx_attrib_state_color.SetState(bd.AttribLocationVtxColor);
+}
     glBlendEquationSeparate(last_blend_equation_rgb, last_blend_equation_alpha);
     glBlendFuncSeparate(last_blend_src_rgb, last_blend_dst_rgb, last_blend_src_alpha, last_blend_dst_alpha);
     if (last_enable_blend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
@@ -625,7 +710,7 @@ static bool CheckShader(GLuint handle, const char* desc)
         ImVector!char buf;
 		scope(exit)buf.destroy();
         buf.resize(cast(int)(log_length + 1));
-        glGetShaderInfoLog(handle, log_length, NULL, cast(GLchar*)buf.begin());
+        glGetShaderInfoLog(handle, log_length, null, cast(GLchar*)buf.begin());
         fprintf(stderr, "%s\n", buf.begin());
     }
     return cast(GLboolean)status == GL_TRUE;
@@ -645,7 +730,7 @@ static bool CheckProgram(GLuint handle, const char* desc)
         ImVector!char buf;
 		scope(exit)buf.destroy();
         buf.resize(cast(int)(log_length + 1));
-        glGetProgramInfoLog(handle, log_length, NULL, cast(GLchar*)buf.begin());
+        glGetProgramInfoLog(handle, log_length, null, cast(GLchar*)buf.begin());
         fprintf(stderr, "%s\n", buf.begin());
     }
     return cast(GLboolean)status == GL_TRUE;
@@ -666,7 +751,7 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
 
     // Parse GLSL version string
     int glsl_version = 130;
-    sscanf(bd.GlslVersionString.ptr, "#version %d", &glsl_version);
+    snscanf(ImGui.ImCstring(bd.GlslVersionString), "#version %d", &glsl_version);
 
     const GLchar* vertex_shader_glsl_120 =
         "uniform mat4 ProjMtx;\n"
@@ -769,8 +854,8 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
         ~"}\n";
 
     // Select shaders matching our GLSL versions
-    const (GLchar)* vertex_shader = NULL;
-    const (GLchar)* fragment_shader = NULL;
+    const (GLchar)* vertex_shader = null;
+    const (GLchar)* fragment_shader = null;
     if (glsl_version < 130)
     {
         vertex_shader = vertex_shader_glsl_120;
@@ -795,13 +880,13 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
     // Create shaders
     const GLchar*[2] vertex_shader_with_version = [ bd.GlslVersionString.ptr, vertex_shader ];
     GLuint vert_handle = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vert_handle, 2, vertex_shader_with_version.ptr, NULL);
+    glShaderSource(vert_handle, 2, vertex_shader_with_version.ptr, null);
     glCompileShader(vert_handle);
     CheckShader(vert_handle, "vertex shader");
 
     const GLchar*[2] fragment_shader_with_version = [ bd.GlslVersionString.ptr, fragment_shader ];
     GLuint frag_handle = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(frag_handle, 2, fragment_shader_with_version.ptr, NULL);
+    glShaderSource(frag_handle, 2, fragment_shader_with_version.ptr, null);
     glCompileShader(frag_handle);
     CheckShader(frag_handle, "fragment shader");
 
@@ -849,7 +934,10 @@ void    ImGui_ImplOpenGL3_DestroyDeviceObjects()
 }
 
 /+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+}
 #if defined(__clang__)
 #pragma clang diagnostic pop
-#endif
+}
 +/

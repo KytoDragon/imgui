@@ -126,11 +126,6 @@ enum D_IMGUI_USER_DEFINED_DRAW_CALLBACK = false;
 enum D_IMGUI_USER_DEFINED_DEBUG_BREAK = false;
 // void IM_DEBUG_BREAK()
 
-//---- Debug Tools: Have the Item Picker break in the ItemAdd() function instead of ItemHoverable(),
-// (which comes earlier in the code, will catch a few extra items, allow picking items other than Hovered one.)
-// This adds a small runtime cost which is why it is not enabled by default.
-enum IMGUI_DEBUG_TOOL_ITEM_PICKER_EX = false;
-
 //---- Debug Tools: Enable slower asserts
 enum IMGUI_DEBUG_PARANOID = false;
 
