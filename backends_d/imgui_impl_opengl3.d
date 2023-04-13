@@ -106,7 +106,7 @@ import ImGui = d_imgui.imgui;
 import d_imgui.imgui_h;
 import d_imgui.imconfig;
 //#include "imgui_impl_opengl3.h"
-import core.stdc.stdio : stderr;
+import core.stdc.stdio : stderr, fprintf;
 import d_snprintf.snscanf;
 //#if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
 //#include <stddef.h>     // intptr_t

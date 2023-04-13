@@ -2462,6 +2462,11 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
 		TempBuffer.destroy();
 		ItemFlagsStack.destroy();
         DebugLogBuf.destroy();
+        ClipperTempData.destroy();
+        TablesTempData.destroy();
+        TablesLastTimeActive.destroy();
+        DrawChannelsTempMergeBuffer.destroy();
+        Tables.destroy();
 
         IO.destroy();
         SettingsIniData.destroy();
@@ -2471,6 +2476,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         TabBars.destroy();
         SettingsWindows.destroy();
         InputTextState.destroy();
+        FocusScopeStack.destroy();
     }
 }
 
@@ -2981,7 +2987,7 @@ struct ImGuiTable
 
     @disable this();
     this(bool dummy)                { memset(&this, 0, sizeof(this)); LastFrameActive = -1; }
-    void destroy()               { IM_FREE(RawData); SortSpecsMulti.destroy(); InstanceDataExtra.destroy(); }
+    void destroy()               { IM_FREE(RawData); SortSpecsMulti.destroy(); InstanceDataExtra.destroy(); ColumnsNames.destroy(); }
 }
 
 // Transient data that are only needed between BeginTable() and EndTable(), those buffers are shared (1 per level of stacked table).
@@ -3009,6 +3015,7 @@ struct ImGuiTableTempData
 
     @disable this();
     this(bool dummy)        { memset(&this, 0, sizeof(this)); LastTimeActive = -1.0f; }
+    void destroy() {DrawSplitter.destroy();}
 }
 
 // sizeof() ~ 12

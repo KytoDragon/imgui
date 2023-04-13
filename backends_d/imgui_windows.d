@@ -20,6 +20,8 @@ enum MONITOR_DPI_TYPE { MDT_EFFECTIVE_DPI = 0, MDT_ANGULAR_DPI = 1, MDT_RAW_DPI 
 
 BOOL SetProcessDPIAware();
 
+extern(D): // Prevent naming comflict in case the user has already defined these macros
+
 import core.stdc.string : memset, memcpy, memmove;
 alias RtlMoveMemory = memmove;
 alias RtlCopyMemory = memcpy;
