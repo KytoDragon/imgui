@@ -3,7 +3,7 @@ public import core.sys.windows.winuser;
 public import core.sys.windows.dbt;
 
 // D_IMGUI: define all functions, types or enums missing in druntime
-extern(Windows):
+version(Windows) extern(Windows):
 nothrow @nogc:
 
 enum WM_MOUSEHWHEEL = 0x020E;
