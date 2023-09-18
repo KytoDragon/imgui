@@ -1,4 +1,4 @@
-// dear imgui, v1.89.2
+// dear imgui, v1.89.3
 // (drawing and font code)
 module d_imgui.imgui_draw;
 
@@ -428,6 +428,8 @@ void _ResetForNewFrame()
     IM_STATIC_ASSERT!(ImDrawCmd.ClipRect.offsetof == 0);
     IM_STATIC_ASSERT!(ImDrawCmd.TextureId.offsetof == sizeof!(ImVec4));
     IM_STATIC_ASSERT!(ImDrawCmd.VtxOffset.offsetof == sizeof!(ImVec4) + sizeof!(ImTextureID));
+    if (_Splitter._Count > 1)
+        _Splitter.Merge(&this._data);
 
     CmdBuffer.resize(0);
     IdxBuffer.resize(0);
@@ -748,7 +750,7 @@ pragma(inline, true) void IM_FIXNORMAL2F(ref float VX, ref float VY)            
 // We avoid using the ImVec2 math operators here to reduce cost to a minimum for debug/non-inlined builds.
 void AddPolyline(const ImVec2* points, const int points_count, ImU32 col, ImDrawFlags flags, float thickness)
 {
-    if (points_count < 2)
+    if (points_count < 2 || (col & IM_COL32_A_MASK) == 0)
         return;
 
     const bool closed = (flags & ImDrawFlags.Closed) != 0;
@@ -1006,7 +1008,7 @@ void AddPolyline(const ImVec2* points, const int points_count, ImU32 col, ImDraw
 // - Filled shapes must always use clockwise winding order. The anti-aliasing fringe depends on it. Counter-clockwise shapes will have "inward" anti-aliasing.
 void AddConvexPolyFilled(const ImVec2* points, const int points_count, ImU32 col)
 {
-    if (points_count < 3)
+    if (points_count < 3 || (col & IM_COL32_A_MASK) == 0)
         return;
 
     const ImVec2 uv = _Data.TexUvWhitePixel;
@@ -2487,7 +2489,12 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
         ImFontBuildDstData* dst_tmp = &dst_tmp_array[src_tmp.DstIndex];
         src_tmp.SrcRanges = cfg.GlyphRanges ? cfg.GlyphRanges : atlas.GetGlyphRangesDefault();
         for (const (ImWchar)* src_range = src_tmp.SrcRanges; src_range[0] && src_range[1]; src_range += 2)
+        {
+            // Check for valid range. This may also help detect *some* dangling pointers, because a common
+            // user error is to setup ImFontConfig::GlyphRanges with a pointer to data that isn't persistent.
+            IM_ASSERT(src_range[0] <= src_range[1]);
             src_tmp.GlyphsHighest = ImMax(src_tmp.GlyphsHighest, cast(int)src_range[1]);
+        }
         dst_tmp.SrcCount++;
         dst_tmp.GlyphsHighest = ImMax(dst_tmp.GlyphsHighest, src_tmp.GlyphsHighest);
     }
@@ -3056,19 +3063,19 @@ const (ImWchar)*  GetGlyphRangesJapanese()
     // 2999 ideograms code points for Japanese
     // - 2136 Joyo (meaning "for regular use" or "for common use") Kanji code points
     // - 863 Jinmeiyo (meaning "for personal name") Kanji code points
-    // - Sourced from the character information database of the Information-technology Promotion Agency, Japan
-    //   - https://mojikiban.ipa.go.jp/mji/
-    //   - Available under the terms of the Creative Commons Attribution-ShareAlike 2.1 Japan (CC BY-SA 2.1 JP).
-    //     - https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en
-    //     - https://creativecommons.org/licenses/by-sa/2.1/jp/legalcode
-    //   - You can generate this code by the script at:
-    //     - https://github.com/vaiorabbit/everyday_use_kanji
+    // - Sourced from official information provided by the government agencies of Japan:
+    //   - List of Joyo Kanji by the Agency for Cultural Affairs
+    //     - https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/kanji/
+    //   - List of Jinmeiyo Kanji by the Ministry of Justice
+    //     - http://www.moj.go.jp/MINJI/minji86.html
+    //   - Available under the terms of the Creative Commons Attribution 4.0 International (CC BY 4.0).
+    //     - https://creativecommons.org/licenses/by/4.0/legalcode
+    // - You can generate this code by the script at:
+    //   - https://github.com/vaiorabbit/everyday_use_kanji
     // - References:
     //   - List of Joyo Kanji
-    //     - (Official list by the Agency for Cultural Affairs) https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kakuki/14/tosin02/index.html
     //     - (Wikipedia) https://en.wikipedia.org/wiki/List_of_j%C5%8Dy%C5%8D_kanji
     //   - List of Jinmeiyo Kanji
-    //     - (Official list by the Ministry of Justice) http://www.moj.go.jp/MINJI/minji86.html
     //     - (Wikipedia) https://en.wikipedia.org/wiki/Jinmeiy%C5%8D_kanji
     // - Missing 1 Joyo Kanji: U+20B9F (Kun'yomi: Shikaru, On'yomi: Shitsu,shichi), see https://github.com/ocornut/imgui/pull/3627 for details.
     // You can use ImFontGlyphRangesBuilder to create your own ranges derived from this, by merging existing ranges or adding new characters.
@@ -3253,7 +3260,8 @@ this(bool dummy)
     FallbackAdvanceX = 0.0f;
     FallbackChar = cast(ImWchar)-1;
     EllipsisChar = cast(ImWchar)-1;
-    DotChar = cast(ImWchar)-1;
+    EllipsisWidth = EllipsisCharStep = 0.0f;
+    EllipsisCharCount = 0;
     FallbackGlyph = NULL;
     ContainerAtlas = NULL;
     ConfigData = NULL;
@@ -3341,8 +3349,20 @@ void BuildLookupTable()
     const ImWchar[2] dots_chars = [ cast(ImWchar)'.', cast(ImWchar)0xFF0E ];
     if (EllipsisChar == cast(ImWchar)-1)
         EllipsisChar = FindFirstExistingGlyph(&_data, ellipsis_chars);
-    if (DotChar == cast(ImWchar)-1)
-        DotChar = FindFirstExistingGlyph(&_data, dots_chars);
+    const ImWchar dot_char = FindFirstExistingGlyph(&_data, dots_chars);
+    if (EllipsisChar != cast(ImWchar)-1)
+    {
+        EllipsisCharCount = 1;
+        EllipsisWidth = EllipsisCharStep = FindGlyph(EllipsisChar).X1;
+    }
+    else if (dot_char != cast(ImWchar)-1)
+    {
+        const ImFontGlyph* glyph = FindGlyph(dot_char);
+        EllipsisChar = dot_char;
+        EllipsisCharCount = 3;
+        EllipsisCharStep = (glyph.X1 - glyph.X0) + 1.0f;
+        EllipsisWidth = EllipsisCharStep * 3.0f - 1.0f;
+    }
 
     // Setup fallback character
     const ImWchar[3] fallback_chars = [ cast(ImWchar)IM_UNICODE_CODEPOINT_INVALID, cast(ImWchar)'?', cast(ImWchar)' ' ];
@@ -3511,6 +3531,7 @@ size_t CalcWordWrapPositionA(float scale, string text, float wrap_width) const
     bool inside_word = true;
 
     size_t s = 0;
+    //IM_ASSERT(text_end != NULL);
     while (s < text.length)
     {
         uint c = cast(uint)text[s];
@@ -3519,8 +3540,6 @@ size_t CalcWordWrapPositionA(float scale, string text, float wrap_width) const
             next_s = s + 1;
         else
             next_s = s + ImTextCharFromUtf8(&c, text[s..$]);
-        if (c == 0)
-            break;
 
         if (c < 32)
         {
@@ -3623,15 +3642,9 @@ ImVec2 CalcTextSizeA(float size, float max_width, float wrap_width, string text,
         size_t prev_s = s;
         uint c = cast(uint)text[s];
         if (c < 0x80)
-        {
             s += 1;
-        }
         else
-        {
             s += ImTextCharFromUtf8(&c, text[s..$]);
-            if (c == 0) // Malformed UTF-8?
-                break;
-        }
 
         if (c < 32)
         {
@@ -3703,18 +3716,17 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
         while (y + line_height < clip_rect.y && s < text.length)
         {
             ptrdiff_t line_end = ImIndexOf(text[s..$], '\n');
-            size_t line_next = line_end >= 0 ? line_end + s + 1 : text.length;
             if (word_wrap_enabled)
             {
                 // FIXME-OPT: This is not optimal as do first do a search for \n before calling CalcWordWrapPositionA().
                 // If the specs for CalcWordWrapPositionA() were reworked to optionally return on \n we could combine both.
                 // However it is still better than nothing performing the fast-forward!
-                s = s + CalcWordWrapPositionA(scale, text[s..line_next], wrap_width);
+                s = s + CalcWordWrapPositionA(scale, text[s..line_end >= 0 ? line_end : text.length], wrap_width);
                 s = s + CalcWordWrapNextLineStartA(text[s..$]);
             }
             else
             {
-                s = line_next;
+                s = line_end >= 0 ? line_end + 1 : text.length;
             }
             y += line_height;
         }
@@ -3741,10 +3753,9 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
     const int idx_count_max = cast(int)(text.length - s) * 6;
     const int idx_expected_size = draw_list.IdxBuffer.Size + idx_count_max;
     draw_list.PrimReserve(idx_count_max, vtx_count_max);
-
-    ImDrawVert* vtx_write = draw_list._VtxWritePtr;
-    ImDrawIdx* idx_write = draw_list._IdxWritePtr;
-    uint vtx_current_idx = draw_list._VtxCurrentIdx;
+    ImDrawVert*  vtx_write = draw_list._VtxWritePtr;
+    ImDrawIdx*   idx_write = draw_list._IdxWritePtr;
+    uint vtx_index = draw_list._VtxCurrentIdx;
 
     const ImU32 col_untinted = col | ~IM_COL32_A_MASK;
     size_t word_wrap_eol = 0;
@@ -3770,15 +3781,9 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
         // Decode and advance source
         uint c = cast(uint)text[s];
         if (c < 0x80)
-        {
             s += 1;
-        }
         else
-        {
             s += ImTextCharFromUtf8(&c, text[s..$]);
-            if (c == 0) // Malformed UTF-8?
-                break;
-        }
 
         if (c < 32)
         {
@@ -3849,14 +3854,14 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
 
                 // We are NOT calling PrimRectUV() here because non-inlined causes too much overhead in a debug builds. Inlined here:
                 {
-                    idx_write[0] = cast(ImDrawIdx)(vtx_current_idx); idx_write[1] = cast(ImDrawIdx)(vtx_current_idx+1); idx_write[2] = cast(ImDrawIdx)(vtx_current_idx+2);
-                    idx_write[3] = cast(ImDrawIdx)(vtx_current_idx); idx_write[4] = cast(ImDrawIdx)(vtx_current_idx+2); idx_write[5] = cast(ImDrawIdx)(vtx_current_idx+3);
                     vtx_write[0].pos.x = x1; vtx_write[0].pos.y = y1; vtx_write[0].col = glyph_col; vtx_write[0].uv.x = u1; vtx_write[0].uv.y = v1;
                     vtx_write[1].pos.x = x2; vtx_write[1].pos.y = y1; vtx_write[1].col = glyph_col; vtx_write[1].uv.x = u2; vtx_write[1].uv.y = v1;
                     vtx_write[2].pos.x = x2; vtx_write[2].pos.y = y2; vtx_write[2].col = glyph_col; vtx_write[2].uv.x = u2; vtx_write[2].uv.y = v2;
                     vtx_write[3].pos.x = x1; vtx_write[3].pos.y = y2; vtx_write[3].col = glyph_col; vtx_write[3].uv.x = u1; vtx_write[3].uv.y = v2;
+                    idx_write[0] = cast(ImDrawIdx)(vtx_index); idx_write[1] = cast(ImDrawIdx)(vtx_index + 1); idx_write[2] = cast(ImDrawIdx)(vtx_index + 2);
+                    idx_write[3] = cast(ImDrawIdx)(vtx_index); idx_write[4] = cast(ImDrawIdx)(vtx_index + 2); idx_write[5] = cast(ImDrawIdx)(vtx_index + 3);
                     vtx_write += 4;
-                    vtx_current_idx += 4;
+                    vtx_index += 4;
                     idx_write += 6;
                 }
             }
@@ -3870,7 +3875,7 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
     draw_list.CmdBuffer[draw_list.CmdBuffer.Size - 1].ElemCount -= (idx_expected_size - draw_list.IdxBuffer.Size);
     draw_list._VtxWritePtr = vtx_write;
     draw_list._IdxWritePtr = idx_write;
-    draw_list._VtxCurrentIdx = vtx_current_idx;
+    draw_list._VtxCurrentIdx = vtx_index;
 }
 
 }

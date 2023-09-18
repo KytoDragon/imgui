@@ -1,4 +1,4 @@
-// dear imgui, v1.89.2
+// dear imgui, v1.89.3
 // (widgets code)
 module d_imgui.imgui_widgets;
 
@@ -278,7 +278,6 @@ void TextV(string fmt, va_list args)
     if (window.SkipItems)
         return;
 
-    // FIXME-OPT: Handle the %s shortcut?
     string text;
     ImFormatStringToTempBufferV(&text, fmt, args);
     TextEx(text, ImGuiTextFlags.NoWidthForLargeClippedText);
@@ -294,10 +293,7 @@ void TextColored(A...)(const ImVec4/*&*/ col, string fmt, A a)
 void TextColoredV(const ImVec4/*&*/ col, string fmt, va_list args)
 {
     PushStyleColor(ImGuiCol.Text, col);
-    if (fmt == "%s")
-        TextEx(va_arg!string(args), ImGuiTextFlags.NoWidthForLargeClippedText); // Skip formatting
-    else
-        TextV(fmt, args);
+    TextV(fmt, args);
     PopStyleColor();
 }
 
@@ -312,10 +308,7 @@ void TextDisabledV(string fmt, va_list args)
 {
     ImGuiContext* g = GImGui;
     PushStyleColor(ImGuiCol.Text, g.Style.Colors[ImGuiCol.TextDisabled]);
-    if (fmt == "%s")
-        TextEx(va_arg!string(args), ImGuiTextFlags.NoWidthForLargeClippedText); // Skip formatting
-    else
-        TextV(fmt, args);
+    TextV(fmt, args);
     PopStyleColor();
 }
 
@@ -329,13 +322,10 @@ void TextWrapped(A...)(string fmt, A a)
 void TextWrappedV(string fmt, va_list args)
 {
     ImGuiContext* g = GImGui;
-    bool need_backup = (g.CurrentWindow.DC.TextWrapPos < 0.0f);  // Keep existing wrap position if one is already set
+    const bool need_backup = (g.CurrentWindow.DC.TextWrapPos < 0.0f);  // Keep existing wrap position if one is already set
     if (need_backup)
         PushTextWrapPos(0.0f);
-    if (fmt == "%s")
-        TextEx(va_arg!string(args), ImGuiTextFlags.NoWidthForLargeClippedText); // Skip formatting
-    else
-        TextV(fmt, args);
+    TextV(fmt, args);
     if (need_backup)
         PopTextWrapPos();
 }
@@ -1041,7 +1031,7 @@ void Image(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVec2/*&*
 
 // ImageButton() is flawed as 'id' is always derived from 'texture_id' (see #2464 #1390)
 // We provide this internal helper to write your own variant while we figure out how to redesign the public ImageButton() API.
-bool ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, const ImVec4/*&*/ bg_col, const ImVec4/*&*/ tint_col)
+bool ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, const ImVec4/*&*/ bg_col, const ImVec4/*&*/ tint_col, ImGuiButtonFlags flags = ImGuiButtonFlags.None)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();
@@ -1055,7 +1045,7 @@ bool ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2/*&*/ size, c
         return false;
 
     bool hovered, held;
-    bool pressed = ButtonBehavior(bb, id, &hovered, &held);
+    bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
 
     // Render
     const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol.ButtonActive : hovered ? ImGuiCol.ButtonHovered : ImGuiCol.Button);
@@ -1397,6 +1387,7 @@ void AlignTextToFramePadding()
 }
 
 // Horizontal/vertical separating line
+// FIXME: Surprisingly, this seemingly simple widget is adjacent to MANY different legacy/tricky layout issues.
 void SeparatorEx(ImGuiSeparatorFlags flags)
 {
     ImGuiWindow* window = GetCurrentWindow();
@@ -1406,20 +1397,19 @@ void SeparatorEx(ImGuiSeparatorFlags flags)
     ImGuiContext* g = GImGui;
     IM_ASSERT(ImIsPowerOfTwo(flags & (ImGuiSeparatorFlags.Horizontal | ImGuiSeparatorFlags.Vertical)));   // Check that only 1 option is selected
 
-    float thickness_draw = 1.0f;
-    float thickness_layout = 0.0f;
+    const float thickness = 1.0f; // Cannot use g.Style.SeparatorTextSize yet for various reasons.
     if (flags & ImGuiSeparatorFlags.Vertical)
     {
-        // Vertical separator, for menu bars (use current line height). Not exposed because it is misleading and it doesn't have an effect on regular layout.
+        // Vertical separator, for menu bars (use current line height).
         float y1 = window.DC.CursorPos.y;
         float y2 = window.DC.CursorPos.y + window.DC.CurrLineSize.y;
-        const ImRect bb = ImRect(ImVec2(window.DC.CursorPos.x, y1), ImVec2(window.DC.CursorPos.x + thickness_draw, y2));
-        ItemSize(ImVec2(thickness_layout, 0.0f));
+        const ImRect bb = ImRect(ImVec2(window.DC.CursorPos.x, y1), ImVec2(window.DC.CursorPos.x + thickness, y2));
+        ItemSize(ImVec2(thickness, 0.0f));
         if (!ItemAdd(bb, 0))
             return;
 
         // Draw
-        window.DrawList.AddLine(ImVec2(bb.Min.x, bb.Min.y), ImVec2(bb.Min.x, bb.Max.y), GetColorU32(ImGuiCol.Separator));
+        window.DrawList.AddRectFilled(bb.Min, bb.Max, GetColorU32(ImGuiCol.Separator));
         if (g.LogEnabled)
             LogText(" |");
     }
@@ -1447,13 +1437,14 @@ void SeparatorEx(ImGuiSeparatorFlags flags)
 
         // We don't provide our width to the layout so that it doesn't get feed back into AutoFit
         // FIXME: This prevents ->CursorMaxPos based bounding box evaluation from working (e.g. TableEndCell)
-        const ImRect bb = ImRect(ImVec2(x1, window.DC.CursorPos.y), ImVec2(x2, window.DC.CursorPos.y + thickness_draw));
-        ItemSize(ImVec2(0.0f, thickness_layout));
+        const float thickness_for_layout = (thickness == 1.0f) ? 0.0f : thickness; // FIXME: See 1.70/1.71 Separator() change: makes legacy 1-px separator not affect layout yet. Should change.
+        const ImRect bb = ImRect(ImVec2(x1, window.DC.CursorPos.y), ImVec2(x2, window.DC.CursorPos.y + thickness));
+        ItemSize(ImVec2(0.0f, thickness_for_layout));
         const bool item_visible = ItemAdd(bb, 0);
         if (item_visible)
         {
             // Draw
-            window.DrawList.AddLine(bb.Min, ImVec2(bb.Max.x, bb.Min.y), GetColorU32(ImGuiCol.Separator));
+            window.DrawList.AddRectFilled(bb.Min, bb.Max, GetColorU32(ImGuiCol.Separator));
             if (g.LogEnabled)
                 LogRenderedText(&bb.Min, "--------------------------------\n");
 
@@ -1477,6 +1468,71 @@ void Separator()
     ImGuiSeparatorFlags flags = (window.DC.LayoutType == ImGuiLayoutType.Horizontal) ? ImGuiSeparatorFlags.Vertical : ImGuiSeparatorFlags.Horizontal;
     flags |= ImGuiSeparatorFlags.SpanAllColumns; // NB: this only applies to legacy Columns() api as they relied on Separator() a lot.
     SeparatorEx(flags);
+}
+
+void SeparatorTextEx(ImGuiID id, string label, float extra_w)
+{
+    ImGuiContext* g = GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+    ImGuiStyle* style = &g.Style;
+
+    const ImVec2 label_size = CalcTextSize(label, false);
+    const ImVec2 pos = window.DC.CursorPos;
+    const ImVec2 padding = style.SeparatorTextPadding;
+
+    const float separator_thickness = style.SeparatorTextBorderSize;
+    const ImVec2 min_size = ImVec2(label_size.x + extra_w + padding.x * 2.0f, ImMax(label_size.y + padding.y * 2.0f, separator_thickness));
+    const ImRect bb = ImRect(pos, ImVec2(window.WorkRect.Max.x, pos.y + min_size.y));
+    const float text_baseline_y = ImFloor((bb.GetHeight() - label_size.y) * style.SeparatorTextAlign.y + 0.99999f); //ImMax(padding.y, ImFloor((style.SeparatorTextSize - label_size.y) * 0.5f));
+    ItemSize(min_size, text_baseline_y);
+    if (!ItemAdd(bb, id))
+        return;
+
+    const float sep1_x1 = pos.x;
+    const float sep2_x2 = bb.Max.x;
+    const float seps_y = ImFloor((bb.Min.y + bb.Max.y) * 0.5f + 0.99999f);
+
+    const float label_avail_w = ImMax(0.0f, sep2_x2 - sep1_x1 - padding.x * 2.0f);
+    const ImVec2 label_pos = ImVec2(pos.x + padding.x + ImMax(0.0f, (label_avail_w - label_size.x - extra_w) * style.SeparatorTextAlign.x), pos.y + text_baseline_y); // FIXME-ALIGN
+
+    // This allows using SameLine() to position something in the 'extra_w'
+    window.DC.CursorPosPrevLine.x = label_pos.x + label_size.x;
+
+    const ImU32 separator_col = GetColorU32(ImGuiCol.Separator);
+    if (label_size.x > 0.0f)
+    {
+        const float sep1_x2 = label_pos.x - style.ItemSpacing.x;
+        const float sep2_x1 = label_pos.x + label_size.x + extra_w + style.ItemSpacing.x;
+        if (sep1_x2 > sep1_x1 && separator_thickness > 0.0f)
+            window.DrawList.AddLine(ImVec2(sep1_x1, seps_y), ImVec2(sep1_x2, seps_y), separator_col, separator_thickness);
+        if (sep2_x2 > sep2_x1 && separator_thickness > 0.0f)
+            window.DrawList.AddLine(ImVec2(sep2_x1, seps_y), ImVec2(sep2_x2, seps_y), separator_col, separator_thickness);
+        if (g.LogEnabled)
+            LogSetNextTextDecoration("---", NULL);
+        RenderTextEllipsis(window.DrawList, label_pos, ImVec2(bb.Max.x, bb.Max.y + style.ItemSpacing.y), bb.Max.x, bb.Max.x, label, &label_size);
+    }
+    else
+    {
+        if (g.LogEnabled)
+            LogText("---");
+        if (separator_thickness > 0.0f)
+            window.DrawList.AddLine(ImVec2(sep1_x1, seps_y), ImVec2(sep2_x2, seps_y), separator_col, separator_thickness);
+    }
+}
+
+void SeparatorText(string label)
+{
+    ImGuiWindow* window = GetCurrentWindow();
+    if (window.SkipItems)
+        return;
+
+    // The SeparatorText() vs SeparatorTextEx() distinction is designed to be considerate that we may want:
+    // - allow headers to be draggable items (would require a stable ID + a noticeable highlight)
+    // - this high-level entry point to allow formatting? (may require ID separate from formatted string)
+    // - because of this we probably can't turn 'const char* label' into 'const char* fmt, ...'
+    // Otherwise, we can decide that users wanting to drag this would layout a dedicated drag-item,
+    // and then we can turn this into a format function.
+    SeparatorTextEx(0, FindRenderedTextEnd(label), 0.0f);
 }
 
 // Using 'hover_visibility_delay' allows us to hide the highlight and mouse cursor for a short time, which can be convenient to reduce visual noise.
@@ -1706,7 +1762,12 @@ bool BeginComboPopup(ImGuiID popup_id, const ImRect/*&*/ bb, ImGuiComboFlags fla
         if (flags & ImGuiComboFlags.HeightRegular)     popup_max_height_in_items = 8;
         else if (flags & ImGuiComboFlags.HeightSmall)  popup_max_height_in_items = 4;
         else if (flags & ImGuiComboFlags.HeightLarge)  popup_max_height_in_items = 20;
-        SetNextWindowSizeConstraints(ImVec2(w, 0.0f), ImVec2(FLT_MAX, CalcMaxPopupHeightFromItemCount(popup_max_height_in_items)));
+        ImVec2 constraint_min = ImVec2(0.0f, 0.0f), constraint_max = ImVec2(FLT_MAX, FLT_MAX);
+        if ((g.NextWindowData.Flags & ImGuiNextWindowDataFlags.HasSize) == 0 || g.NextWindowData.SizeVal.x <= 0.0f) // Don't apply constraints if user specified a size
+            constraint_min.x = w;
+        if ((g.NextWindowData.Flags & ImGuiNextWindowDataFlags.HasSize) == 0 || g.NextWindowData.SizeVal.y <= 0.0f)
+            constraint_max.y = CalcMaxPopupHeightFromItemCount(popup_max_height_in_items);
+        SetNextWindowSizeConstraints(constraint_min, constraint_max);
     }
 
     // This is essentially a specialized version of BeginPopupEx()
@@ -4144,6 +4205,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             state.Stb.insert_mode = 1; // stb field name is indeed incorrect (see #2863)
     }
 
+    const bool is_osx = io.ConfigMacOSXBehaviors;
     if (g.ActiveId != id && init_make_active)
     {
         IM_ASSERT(state && state.ID == id);
@@ -4166,6 +4228,8 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             SetKeyOwner(ImGuiKey.PageUp, id);
             SetKeyOwner(ImGuiKey.PageDown, id);
         }
+        if (is_osx)
+            SetKeyOwner(ImGuiMod.Alt, id);
         if (flags & (ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.AllowTabInput)) // Disable keyboard tabbing out as we will use the \t character.
             SetKeyOwner(ImGuiKey.Tab, id);
     }
@@ -4235,7 +4299,6 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         const float mouse_x = (io.MousePos.x - frame_bb.Min.x - style.FramePadding.x) + state.ScrollX;
         const float mouse_y = (is_multiline ? (io.MousePos.y - draw_window.DC.CursorPos.y) : (g.FontSize * 0.5f));
 
-        const bool is_osx = io.ConfigMacOSXBehaviors;
         if (select_all)
         {
             state.SelectAll();
@@ -4336,7 +4399,6 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         state.Stb.row_count_per_page = row_count_per_page;
 
         const int k_mask = (io.KeyShift ? STB_TEXTEDIT_K_SHIFT : 0);
-        const bool is_osx = io.ConfigMacOSXBehaviors;
         const bool is_wordmove_key_down = is_osx ? io.KeyAlt : io.KeyCtrl;                     // OS X style: Text editing cursor movement using Alt instead of Ctrl
         const bool is_startend_key_down = is_osx && io.KeySuper && !io.KeyCtrl && !io.KeyAlt;  // OS X style: Line/Text Start and End using Cmd+Arrows instead of Home/End
 
@@ -4365,7 +4427,16 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         else if (IsKeyPressed(ImGuiKey.PageDown) && is_multiline)    { state.OnKeyPressed(STB_TEXTEDIT_K_PGDOWN | k_mask); scroll_y += row_count_per_page * g.FontSize; }
         else if (IsKeyPressed(ImGuiKey.Home))                        { state.OnKeyPressed(io.KeyCtrl ? STB_TEXTEDIT_K_TEXTSTART | k_mask : STB_TEXTEDIT_K_LINESTART | k_mask); }
         else if (IsKeyPressed(ImGuiKey.End))                         { state.OnKeyPressed(io.KeyCtrl ? STB_TEXTEDIT_K_TEXTEND | k_mask : STB_TEXTEDIT_K_LINEEND | k_mask); }
-        else if (IsKeyPressed(ImGuiKey.Delete) && !is_readonly && !is_cut) { state.OnKeyPressed(STB_TEXTEDIT_K_DELETE | k_mask); }
+        else if (IsKeyPressed(ImGuiKey.Delete) && !is_readonly && !is_cut)
+        {
+            if (!state.HasSelection())
+            {
+                // OSX doesn't seem to have Super+Delete to delete until end-of-line, so we don't emulate that (as opposed to Super+Backspace)
+                if (is_wordmove_key_down)
+                    state.OnKeyPressed(STB_TEXTEDIT_K_WORDRIGHT | STB_TEXTEDIT_K_SHIFT);
+            }
+            state.OnKeyPressed(STB_TEXTEDIT_K_DELETE | k_mask);
+        }
         else if (IsKeyPressed(ImGuiKey.Backspace) && !is_readonly)
         {
             if (!state.HasSelection())
@@ -4459,8 +4530,6 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 {
                     uint c;
                     s += ImTextCharFromUtf8(&c, clipboard[s..$]);
-                    if (c == 0)
-                        break;
                     if (!InputTextFilterCharacter(&c, flags, callback, callback_user_data, ImGuiInputSource.Clipboard))
                         continue;
                     clipboard_filtered[clipboard_filtered_len++] = cast(ImWchar)c;
@@ -4910,7 +4979,7 @@ static if (!IMGUI_DISABLE_DEBUG_TOOLS) {
     ImStb.StbUndoState* undo_state = &stb_state.undostate;
     Text("ID: 0x%08X, ActiveID: 0x%08X", state.ID, g.ActiveId);
     DebugLocateItemOnHover(state.ID);
-    Text("CurLenW: %d, CurLenA: %d, Cursor: %d, Selection: %d..%d", state.CurLenA, state.CurLenW, stb_state.cursor, stb_state.select_start, stb_state.select_end);
+    Text("CurLenW: %d, CurLenA: %d, Cursor: %d, Selection: %d..%d", state.CurLenW, state.CurLenA, stb_state.cursor, stb_state.select_start, stb_state.select_end);
     Text("has_preferred_x: %d (%.2f)", stb_state.has_preferred_x, stb_state.preferred_x);
     Text("undo_point: %d, redo_point: %d, undo_char_point: %d, redo_char_point: %d", undo_state.undo_point, undo_state.redo_point, undo_state.undo_char_point, undo_state.redo_char_point);
     if (BeginChild("undopoints", ImVec2(0.0f, GetTextLineHeight() * 15), true)) // Visualize undo state
@@ -4958,28 +5027,32 @@ bool ColorEdit3(string label, float[/*3*/] col, ImGuiColorEditFlags flags = ImGu
     return ColorEdit4(label, col, flags | ImGuiColorEditFlags.NoAlpha);
 }
 
+static void ColorEditRestoreH(const float[] col, float* H)
+{
+    ImGuiContext* g = GImGui;
+    IM_ASSERT(g.ColorEditCurrentID != 0);
+    if (g.ColorEditSavedID != g.ColorEditCurrentID || g.ColorEditSavedColor != ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 0)))
+        return;
+    *H = g.ColorEditSavedHue;
+}
+
 // ColorEdit supports RGB and HSV inputs. In case of RGB input resulting color may have undefined hue and/or saturation.
 // Since widget displays both RGB and HSV values we must preserve hue and saturation to prevent these values resetting.
 static void ColorEditRestoreHS(const float[] col, float* H, float* S, float* V)
 {
-    // This check is optional. Suppose we have two color widgets side by side, both widgets display different colors, but both colors have hue and/or saturation undefined.
-    // With color check: hue/saturation is preserved in one widget. Editing color in one widget would reset hue/saturation in another one.
-    // Without color check: common hue/saturation would be displayed in all widgets that have hue/saturation undefined.
-    // g.ColorEditLastColor is stored as ImU32 RGB value: this essentially gives us color equality check with reduced precision.
-    // Tiny external color changes would not be detected and this check would still pass. This is OK, since we only restore hue/saturation _only_ if they are undefined,
-    // therefore this change flipping hue/saturation from undefined to a very tiny value would still be represented in color picker.
     ImGuiContext* g = GImGui;
-    if (g.ColorEditLastColor != ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 0)))
+    IM_ASSERT(g.ColorEditCurrentID != 0);
+    if (g.ColorEditSavedID != g.ColorEditCurrentID || g.ColorEditSavedColor != ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 0)))
         return;
 
     // When S == 0, H is undefined.
     // When H == 1 it wraps around to 0.
-    if (*S == 0.0f || (*H == 0.0f && g.ColorEditLastHue == 1))
-        *H = g.ColorEditLastHue;
+    if (*S == 0.0f || (*H == 0.0f && g.ColorEditSavedHue == 1))
+        *H = g.ColorEditSavedHue;
 
     // When V == 0, S is undefined.
     if (*V == 0.0f)
-        *S = g.ColorEditLastSat;
+        *S = g.ColorEditSavedSat;
 }
 
 // Edit colors components (each component in 0.0f..1.0f range).
@@ -5002,6 +5075,9 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
 
     BeginGroup();
     PushID(label);
+    const bool set_current_color_edit_id = (g.ColorEditCurrentID == 0);
+    if (set_current_color_edit_id)
+        g.ColorEditCurrentID = window.IDStack.back();
 
     // If we're not showing any slider there's no point in doing any HSV conversions
     const ImGuiColorEditFlags flags_untouched = flags;
@@ -5035,7 +5111,7 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
         ColorConvertHSVtoRGB(f[0], f[1], f[2], f[0], f[1], f[2]);
     else if ((flags & ImGuiColorEditFlags.InputRGB) && (flags & ImGuiColorEditFlags.DisplayHSV))
     {
-        // Hue is lost when converting from greyscale rgb (saturation=0). Restore it.
+        // Hue is lost when converting from grayscale rgb (saturation=0). Restore it.
         ColorConvertRGBtoHSV(f[0], f[1], f[2], f[0], f[1], f[2]);
         ColorEditRestoreHS(col, &f[0], &f[1], &f[2]);
     }
@@ -5174,10 +5250,11 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
                 f[n] = i[n] / 255.0f;
         if ((flags & ImGuiColorEditFlags.DisplayHSV) && (flags & ImGuiColorEditFlags.InputRGB))
         {
-            g.ColorEditLastHue = f[0];
-            g.ColorEditLastSat = f[1];
+            g.ColorEditSavedHue = f[0];
+            g.ColorEditSavedSat = f[1];
             ColorConvertHSVtoRGB(f[0], f[1], f[2], f[0], f[1], f[2]);
-            g.ColorEditLastColor = ColorConvertFloat4ToU32(ImVec4(f[0], f[1], f[2], 0));
+            g.ColorEditSavedID = g.ColorEditCurrentID;
+            g.ColorEditSavedColor = ColorConvertFloat4ToU32(ImVec4(f[0], f[1], f[2], 0));
         }
         if ((flags & ImGuiColorEditFlags.DisplayRGB) && (flags & ImGuiColorEditFlags.InputHSV))
             ColorConvertRGBtoHSV(f[0], f[1], f[2], f[0], f[1], f[2]);
@@ -5189,6 +5266,8 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
             col[3] = f[3];
     }
 
+    if (set_current_color_edit_id)
+        g.ColorEditCurrentID = 0;
     PopID();
     EndGroup();
 
@@ -5274,6 +5353,9 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     g.NextItemData.ClearFlags();
 
     PushID(label);
+    const bool set_current_color_edit_id = (g.ColorEditCurrentID == 0);
+    if (set_current_color_edit_id)
+        g.ColorEditCurrentID = window.IDStack.back();
     BeginGroup();
 
     if (!(flags & ImGuiColorEditFlags.NoSidePreview))
@@ -5322,7 +5404,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     float R = col[0], G = col[1], B = col[2];
     if (flags & ImGuiColorEditFlags.InputRGB)
     {
-        // Hue is lost when converting from greyscale rgb (saturation=0). Restore it.
+        // Hue is lost when converting from grayscale rgb (saturation=0). Restore it.
         ColorConvertRGBtoHSV(R, G, B, H, S, V);
         ColorEditRestoreHS(col, &H, &S, &V);
     }
@@ -5377,10 +5459,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         {
             S = ImSaturate((io.MousePos.x - picker_pos.x) / (sv_picker_size - 1));
             V = 1.0f - ImSaturate((io.MousePos.y - picker_pos.y) / (sv_picker_size - 1));
-
-            // Greatly reduces hue jitter and reset to 0 when hue == 255 and color is rapidly modified using SV square.
-            if (g.ColorEditLastColor == ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 0)))
-                H = g.ColorEditLastHue;
+            ColorEditRestoreH(col, &H); // Greatly reduces hue jitter and reset to 0 when hue == 255 and color is rapidly modified using SV square.
             value_changed = value_changed_sv = true;
         }
         if (!(flags & ImGuiColorEditFlags.NoOptions))
@@ -5455,9 +5534,10 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         if (flags & ImGuiColorEditFlags.InputRGB)
         {
             ColorConvertHSVtoRGB(H, S, V, col[0], col[1], col[2]);
-            g.ColorEditLastHue = H;
-            g.ColorEditLastSat = S;
-            g.ColorEditLastColor = ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 0));
+            g.ColorEditSavedHue = H;
+            g.ColorEditSavedSat = S;
+            g.ColorEditSavedID = g.ColorEditCurrentID;
+            g.ColorEditSavedColor = ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 0));
         }
         else if (flags & ImGuiColorEditFlags.InputHSV)
         {
@@ -5621,6 +5701,8 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
     if (value_changed && g.LastItemData.ID != 0) // In case of ID collision, the second EndGroup() won't catch g.ActiveId
         MarkItemEdited(g.LastItemData.ID);
 
+    if (set_current_color_edit_id)
+        g.ColorEditCurrentID = 0;
     PopID();
 
     return value_changed;
@@ -6609,7 +6691,7 @@ bool ListBox(string label, int* current_item, bool function(void* data, int idx,
 // - others https://github.com/ocornut/imgui/wiki/Useful-Extensions
 //-------------------------------------------------------------------------
 
-int PlotEx(ImGuiPlotType plot_type, string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, ImVec2 frame_size)
+int PlotEx(ImGuiPlotType plot_type, string label, float function(void* data, int idx) nothrow @nogc values_getter, void* data, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, const ImVec2/*&*/ size_arg)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = GetCurrentWindow();
@@ -6620,10 +6702,7 @@ int PlotEx(ImGuiPlotType plot_type, string label, float function(void* data, int
     const ImGuiID id = window.GetID(label);
 
     const ImVec2 label_size = CalcTextSize(label, true);
-    if (frame_size.x == 0.0f)
-        frame_size.x = CalcItemWidth();
-    if (frame_size.y == 0.0f)
-        frame_size.y = label_size.y + (style.FramePadding.y * 2);
+    const ImVec2 frame_size = CalcItemSize(size_arg, CalcItemWidth(), label_size.y + style.FramePadding.y * 2.0f);
 
     const ImRect frame_bb = ImRect(window.DC.CursorPos, window.DC.CursorPos + frame_size);
     const ImRect inner_bb = ImRect(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
@@ -7114,7 +7193,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
         PushStyleVar(ImGuiStyleVar.ItemSpacing, ImVec2(style.ItemSpacing.x * 2.0f, style.ItemSpacing.y));
         float w = label_size.x;
         ImVec2 text_pos = ImVec2(window.DC.CursorPos.x + offsets.OffsetLabel, window.DC.CursorPos.y + window.DC.CurrLineTextBaseOffset);
-        pressed = Selectable("", menu_is_open, selectable_flags, ImVec2(w, 0.0f));
+        pressed = Selectable("", menu_is_open, selectable_flags, ImVec2(w, label_size.y));
         RenderText(text_pos, label);
         PopStyleVar();
         window.DC.CursorPos.x += IM_FLOOR(style.ItemSpacing.x * (-1.0f + 0.5f)); // -1 spacing to compensate the spacing added when Selectable() did a SameLine(). It would also work to call SameLine() ourselves after the PopStyleVar().
@@ -7130,7 +7209,7 @@ bool BeginMenuEx(string label, string icon, bool enabled)
         float min_w = window.DC.MenuColumns.DeclColumns(icon_w, label_size.x, 0.0f, checkmark_w); // Feedback to next frame
         float extra_w = ImMax(0.0f, GetContentRegionAvail().x - min_w);
         ImVec2 text_pos = ImVec2(window.DC.CursorPos.x + offsets.OffsetLabel, window.DC.CursorPos.y + window.DC.CurrLineTextBaseOffset);
-        pressed = Selectable("", menu_is_open, selectable_flags | ImGuiSelectableFlags.SpanAvailWidth, ImVec2(min_w, 0.0f));
+        pressed = Selectable("", menu_is_open, selectable_flags | ImGuiSelectableFlags.SpanAvailWidth, ImVec2(min_w, label_size.y));
         RenderText(text_pos, label);
         if (icon_w > 0.0f)
             RenderText(pos + ImVec2(offsets.OffsetIcon, 0.0f), icon);
@@ -7322,7 +7401,7 @@ bool MenuItemEx(string label, string icon, string shortcut = NULL, bool selected
         float checkmark_w = IM_FLOOR(g.FontSize * 1.20f);
         float min_w = window.DC.MenuColumns.DeclColumns(icon_w, label_size.x, shortcut_w, checkmark_w); // Feedback for next frame
         float stretch_w = ImMax(0.0f, GetContentRegionAvail().x - min_w);
-        pressed = Selectable("", false, selectable_flags | ImGuiSelectableFlags.SpanAvailWidth, ImVec2(min_w, 0.0f));
+        pressed = Selectable("", false, selectable_flags | ImGuiSelectableFlags.SpanAvailWidth, ImVec2(min_w, label_size.y));
         if (g.LastItemData.StatusFlags & ImGuiItemStatusFlags.Visible)
         {
             RenderText(pos + ImVec2(offsets.OffsetLabel, 0.0f), label);
@@ -7374,11 +7453,17 @@ bool MenuItem(string label, string shortcut, bool* p_selected, bool enabled = tr
 // - TabBarCalcTabID() [Internal]
 // - TabBarCalcMaxTabWidth() [Internal]
 // - TabBarFindTabById() [Internal]
+// - TabBarFindTabByOrder() [Internal]
+// - TabBarGetCurrentTab() [Internal]
+// - TabBarGetTabName() [Internal]
 // - TabBarRemoveTab() [Internal]
 // - TabBarCloseTab() [Internal]
 // - TabBarScrollClamp() [Internal]
 // - TabBarScrollToTab() [Internal]
-// - TabBarQueueChangeTabOrder() [Internal]
+// - TabBarQueueFocus() [Internal]
+// - TabBarQueueReorder() [Internal]
+// - TabBarProcessReorderFromMousePos() [Internal]
+// - TabBarProcessReorder() [Internal]
 // - TabBarScrollingButtons() [Internal]
 // - TabBarTabListPopupButton() [Internal]
 //-------------------------------------------------------------------------
@@ -7515,6 +7600,7 @@ bool    BeginTabBarEx(ImGuiTabBar* tab_bar, const ImRect/*&*/ tab_bar_bb, ImGuiT
     tab_bar.ItemSpacingY = g.Style.ItemSpacing.y;
     tab_bar.FramePadding = g.Style.FramePadding;
     tab_bar.TabsActiveCount = 0;
+    tab_bar.LastTabItemIdx = -1;
     tab_bar.BeginCount = 1;
 
     // Set cursor pos in a way which only be used in the off-chance the user erroneously submits item before BeginTabItem(): items will overlap
@@ -7563,6 +7649,7 @@ void    EndTabBar()
     if (tab_bar.BeginCount > 1)
         window.DC.CursorPos = tab_bar.BackupCursorPos;
 
+    tab_bar.LastTabItemIdx = -1;
     if ((tab_bar.Flags & ImGuiTabBarFlags.DockNode) == 0)
         PopID();
 
@@ -7672,7 +7759,7 @@ static void TabBarLayout(ImGuiTabBar* tab_bar)
         // Refresh tab width immediately, otherwise changes of style e.g. style.FramePadding.x would noticeably lag in the tab bar.
         // Additionally, when using TabBarAddTab() to manipulate tab bar order we occasionally insert new tabs that don't have a width yet,
         // and we cannot wait for the next BeginTabItem() call. We cannot compute this width within TabBarAddTab() because font size depends on the active window.
-        string tab_name = tab_bar.GetTabName(tab);
+        string tab_name = TabBarGetTabName(tab_bar, tab);
         const bool has_close_button_or_unsaved_marker = (tab.Flags & ImGuiTabItemFlags.NoCloseButton) == 0 || (tab.Flags & ImGuiTabItemFlags.UnsavedDocument);
         tab.ContentWidth = (tab.RequestedWidth >= 0.0f) ? tab.RequestedWidth : TabItemCalcSize(tab_name, has_close_button_or_unsaved_marker).x;
 
@@ -7751,12 +7838,16 @@ static void TabBarLayout(ImGuiTabBar* tab_bar)
         {
             ImGuiTabItem* tab = &tab_bar.Tabs[section_tab_index + tab_n];
             tab.Offset = tab_offset;
+            tab.NameOffset = -1;
             tab_offset += tab.Width + (tab_n < section.TabCount - 1 ? g.Style.ItemInnerSpacing.x : 0.0f);
         }
         tab_bar.WidthAllTabs += ImMax(section.Width + section.Spacing, 0.0f);
         tab_offset += section.Spacing;
         section_tab_index += section.TabCount;
     }
+
+    // Clear name buffers
+    tab_bar.TabsNames.Buf.resize(0);
 
     // If we have lost the selected tab, select the next most recently active one
     if (found_selected_tab_id == false)
@@ -7788,10 +7879,6 @@ static void TabBarLayout(ImGuiTabBar* tab_bar)
     }
     tab_bar.ScrollingRectMinX = tab_bar.BarRect.Min.x + sections[0].Width + sections[0].Spacing;
     tab_bar.ScrollingRectMaxX = tab_bar.BarRect.Max.x - sections[2].Width - sections[1].Spacing;
-
-    // Clear name buffers
-    if ((tab_bar.Flags & ImGuiTabBarFlags.DockNode) == 0)
-        tab_bar.TabsNames.Buf.resize(0);
 
     // Actual layout in host window (we don't do it in BeginTabBar() so as not to waste an extra frame)
     ImGuiWindow* window = g.CurrentWindow;
@@ -7833,7 +7920,30 @@ ImGuiTabItem* TabBarFindTabByID(ImGuiTabBar* tab_bar, ImGuiID tab_id)
     return NULL;
 }
 
-// The *TabId fields be already set by the docking system _before_ the actual TabItem was created, so we clear them regardless.
+// Order = visible order, not submission order! (which is tab->BeginOrder)
+ImGuiTabItem* TabBarFindTabByOrder(ImGuiTabBar* tab_bar, int order)
+{
+    if (order < 0 || order >= tab_bar.Tabs.Size)
+        return NULL;
+    return &tab_bar.Tabs[order];
+}
+
+ImGuiTabItem* TabBarGetCurrentTab(ImGuiTabBar* tab_bar)
+{
+    if (tab_bar.LastTabItemIdx <= 0 || tab_bar.LastTabItemIdx >= tab_bar.Tabs.Size)
+        return NULL;
+    return &tab_bar.Tabs[tab_bar.LastTabItemIdx];
+}
+
+string TabBarGetTabName(ImGuiTabBar* tab_bar, ImGuiTabItem* tab)
+{
+    if (tab.NameOffset == -1)
+        return "N/A";
+    IM_ASSERT(tab.NameOffset < tab_bar.TabsNames.Buf.Size);
+    return ImCstring(tab_bar.TabsNames.Buf.Data + tab.NameOffset);
+}
+
+// The *TabId fields are already set by the docking system _before_ the actual TabItem was created, so we clear them regardless.
 void TabBarRemoveTab(ImGuiTabBar* tab_bar, ImGuiID tab_id)
 {
     if (ImGuiTabItem* tab = TabBarFindTabByID(tab_bar, tab_id))
@@ -7864,7 +7974,7 @@ void TabBarCloseTab(ImGuiTabBar* tab_bar, ImGuiTabItem* tab)
     {
         // Actually select before expecting closure attempt (on an UnsavedDocument tab user is expect to e.g. show a popup)
         if (tab_bar.VisibleTabId != tab.ID)
-            tab_bar.NextSelectedTabId = tab.ID;
+            TabBarQueueFocus(tab_bar, tab);
     }
 }
 
@@ -7885,7 +7995,7 @@ static void TabBarScrollToTab(ImGuiTabBar* tab_bar, ImGuiID tab_id, ImGuiTabBarS
 
     ImGuiContext* g = GImGui;
     float margin = g.FontSize * 1.0f; // When to scroll to make Tab N+1 visible always make a bit of N visible to suggest more scrolling area (since we don't have a scrollbar)
-    int order = tab_bar.GetTabOrder(tab);
+    int order = TabBarGetTabOrder(tab_bar, tab);
 
     // Scrolling happens only in the central section (leading/trailing sections are not scrolling)
     // FIXME: This is all confusing.
@@ -7909,7 +8019,12 @@ static void TabBarScrollToTab(ImGuiTabBar* tab_bar, ImGuiID tab_id, ImGuiTabBarS
     }
 }
 
-void TabBarQueueReorder(ImGuiTabBar* tab_bar, const ImGuiTabItem* tab, int offset)
+void TabBarQueueFocus(ImGuiTabBar* tab_bar, ImGuiTabItem* tab)
+{
+    tab_bar.NextSelectedTabId = tab.ID;
+}
+
+void TabBarQueueReorder(ImGuiTabBar* tab_bar, ImGuiTabItem* tab, int offset)
 {
     IM_ASSERT(offset != 0);
     IM_ASSERT(tab_bar.ReorderRequestTabId == 0);
@@ -7917,7 +8032,7 @@ void TabBarQueueReorder(ImGuiTabBar* tab_bar, const ImGuiTabItem* tab, int offse
     tab_bar.ReorderRequestOffset = cast(ImS16)offset;
 }
 
-void TabBarQueueReorderFromMousePos(ImGuiTabBar* tab_bar, const ImGuiTabItem* src_tab, ImVec2 mouse_pos)
+void TabBarQueueReorderFromMousePos(ImGuiTabBar* tab_bar, ImGuiTabItem* src_tab, ImVec2 mouse_pos)
 {
     ImGuiContext* g = GImGui;
     IM_ASSERT(tab_bar.ReorderRequestTabId == 0);
@@ -7960,7 +8075,7 @@ bool TabBarProcessReorder(ImGuiTabBar* tab_bar)
         return false;
 
     //IM_ASSERT(tab_bar->Flags & ImGuiTabBarFlags_Reorderable); // <- this may happen when using debug tools
-    int tab2_order = tab_bar.GetTabOrder(tab1) + tab_bar.ReorderRequestOffset;
+    int tab2_order = TabBarGetTabOrder(tab_bar, tab1) + tab_bar.ReorderRequestOffset;
     if (tab2_order < 0 || tab2_order >= tab_bar.Tabs.Size)
         return false;
 
@@ -8020,7 +8135,7 @@ static ImGuiTabItem* TabBarScrollingButtons(ImGuiTabBar* tab_bar)
     if (select_dir != 0)
         if (ImGuiTabItem* tab_item = TabBarFindTabByID(tab_bar, tab_bar.SelectedTabId))
         {
-            int selected_order = tab_bar.GetTabOrder(tab_item);
+            int selected_order = TabBarGetTabOrder(tab_bar, tab_item);
             int target_order = selected_order + select_dir;
 
             // Skip tab item buttons until another tab item is found or end is reached
@@ -8072,7 +8187,7 @@ static ImGuiTabItem* TabBarTabListPopupButton(ImGuiTabBar* tab_bar)
             if (tab.Flags & ImGuiTabItemFlags.Button)
                 continue;
 
-            string tab_name = tab_bar.GetTabName(tab);
+            string tab_name = TabBarGetTabName(tab_bar, tab);
             if (Selectable(tab_name, tab_bar.SelectedTabId == tab.ID))
                 tab_to_select = tab;
         }
@@ -8237,9 +8352,9 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
     {
         if (tab_appearing && (tab_bar.Flags & ImGuiTabBarFlags.AutoSelectNewTabs) && tab_bar.NextSelectedTabId == 0)
             if (!tab_bar_appearing || tab_bar.SelectedTabId == 0)
-                tab_bar.NextSelectedTabId = id;  // New tabs gets activated
+                TabBarQueueFocus(tab_bar, tab); // New tabs gets activated
         if ((flags & ImGuiTabItemFlags.SetSelected) && (tab_bar.SelectedTabId != id)) // _SetSelected can only be passed on explicit tab bar
-            tab_bar.NextSelectedTabId = id;
+            TabBarQueueFocus(tab_bar, tab);
     }
 
     // Lock visibility
@@ -8303,7 +8418,7 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, button_flags);
     if (pressed && !is_tab_button)
-        tab_bar.NextSelectedTabId = id;
+        TabBarQueueFocus(tab_bar, tab);
 
     // Allow the close button to overlap unless we are dragging (in which case we don't want any overlapping tabs to be hovered)
     if (g.ActiveId != id)
@@ -8344,9 +8459,8 @@ static if (false) {
 
     // Select with right mouse button. This is so the common idiom for context menu automatically highlight the current widget.
     const bool hovered_unblocked = IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup);
-    if (hovered_unblocked && (IsMouseClicked(ImGuiMouseButton.Right) || IsMouseReleased(ImGuiMouseButton.Right)))
-        if (!is_tab_button)
-            tab_bar.NextSelectedTabId = id;
+    if (hovered_unblocked && (IsMouseClicked(ImGuiMouseButton.Right) || IsMouseReleased(ImGuiMouseButton.Right)) && !is_tab_button)
+        TabBarQueueFocus(tab_bar, tab);
 
     if (tab_bar.Flags & ImGuiTabBarFlags.NoCloseWithMiddleMouseButton)
         flags |= ImGuiTabItemFlags.NoCloseWithMiddleMouseButton;

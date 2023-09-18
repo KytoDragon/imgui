@@ -22,6 +22,7 @@ BOOL SetProcessDPIAware();
 
 extern(D): // Prevent naming comflict in case the user has already defined these macros
 
+/*
 import core.stdc.string : memset, memcpy, memmove;
 alias RtlMoveMemory = memmove;
 alias RtlCopyMemory = memcpy;
@@ -32,6 +33,7 @@ alias MoveMemory = RtlMoveMemory;
 alias CopyMemory = RtlCopyMemory;
 alias FillMemory = RtlFillMemory;
 alias ZeroMemory = RtlZeroMemory;
+*/
 
 pragma(inline, true) int GET_X_LPARAM(LPARAM lp) { return (cast(int)cast(short)LOWORD(lp)); }
 pragma(inline, true) int GET_Y_LPARAM(LPARAM lp) { return (cast(int)cast(short)HIWORD(lp)); }

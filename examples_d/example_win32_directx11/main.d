@@ -255,5 +255,5 @@ extern(Windows) LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     default:
         break;
     }
-    return DefWindowProc(hWnd, msg, wParam, lParam);
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
 }

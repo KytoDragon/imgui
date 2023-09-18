@@ -1,11 +1,13 @@
-// dear imgui, v1.89.2
+// dear imgui, v1.89.3
 // (internal structures/api)
 module d_imgui.imgui_internal;
 
-// You may use this file to debug, understand or extend ImGui features but we don't provide any guarantee of forward compatibility!
-// Set:
-//   #define IMGUI_DEFINE_MATH_OPERATORS
-// To implement maths operators for ImVec2 (disabled by default to not collide with using IM_VEC2_CLASS_EXTRA along with your own math types+operators)
+// You may use this file to debug, understand or extend Dear ImGui features but we don't provide any guarantee of forward compatibility.
+// To implement maths operators for ImVec2 (disabled by default to not conflict with using IM_VEC2_CLASS_EXTRA with your own math types+operators), use:
+/*
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui_internal.h"
+*/
 
 /*
 
@@ -362,8 +364,8 @@ static if (!D_IMGUI_USER_DEFINED_DEBUG_BREAK) {
 
 // Helpers: Hashing
 /*
-ImGuiID       ImHashData(const void* data, size_t data_size, ImU32 seed = 0);
-ImGuiID       ImHashStr(string data, size_t data_size = 0, ImU32 seed = 0);
+ImGuiID       ImHashData(const void* data, size_t data_size, ImGuiID seed = 0);
+ImGuiID       ImHashStr(string data, size_t data_size = 0, ImGuiID seed = 0);
 */
 
 // Helpers: Sorting
@@ -657,13 +659,21 @@ struct ImRect
     bool        IsInverted() const                  { return Min.x > Max.x || Min.y > Max.y; }
     ImVec4      ToVec4() const                      { return ImVec4(Min.x, Min.y, Max.x, Max.y); }
 }
-//IM_MSVC_RUNTIME_CHECKS_RESTORE
 
 // Helper: ImBitArray
-pragma(inline, true) bool     ImBitArrayTestBit(const ImU32[] arr, int n)      { ImU32 mask = cast(ImU32)1 << (n & 31); return (arr[n >> 5] & mask) != 0; }
-pragma(inline, true) void     ImBitArrayClearBit(ImU32[] arr, int n)           { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] &= ~mask; }
-pragma(inline, true) void     ImBitArraySetBit(ImU32[] arr, int n)             { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] |= mask; }
-pragma(inline, true) void     ImBitArraySetBitRange(ImU32[] arr, int n, int n2) // Works on range [n..n2)
+pragma(inline, true) bool         IM_BITARRAY_TESTBIT(const ImU32[] _ARRAY, int _N)                 { return IM_BITARRAY_TESTBIT(_ARRAY.ptr, _N); }
+pragma(inline, true) bool         IM_BITARRAY_TESTBIT(const ImU32* _ARRAY, int _N)                 { return ((_ARRAY[(_N) >> 5] & (cast(ImU32)1 << ((_N) & 31))) != 0); } // Macro version of ImBitArrayTestBit(): ensure args have side-effect or are costly!
+pragma(inline, true) void         IM_BITARRAY_CLEARBIT(ImU32* _ARRAY, int _N)                { ((_ARRAY[(_N) >> 5] &= ~(cast(ImU32)1 << ((_N) & 31)))); }    // Macro version of ImBitArrayClearBit(): ensure args have side-effect or are costly!
+pragma(inline, true) size_t   ImBitArrayGetStorageSizeInBytes(int bitcount)   { return cast(size_t)((bitcount + 31) >> 5) << 2; }
+pragma(inline, true) void     ImBitArrayClearAllBits(ImU32* arr, int bitcount){ memset(arr, 0, ImBitArrayGetStorageSizeInBytes(bitcount)); }
+pragma(inline, true) bool     ImBitArrayTestBit(const ImU32[] arr, int n)      { return ImBitArrayTestBit(arr.ptr, n); }
+pragma(inline, true) bool     ImBitArrayTestBit(const ImU32* arr, int n)      { ImU32 mask = cast(ImU32)1 << (n & 31); return (arr[n >> 5] & mask) != 0; }
+pragma(inline, true) void     ImBitArrayClearBit(ImU32[] arr, int n)           { ImBitArrayClearBit(arr.ptr, n); }
+pragma(inline, true) void     ImBitArrayClearBit(ImU32* arr, int n)           { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] &= ~mask; }
+pragma(inline, true) void     ImBitArraySetBit(ImU32[] arr, int n)             { ImBitArraySetBit(arr.ptr, n); }
+pragma(inline, true) void     ImBitArraySetBit(ImU32* arr, int n)             { ImU32 mask = cast(ImU32)1 << (n & 31); arr[n >> 5] |= mask; }
+pragma(inline, true) void     ImBitArraySetBitRange(ImU32[] arr, int n, int n2) { ImBitArraySetBitRange(arr.ptr, n, n2); }
+pragma(inline, true) void     ImBitArraySetBitRange(ImU32* arr, int n, int n2) // Works on range [n..n2)
 {
     n2--;
     while (n <= n2)
@@ -676,6 +686,8 @@ pragma(inline, true) void     ImBitArraySetBitRange(ImU32[] arr, int n, int n2) 
     }
 }
 
+alias ImBitArrayPtr = ImU32*; // Name for use in structs
+
 // Helper: ImBitArray class (wrapper over ImBitArray functions)
 // Store 1-bit per value.
 struct ImBitArray(int BITCOUNT, int OFFSET = 0)
@@ -687,11 +699,11 @@ struct ImBitArray(int BITCOUNT, int OFFSET = 0)
     //ImBitArray()                                { ClearAllBits(); }
     void            ClearAllBits()              { memset(&Storage, 0, sizeof(Storage)); }
     void            SetAllBits()                { memset(&Storage, 255, sizeof(Storage)); }
-    bool            TestBit(int n) const        { n += OFFSET; IM_ASSERT(n < BITCOUNT); return ImBitArrayTestBit(Storage, n + OFFSET); }
+    bool            TestBit(int n) const        { n += OFFSET; IM_ASSERT(n >= 0 && n < BITCOUNT); return ImBitArrayTestBit(Storage, n + OFFSET); }
     void            SetBit(int n)               { n += OFFSET; IM_ASSERT(n < BITCOUNT); ImBitArraySetBit(Storage, n); }
     void            ClearBit(int n)             { n += OFFSET; IM_ASSERT(n < BITCOUNT); ImBitArrayClearBit(Storage, n); }
     void            SetBitRange(int n, int n2)  { n += OFFSET; n2 += OFFSET; IM_ASSERT(n >= 0 && n < BITCOUNT && n2 > n && n2 <= BITCOUNT); ImBitArraySetBitRange(Storage, n, n2); } // Works on range [n..n2)
-    bool            opIndex(int n) const     { n += OFFSET; IM_ASSERT(n < BITCOUNT); return ImBitArrayTestBit(Storage, n); }
+    bool            opIndex(int n) const     { n += OFFSET; IM_ASSERT(n >= 0 && n < BITCOUNT); return IM_BITARRAY_TESTBIT(Storage, n); }
 }
 
 // Helper: ImBitVector
@@ -705,10 +717,11 @@ struct ImBitVector
     void destroy() { Storage.destroy(); }
     void            Create(int sz)              { Storage.resize((sz + 31) >> 5); memset(Storage.Data, 0, cast(size_t)Storage.Size * sizeof(Storage.Data[0])); }
     void            Clear()                     { Storage.clear(); }
-    bool            TestBit(int n) const        { IM_ASSERT(n < (Storage.Size << 5)); return ImBitArrayTestBit(Storage.asArray(), n); }
+    bool            TestBit(int n) const        { IM_ASSERT(n < (Storage.Size << 5)); return IM_BITARRAY_TESTBIT(Storage.asArray(), n); }
     void            SetBit(int n)               { IM_ASSERT(n < (Storage.Size << 5)); ImBitArraySetBit(Storage.asArray(), n); }
     void            ClearBit(int n)             { IM_ASSERT(n < (Storage.Size << 5)); ImBitArrayClearBit(Storage.asArray(), n); }
 }
+//IM_MSVC_RUNTIME_CHECKS_RESTORE
 
 // Helper: ImSpan<>
 // Pointing to a span of data we don't own.
@@ -1832,6 +1845,8 @@ struct ImGuiWindowSettings
     ImVec2ih    Size;
     bool        Collapsed;
     bool        WantApply;      // Set when loaded from .ini data (to enable merging/loading .ini data into an already running context)
+    bool        WantDelete;     // Set to invalidate/delete the settings entry
+
     // D_IMGUI: Also store the length since we are not using zero termination
     size_t         name_len;
 
@@ -1901,27 +1916,16 @@ enum ImGuiDebugLogFlags : int
 
 struct ImGuiMetricsConfig
 {
-    nothrow:
-    @nogc:
-
-    bool        ShowDebugLog;
-    bool        ShowStackTool;
-    bool        ShowWindowsRects;
-    bool        ShowWindowsBeginOrder;
-    bool        ShowTablesRects;
-    bool        ShowDrawCmdMesh;
-    bool        ShowDrawCmdBoundingBoxes;
-    int         ShowWindowsRectsType;
-    int         ShowTablesRectsType;
-
-    @disable this();
-    this(bool dummy)
-    {
-        ShowDebugLog = ShowStackTool = ShowWindowsRects = ShowWindowsBeginOrder = ShowTablesRects = false;
-        ShowDrawCmdMesh = true;
-        ShowDrawCmdBoundingBoxes = true;
-        ShowWindowsRectsType = ShowTablesRectsType = -1;
-    }
+    bool        ShowDebugLog = false;
+    bool        ShowStackTool = false;
+    bool        ShowWindowsRects = false;
+    bool        ShowWindowsBeginOrder = false;
+    bool        ShowTablesRects = false;
+    bool        ShowDrawCmdMesh = true;
+    bool        ShowDrawCmdBoundingBoxes = true;
+    bool        ShowAtlasTintedWithTextColor = false;
+    int         ShowWindowsRectsType = -1;
+    int         ShowTablesRectsType = -1;
 }
 
 struct ImGuiStackLevelInfo
@@ -2195,9 +2199,11 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     ImFont                  InputTextPasswordFont;
     ImGuiID                 TempInputId;                        // Temporary text input when CTRL+clicking on a slider, etc.
     ImGuiColorEditFlags     ColorEditOptions;                   // Store user options for color edit widgets
-    float                   ColorEditLastHue;                   // Backup of last Hue associated to LastColor, so we can restore Hue in lossy RGB<>HSV round trips
-    float                   ColorEditLastSat;                   // Backup of last Saturation associated to LastColor, so we can restore Saturation in lossy RGB<>HSV round trips
-    ImU32                   ColorEditLastColor;                 // RGB value with alpha set to 0.
+    ImGuiID                 ColorEditCurrentID;                 // Set temporarily while inside of the parent-most ColorEdit4/ColorPicker4 (because they call each others).
+    ImGuiID                 ColorEditSavedID;                   // ID we are saving/restoring HS for
+    float                   ColorEditSavedHue;                  // Backup of last Hue associated to LastColor, so we can restore Hue in lossy RGB<>HSV round trips
+    float                   ColorEditSavedSat;                  // Backup of last Saturation associated to LastColor, so we can restore Saturation in lossy RGB<>HSV round trips
+    ImU32                   ColorEditSavedColor;                // RGB value with alpha set to 0.
     ImVec4                  ColorPickerRef;                     // Initial/reference color at the time of opening the color picker.
     ImGuiComboPreviewData   ComboPreviewData;
     float                   SliderGrabClickOffset;
@@ -2397,8 +2403,9 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
 
         TempInputId = 0;
         ColorEditOptions = ImGuiColorEditFlags.DefaultOptions_;
-        ColorEditLastHue = ColorEditLastSat = 0.0f;
-        ColorEditLastColor = 0;
+        ColorEditCurrentID = ColorEditSavedID = 0;
+        ColorEditSavedHue = ColorEditSavedSat = 0.0f;
+        ColorEditSavedColor = 0;
         SliderGrabClickOffset = 0.0f;
         SliderCurrentAccum = 0.0f;
         SliderCurrentAccumDirty = false;
@@ -2717,7 +2724,7 @@ struct ImGuiTabItem
     float               RequestedWidth;         // Width optionally requested by caller, -1.0f is unused
     ImS32               NameOffset;             // When Window==NULL, offset to name within parent ImGuiTabBar::TabsNames
     ImS16               BeginOrder;             // BeginTabItem() order, used to re-order tabs after toggling ImGuiTabBarFlags_Reorderable
-    ImS16               IndexDuringLayout;      // Index only used during TabBarLayout()
+    ImS16               IndexDuringLayout;      // Index only used during TabBarLayout(). Tabs gets reordered so 'Tabs[n].IndexDuringLayout == n' but may mismatch during additions.
     bool                WantClose;              // Marked as closed by SetTabItemClosed()
 
     @disable this();
@@ -2764,12 +2771,6 @@ struct ImGuiTabBar
 
     @disable this();
     this(bool dummy) { (cast(ImGuiTabBar_Wrapper*)&this).__ctor(dummy); }
-    int                 GetTabOrder(const ImGuiTabItem* tab) const  { return Tabs.index_from_ptr(tab); }
-    string         GetTabName(const ImGuiTabItem* tab) const
-    {
-        IM_ASSERT(tab.NameOffset != -1 && tab.NameOffset < TabsNames.Buf.Size);
-        return ImCstring(TabsNames.Buf.Data + tab.NameOffset);
-    }
     
     void destroy() {
         TabsNames.destroy();
@@ -2782,12 +2783,11 @@ struct ImGuiTabBar
 //-----------------------------------------------------------------------------
 
 enum IM_COL32_DISABLE                = IM_COL32(0,0,0,1);   // Special sentinel code which cannot be used as a regular color.
-enum IMGUI_TABLE_MAX_COLUMNS         = 64;                  // sizeof(ImU64) * 8. This is solely because we frequently encode columns set in a ImU64.
-enum IMGUI_TABLE_MAX_DRAW_CHANNELS   = (4 + 64 * 2);        // See TableSetupDrawChannels()
+enum IMGUI_TABLE_MAX_COLUMNS         = 512;                 // May be further lifted
 
 // Our current column maximum is 64 but we may raise that in the future.
-alias ImGuiTableColumnIdx = ImS8;
-alias ImGuiTableDrawChannelIdx = ImU8;
+alias ImGuiTableColumnIdx = ImS16;
+alias ImGuiTableDrawChannelIdx = ImU16;
 
 // [Internal] sizeof() ~ 104
 // We use the terminology "Enabled" to refer to a column that is not Hidden by user/api.
@@ -2862,14 +2862,15 @@ struct ImGuiTableCellData
     ImGuiTableColumnIdx         Column;     // Column number
 }
 
-// Per-instance data that needs preserving across frames (seemingly most others do not need to be preserved aside from debug needs, does that needs they could be moved to ImGuiTableTempData ?)
+// Per-instance data that needs preserving across frames (seemingly most others do not need to be preserved aside from debug needs. Does that means they could be moved to ImGuiTableTempData?)
 struct ImGuiTableInstanceData
 {
+    ImGuiID                     TableInstanceID;
     float                       LastOuterHeight = 0.0f;            // Outer height from last frame
     float                       LastFirstRowHeight = 0.0f;         // Height of first row from last frame (FIXME: this is used as "header height" and may be reworked)
     float                       LastFrozenHeight = 0.0f;           // Height of frozen section from last frame
 
-    //ImGuiTableInstanceData()    { LastOuterHeight = LastFirstRowHeight = LastFrozenHeight = 0.0f; }
+    //ImGuiTableInstanceData()    { TableInstanceID = 0; LastOuterHeight = LastFirstRowHeight = LastFrozenHeight = 0.0f; }
 }
 
 // FIXME-TABLE: more transient data could be stored in a stacked ImGuiTableTempData: e.g. SortSpecs, incoming RowData
@@ -2885,10 +2886,9 @@ struct ImGuiTable
     ImSpan!ImGuiTableColumn    Columns;                    // Point within RawData[]
     ImSpan!ImGuiTableColumnIdx DisplayOrderToIndex;        // Point within RawData[]. Store display order of columns (when not reordered, the values are 0...Count-1)
     ImSpan!ImGuiTableCellData  RowCellData;                // Point within RawData[]. Store cells background requests for current row.
-    ImU64                       EnabledMaskByDisplayOrder;  // Column DisplayOrder -> IsEnabled map
-    ImU64                       EnabledMaskByIndex;         // Column Index -> IsEnabled map (== not hidden by user/api) in a format adequate for iterating column without touching cold data
-    ImU64                       VisibleMaskByIndex;         // Column Index -> IsVisibleX|IsVisibleY map (== not hidden by user/api && not hidden by scrolling/cliprect)
-    ImU64                       RequestOutputMaskByIndex;   // Column Index -> IsVisible || AutoFit (== expect user to submit items)
+    ImBitArrayPtr               EnabledMaskByDisplayOrder;  // Column DisplayOrder -> IsEnabled map
+    ImBitArrayPtr               EnabledMaskByIndex;         // Column Index -> IsEnabled map (== not hidden by user/api) in a format adequate for iterating column without touching cold data
+    ImBitArrayPtr               VisibleMaskByIndex;         // Column Index -> IsVisibleX|IsVisibleY map (== not hidden by user/api && not hidden by scrolling/cliprect)
     ImGuiTableFlags             SettingsLoadedFlags;        // Which data were loaded from the .ini file (e.g. when order is not altered we won't save order)
     int                         SettingsOffset;             // Offset in g.SettingsTables
     int                         LastFrameActive;
@@ -3142,12 +3142,15 @@ struct ImGuiTableSettings
     void                  MarkIniSettingsDirty();
     void                  MarkIniSettingsDirty(ImGuiWindow* window);
     void                  ClearIniSettings();
-    ImGuiWindowSettings*  CreateNewWindowSettings(string name);
-    ImGuiWindowSettings*  FindWindowSettings(ImGuiID id);
-    ImGuiWindowSettings*  FindOrCreateWindowSettings(string name);
     void                  AddSettingsHandler(const ImGuiSettingsHandler* handler);
     void                  RemoveSettingsHandler(string type_name);
     ImGuiSettingsHandler* FindSettingsHandler(string type_name);
+
+    // Settings - Windows
+    ImGuiWindowSettings*  CreateNewWindowSettings(string name);
+    ImGuiWindowSettings*  FindWindowSettingsByID(ImGuiID id);
+    ImGuiWindowSettings*  FindWindowSettingsByWindow(ImGuiWindow* window);
+    void                  ClearWindowSettings(string name);
 
     // Localization
     void          LocalizeRegisterEntries(const ImGuiLocEntry* entries, int count);
@@ -3186,6 +3189,7 @@ struct ImGuiTableSettings
     void          MarkItemEdited(ImGuiID id);     // Mark data associated to given item as "edited", used by IsItemDeactivatedAfterEdit() function.
     void          PushOverrideID(ImGuiID id);     // Push given value as-is at the top of the ID stack (whereas PushID combines old and new hashes)
     ImGuiID       GetIDWithSeed(string str_id_begin, string str_id_end, ImGuiID seed);
+    ImGuiID       GetIDWithSeed(int n, ImGuiID seed);
 
     // Basic Helpers for widget code
     void          ItemSize(const ImVec2/*&*/ size, float text_baseline_y = -1.0f);
@@ -3398,7 +3402,8 @@ struct ImGuiTableSettings
     bool          TableBeginContextMenuPopup(ImGuiTable* table);
     void          TableMergeDrawChannels(ImGuiTable* table);
     +/
-    pragma(inline, true) ImGuiTableInstanceData*   TableGetInstanceData(ImGuiTable* table, int instance_no) { if (instance_no == 0) return &table.InstanceDataFirst; return &table.InstanceDataExtra[instance_no - 1]; }
+    pragma(inline, true) ImGuiTableInstanceData*  TableGetInstanceData(ImGuiTable* table, int instance_no) { if (instance_no == 0) return &table.InstanceDataFirst; return &table.InstanceDataExtra[instance_no - 1]; }
+    pragma(inline, true) ImGuiID                  TableGetInstanceID(ImGuiTable* table, int instance_no)   { return TableGetInstanceData(table, instance_no).TableInstanceID; }
     /+
     void          TableSortSpecsSanitize(ImGuiTable* table);
     void          TableSortSpecsBuild(ImGuiTable* table);
@@ -3411,7 +3416,7 @@ struct ImGuiTableSettings
     void          TableEndCell(ImGuiTable* table);
     ImRect        TableGetCellBgRect(const ImGuiTable* table, int column_n);
     string   TableGetColumnName(const ImGuiTable* table, int column_n);
-    ImGuiID       TableGetColumnResizeID(const ImGuiTable* table, int column_n, int instance_no = 0);
+    ImGuiID       TableGetColumnResizeID(ImGuiTable* table, int column_n, int instance_no = 0);
     float         TableGetMaxColumnWidth(const ImGuiTable* table, int column_n);
     void          TableSetColumnWidthAutoSingle(ImGuiTable* table, int column_n);
     void          TableSetColumnWidthAutoAll(ImGuiTable* table);
@@ -3430,12 +3435,22 @@ struct ImGuiTableSettings
     ImGuiTableSettings*   TableSettingsFindByID(ImGuiID id);
 
     // Tab Bars
+    +/
+    pragma(inline, true)    ImGuiTabBar*  GetCurrentTabBar() { ImGuiContext* g = GImGui; return g.CurrentTabBar; }
+    /+
     bool          BeginTabBarEx(ImGuiTabBar* tab_bar, const ImRect/*&*/ bb, ImGuiTabBarFlags flags);
     ImGuiTabItem* TabBarFindTabByID(ImGuiTabBar* tab_bar, ImGuiID tab_id);
+    ImGuiTabItem* TabBarFindTabByOrder(ImGuiTabBar* tab_bar, int order);
+    ImGuiTabItem* TabBarGetCurrentTab(ImGuiTabBar* tab_bar);
+    +/
+    pragma(inline, true) int              TabBarGetTabOrder(ImGuiTabBar* tab_bar, ImGuiTabItem* tab) { return tab_bar.Tabs.index_from_ptr(tab); }
+    /+
+    string   TabBarGetTabName(ImGuiTabBar* tab_bar, ImGuiTabItem* tab);
     void          TabBarRemoveTab(ImGuiTabBar* tab_bar, ImGuiID tab_id);
     void          TabBarCloseTab(ImGuiTabBar* tab_bar, ImGuiTabItem* tab);
-    void          TabBarQueueReorder(ImGuiTabBar* tab_bar, const ImGuiTabItem* tab, int offset);
-    void          TabBarQueueReorderFromMousePos(ImGuiTabBar* tab_bar, const ImGuiTabItem* tab, ImVec2 mouse_pos);
+    void          TabBarQueueFocus(ImGuiTabBar* tab_bar, ImGuiTabItem* tab);
+    void          TabBarQueueReorder(ImGuiTabBar* tab_bar, ImGuiTabItem* tab, int offset);
+    void          TabBarQueueReorderFromMousePos(ImGuiTabBar* tab_bar, ImGuiTabItem* tab, ImVec2 mouse_pos);
     bool          TabBarProcessReorder(ImGuiTabBar* tab_bar);
     bool          TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItemFlags flags, ImGuiWindow* docked_window);
     ImVec2        TabItemCalcSize(string label, bool has_close_button_or_unsaved_marker);
@@ -3472,8 +3487,9 @@ struct ImGuiTableSettings
     void          TextEx(string text, string text_end = NULL, ImGuiTextFlags flags = 0);
     bool          ButtonEx(string label, const ImVec2/*&*/ size_arg = ImVec2(0, 0), ImGuiButtonFlags flags = 0);
     bool          ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size_arg, ImGuiButtonFlags flags = 0);
-    bool          ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, const ImVec4/*&*/ bg_col, const ImVec4/*&*/ tint_col);
+    bool          ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, const ImVec4/*&*/ bg_col, const ImVec4/*&*/ tint_col, ImGuiButtonFlags flags = 0);
     void          SeparatorEx(ImGuiSeparatorFlags flags);
+    void          SeparatorTextEx(ImGuiID id, string label, string label_end, float extra_width);
     bool          CheckboxFlags(string label, ImS64* flags, ImS64 flags_value);
     bool          CheckboxFlags(string label, ImU64* flags, ImU64 flags_value);
 
@@ -3531,7 +3547,7 @@ struct ImGuiTableSettings
     void          ColorPickerOptionsPopup(const float* ref_col, ImGuiColorEditFlags flags);
 
     // Plot
-    int           PlotEx(ImGuiPlotType plot_type, string label, float (*values_getter)(void* data, int idx), void* data, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, ImVec2 frame_size);
+    int           PlotEx(ImGuiPlotType plot_type, string label, float (*values_getter)(void* data, int idx), void* data, int values_count, int values_offset, string overlay_text, float scale_min, float scale_max, const ImVec2/*&*/ size_arg);
 
     // Shade functions (write over already created vertices)
     void          ShadeVertsLinearColorGradientKeepAlpha(ImDrawList* draw_list, int vert_start_idx, int vert_end_idx, ImVec2 gradient_p0, ImVec2 gradient_p1, ImU32 col0, ImU32 col1);

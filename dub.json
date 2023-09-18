@@ -28,7 +28,7 @@
 			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_vulkan.d"],
 			"dependencies"	: {
 				"d_snprintf"	: "~>1.2.1",
-				"bindbc-glfw"	: "~>1.0.0",
+				"bindbc-glfw"	: "~>1.1.0",
 				"erupted"		: "~>2.1",
 			},
 			"subConfigurations"	: {
@@ -50,8 +50,8 @@
 			"sourceFiles"	: ["backends_d/imgui_impl_glfw.d", "backends_d/imgui_impl_opengl3.d", "backends_d/imgui_impl_opengl3_loader.d"],
 			"dependencies"	: {
 				"d_snprintf"	: "~>1.2.1",
-				"bindbc-glfw"	: "~>1.0.0",
-		        "bindbc-opengl"	: "~>1.0.0",
+				"bindbc-glfw"	: "~>1.1.0",
+		        "bindbc-opengl"	: "~>1.1.0",
 			},
 			"subConfigurations"	: {
 				"bindbc-glfw"	: "dynamicBC",

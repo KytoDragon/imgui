@@ -35,6 +35,7 @@ enum IMGUI_UNLIMITED_FRAME_RATE = true;
 debug enum IMGUI_VULKAN_DEBUG_REPORT = true;
 else enum IMGUI_VULKAN_DEBUG_REPORT = false;
 
+// Data
 static VkAllocationCallbacks*   g_Allocator = NULL;
 static VkInstance               g_Instance = VK_NULL_HANDLE;
 static VkPhysicalDevice         g_PhysicalDevice = VK_NULL_HANDLE;
@@ -49,6 +50,10 @@ static ImGui_ImplVulkanH_Window g_MainWindowData;
 static int                      g_MinImageCount = 2;
 static bool                     g_SwapChainRebuild = false;
 
+extern(C) void glfw_error_callback(int error, const char* description)
+{
+    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+}
 static void check_vk_result(VkResult err)
 {
     if (err == 0)
@@ -382,26 +387,20 @@ static void FramePresent(ImGui_ImplVulkanH_Window* wd)
     wd.SemaphoreIndex = (wd.SemaphoreIndex + 1) % wd.ImageCount; // Now we can use the next set of semaphores
 }
 
-extern(C) void glfw_error_callback(int error, const(char)* description)
-{
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
-
+// Main code
 int main()
 {
     // Initialize GLFW3 and Vulkan related glfw functions
     loadGLFW("glfw3");  // load the lib found in system path
     loadGLFW_Vulkan();    // load vulkan specific glfw function pointers
 
-    // Setup GLFW window
     glfwSetErrorCallback(&glfw_error_callback);
     if (!glfwInit())
         return 1;
 
+    // Create window with Vulkan context
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+Vulkan example", NULL, NULL);
-
-    // Setup Vulkan
     if (!glfwVulkanSupported())
     {
         printf("GLFW: Vulkan Not Supported\n");
