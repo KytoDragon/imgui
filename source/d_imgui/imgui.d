@@ -2026,7 +2026,7 @@ version (CRuntime_Microsoft) {
 
 // We should in theory be using fseeko()/ftello() with off_t and _fseeki64()/_ftelli64() with __int64, waiting for the PR that does that in a very portable pre-C++11 zero-warnings way.
 bool    ImFileClose(ImFileHandle f)     { return fclose(f) == 0; }
-ImU64   ImFileGetSize(ImFileHandle f)   { int off = 0, sz = 0; return ((off = ftell(f)) != -1 && !fseek(f, 0, SEEK_END) && (sz = ftell(f)) != -1 && !fseek(f, off, SEEK_SET)) ? cast(ImU64)sz : cast(ImU64)-1; }
+ImU64   ImFileGetSize(ImFileHandle f)   { int off = 0, sz = 0; return ((off = cast(int)ftell(f)) != -1 && !fseek(f, 0, SEEK_END) && (sz = cast(int)ftell(f)) != -1 && !fseek(f, off, SEEK_SET)) ? cast(ImU64)sz : cast(ImU64)-1; }
 ImU64   ImFileRead(void* data, ImU64 count, ImFileHandle f)           { return fread(data, 1, cast(size_t)count, f); }
 ImU64   ImFileWrite(const void* data, ImU64 count, ImFileHandle f)    { return fwrite(data, 1, cast(size_t)count, f); }
 // D_IMGUI: Encapsulate console handling.
@@ -13152,7 +13152,7 @@ static void SetClipboardTextFn_DefaultImpl(void*, string text)
     g.ClipboardHandlerData.clear();
     size_t text_end = text.length;
     g.ClipboardHandlerData.resize(cast(int)(text_end) + 1);
-    memcpy(&g.ClipboardHandlerData[0], text, cast(size_t)(text_end));
+    memcpy(&g.ClipboardHandlerData[0], text.ptr, cast(size_t)(text_end));
     g.ClipboardHandlerData[cast(int)(text_end)] = 0;
 }
 
