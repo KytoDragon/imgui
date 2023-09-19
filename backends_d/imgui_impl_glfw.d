@@ -16,6 +16,7 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2023-03-14: Emscripten: Avoid using glfwGetError() and glfwGetGamepadState() which are not correctly implemented in Emscripten emulation. (#6240)
 //  2023-02-03: Emscripten: Registering custom low-level mouse wheel handler to get more accurate scrolling impulses on Emscripten. (#4019, #6096)
 //  2023-01-04: Inputs: Fixed mods state on Linux when using Alt-GR text input (e.g. German keyboard layout), could lead to broken text input. Revert a 2022/01/17 change were we resumed using mods provided by GLFW, turns out they were faulty.
 //  2022-11-22: Perform a dummy glfwGetError() read to cancel missing names with glfwGetKeyName(). (#5908)
@@ -107,6 +108,13 @@ enum GLFW_HAS_NEW_CURSORS            = (GLFW_VERSION_COMBINED >= 3400); // 3.4+ 
 //#endif
 enum GLFW_HAS_GAMEPAD_API            = (GLFW_VERSION_COMBINED >= 3300); // 3.3+ glfwGetGamepadState() new api
 enum GLFW_HAS_GETKEYNAME             = (GLFW_VERSION_COMBINED >= 3200); // 3.2+ glfwGetKeyName()
+enum GLFW_HAS_GETERROR               = (GLFW_VERSION_COMBINED >= 3300); // 3.3+ glfwGetError()
+
+version (Emscripten) {
+    enum Emscripten = true;
+} else {
+    enum Emscripten = false;
+}
 
 // GLFW data
 enum GlfwClientApi
@@ -324,7 +332,7 @@ version (Emscripten) {
 
 static int ImGui_ImplGlfw_TranslateUntranslatedKey(int key, int scancode)
 {
-version (Emscripten) {} else static if (GLFW_HAS_GETKEYNAME) {
+static if (GLFW_HAS_GETKEYNAME && !Emscripten) {
     // GLFW 3.1+ attempts to "untranslate" keys, which goes the opposite of what every other framework does, making using lettered shortcuts difficult.
     // (It had reasons to do so: namely GLFW is/was more likely to be used for WASD-type game controls rather than lettered shortcuts, but IHMO the 3.1 change could have been done differently)
     // See https://github.com/glfw/glfw/issues/1502 for details.
@@ -335,7 +343,7 @@ version (Emscripten) {} else static if (GLFW_HAS_GETKEYNAME) {
     GLFWerrorfun prev_error_callback = glfwSetErrorCallback(null);
     const char* key_name = glfwGetKeyName(key, scancode);
     glfwSetErrorCallback(prev_error_callback);
-static if (GLFW_VERSION_COMBINED >= 3300) { // Eat errors (see #5908)
+static if (GLFW_HAS_GETERROR && !Emscripten) { // Eat errors (see #5908)
     cast(void)glfwGetError(null);
 }
     if (key_name && key_name[0] != 0 && key_name[1] == 0)
@@ -551,7 +559,7 @@ static if (GLFW_HAS_NEW_CURSORS) {
     bd.MouseCursors[ImGuiMouseCursor.NotAllowed] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
 }
     glfwSetErrorCallback(prev_error_callback);
-static if (GLFW_VERSION_COMBINED >= 3300) { // Eat errors (see #5785)
+static if (GLFW_HAS_GETERROR && !Emscripten) { // Eat errors (see #5785)
     cast(void)glfwGetError(NULL);
 }
 
@@ -686,7 +694,7 @@ static void ImGui_ImplGlfw_UpdateGamepads()
         return;
 
     io.BackendFlags &= ~ImGuiBackendFlags.HasGamepad;
-static if (GLFW_HAS_GAMEPAD_API) {
+static if (GLFW_HAS_GAMEPAD_API && !Emscripten) {
     GLFWgamepadstate gamepad;
     if (!glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepad))
         return;

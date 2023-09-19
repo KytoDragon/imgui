@@ -1,4 +1,4 @@
-// dear imgui, v1.89.3
+// dear imgui, v1.89.4
 // (widgets code)
 module d_imgui.imgui_widgets;
 
@@ -33,19 +33,20 @@ Index of this file:
 // #define _CRT_SECURE_NO_WARNINGS
 // #endif
 
-import d_imgui.imgui_h;
-// #ifndef IMGUI_DISABLE
+//#ifndef IMGUI_DEFINE_MATH_OPERATORS
+//#define IMGUI_DEFINE_MATH_OPERATORS
+//}
 
-// #ifndef IMGUI_DEFINE_MATH_OPERATORS
-// #define IMGUI_DEFINE_MATH_OPERATORS
-// #endif
 import d_imgui.imconfig;
 import d_imgui.imgui;
+import d_imgui.imgui_h;
 import d_imgui.imgui_internal;
 import d_imgui.imgui_draw;
 import d_imgui.imstb_textedit;
 import d_imgui.imgui_tables;
 import ImStb = d_imgui.imstb_textedit;
+//#ifndef IMGUI_DISABLE
+//#include "imgui_internal.h"
 
 //import core.stdc.string : strlen, memcpy, memcmp, memmove, memset, strcmp;
 import d_snprintf.vararg;
@@ -497,8 +498,9 @@ bool ButtonBehavior(const ImRect/*&*/ bb, ImGuiID id, bool* out_hovered, bool* o
         g.HoveredWindow = window;
 
 version (IMGUI_ENABLE_TEST_ENGINE) {
+    // Alternate registration spot, for when caller didn't use ItemAdd()
     if (id != 0 && g.LastItemData.ID != id)
-        IMGUI_TEST_ENGINE_ITEM_ADD(&bb, id);
+        IMGUI_TEST_ENGINE_ITEM_ADD(id, bb, NULL);
 }
 
     bool pressed = false;
@@ -608,10 +610,11 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
         bool nav_activated_by_inputs = (g.NavActivatePressedId == id);
         if (!nav_activated_by_inputs && (flags & ImGuiButtonFlags.Repeat))
         {
-            // Avoid pressing both keys from triggering double amount of repeat events
+            // Avoid pressing multiple keys from triggering excessive amount of repeat events
             const ImGuiKeyData* key1 = GetKeyData(ImGuiKey.Space);
-            const ImGuiKeyData* key2 = GetKeyData(ImGuiKey.NavGamepadActivate);
-            const float t1 = ImMax(key1.DownDuration, key2.DownDuration);
+            const ImGuiKeyData* key2 = GetKeyData(ImGuiKey.Enter);
+            const ImGuiKeyData* key3 = GetKeyData(ImGuiKey.NavGamepadActivate);
+            const float t1 = ImMax(ImMax(key1.DownDuration, key2.DownDuration), key3.DownDuration);
             nav_activated_by_inputs = CalcTypematicRepeatAmount(t1 - g.IO.DeltaTime, t1, g.IO.KeyRepeatDelay, g.IO.KeyRepeatRate) > 0;
         }
         if (nav_activated_by_code || nav_activated_by_inputs)
@@ -2413,18 +2416,18 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
         const bool input_requested_by_tabbing = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags.FocusedByTabbing) != 0;
         const bool clicked = hovered && IsMouseClicked(ImGuiMouseButton.Left, id);
         const bool double_clicked = (hovered && g.IO.MouseClickedCount[0] == 2 && TestKeyOwner(ImGuiKey.MouseLeft, id));
-        const bool make_active = (input_requested_by_tabbing || clicked || double_clicked || g.NavActivateId == id || g.NavActivateInputId == id);
+        const bool make_active = (input_requested_by_tabbing || clicked || double_clicked || g.NavActivateId == id);
         if (make_active && (clicked || double_clicked))
             SetKeyOwner(ImGuiKey.MouseLeft, id);
         if (make_active && temp_input_allowed)
-            if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || double_clicked || g.NavActivateInputId == id)
+            if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || double_clicked || (g.NavActivateId == id && (g.NavActivateFlags & ImGuiActivateFlags.PreferInput)))
                 temp_input_is_active = true;
 
         // (Optional) simple click (without moving) turns Drag into an InputText
         if (g.IO.ConfigDragClickToInputText && temp_input_allowed && !temp_input_is_active)
             if (g.ActiveId == id && hovered && g.IO.MouseReleased[0] && !IsMouseDragPastThreshold(ImGuiMouseButton.Left, g.IO.MouseDragThreshold * DRAG_MOUSE_THRESHOLD_FACTOR))
             {
-                g.NavActivateId = g.NavActivateInputId = id;
+                g.NavActivateId = id;
                 g.NavActivateFlags = ImGuiActivateFlags.PreferInput;
                 temp_input_is_active = true;
             }
@@ -2465,7 +2468,7 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
     if (label_size.x > 0.0f)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
 
-    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags);
+    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | (temp_input_allowed ? ImGuiItemStatusFlags.Inputable : ImGuiItemStatusFlags.None));
     return value_changed;
 }
 
@@ -3008,11 +3011,11 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
         // Tabbing or CTRL-clicking on Slider turns it into an input box
         const bool input_requested_by_tabbing = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags.FocusedByTabbing) != 0;
         const bool clicked = hovered && IsMouseClicked(ImGuiMouseButton.Left, id);
-        const bool make_active = (input_requested_by_tabbing || clicked || g.NavActivateId == id || g.NavActivateInputId == id);
+        const bool make_active = (input_requested_by_tabbing || clicked || g.NavActivateId == id);
         if (make_active && clicked)
             SetKeyOwner(ImGuiKey.MouseLeft, id);
         if (make_active && temp_input_allowed)
-            if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || g.NavActivateInputId == id)
+            if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || (g.NavActivateId == id && (g.NavActivateFlags & ImGuiActivateFlags.PreferInput)))
                 temp_input_is_active = true;
 
         if (make_active && !temp_input_is_active)
@@ -3056,7 +3059,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
     if (label_size.x > 0.0f)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
 
-    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags);
+    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | (temp_input_allowed ? ImGuiItemStatusFlags.Inputable : ImGuiItemStatusFlags.None));
     return value_changed;
 }
 
@@ -3175,7 +3178,7 @@ bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type
 
     const bool hovered = ItemHoverable(frame_bb, id);
     const bool clicked = hovered && IsMouseClicked(ImGuiMouseButton.Left, id);
-    if (clicked || g.NavActivateId == id || g.NavActivateInputId == id)
+    if (clicked || g.NavActivateId == id)
     {
         if (clicked)
             SetKeyOwner(ImGuiKey.MouseLeft, id);
@@ -3473,7 +3476,7 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
         SetNextItemWidth(ImMax(1.0f, CalcItemWidth() - (button_size + style.ItemInnerSpacing.x) * 2));
         if (InputText("", buf, flags)) // PushId(label) + "" gives us the expected ID from outside point of view
             value_changed = DataTypeApplyFromText(ImCstring(buf), data_type, p_data, format);
-        IMGUI_TEST_ENGINE_ITEM_INFO(g.LastItemData.ID, label, g.LastItemData.StatusFlags);
+        IMGUI_TEST_ENGINE_ITEM_INFO(g.LastItemData.ID, label, g.LastItemData.StatusFlags | ImGuiItemStatusFlags.Inputable);
 
         // Step buttons
         const ImVec2 backup_frame_padding = style.FramePadding;
@@ -3886,7 +3889,7 @@ void InsertChars(int pos, string new_text)
             return;
 
         // Contrary to STB_TEXTEDIT_INSERTCHARS() this is working in the UTF8 buffer, hence the mildly similar code (until we remove the U16 buffer altogether!)
-        ImGuiContext* g = GImGui;
+        ImGuiContext* g = Ctx;
         ImGuiInputTextState* edit_state = &g.InputTextState;
         IM_ASSERT(edit_state.ID != 0 && g.ActiveId == edit_state.ID);
         IM_ASSERT(Buf.ptr == edit_state.TextA.Data);
@@ -3992,8 +3995,9 @@ static bool InputTextFilterCharacter(uint* p_char, ImGuiInputTextFlags flags, Im
     // Custom callback filter
     if (flags & ImGuiInputTextFlags.CallbackCharFilter)
     {
+        ImGuiContext* g = GImGui;
         ImGuiInputTextCallbackData callback_data = ImGuiInputTextCallbackData(false);
-        memset(&callback_data, 0, sizeof!(ImGuiInputTextCallbackData));
+        callback_data.Ctx = g;
         callback_data.EventFlag = ImGuiInputTextFlags.CallbackCharFilter;
         callback_data.EventChar = cast(ImWchar)c;
         callback_data.Flags = flags;
@@ -4139,7 +4143,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
     ImGuiInputTextState* state = GetInputTextState(id);
 
     const bool input_requested_by_tabbing = (item_status_flags & ImGuiItemStatusFlags.FocusedByTabbing) != 0;
-    const bool input_requested_by_nav = (g.ActiveId != id) && ((g.NavActivateInputId == id) || (g.NavActivateId == id && g.NavInputSource == ImGuiInputSource.Keyboard));
+    const bool input_requested_by_nav = (g.ActiveId != id) && ((g.NavActivateId == id) && ((g.NavActivateFlags & ImGuiActivateFlags.PreferInput) || (g.NavInputSource == ImGuiInputSource.Keyboard)));
 
     const bool user_clicked = hovered && io.MouseClicked[0];
     const bool user_scroll_finish = is_multiline && state != NULL && g.ActiveId == 0 && g.ActiveIdPreviousFrame == GetWindowScrollbarID(draw_window, ImGuiAxis.Y);
@@ -4231,7 +4235,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         if (is_osx)
             SetKeyOwner(ImGuiMod.Alt, id);
         if (flags & (ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.AllowTabInput)) // Disable keyboard tabbing out as we will use the \t character.
-            SetKeyOwner(ImGuiKey.Tab, id);
+            SetShortcutRouting(ImGuiKey.Tab, id);
     }
 
     // We have an edge case if ActiveId was set through another widget (e.g. widget being swapped), clear id immediately (don't wait until the end of the function)
@@ -4361,8 +4365,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
         // We expect backends to emit a Tab key but some also emit a Tab character which we ignore (#2467, #1336)
         // (For Tab and Enter: Win32/SFML/Allegro are sending both keys and chars, GLFW and SDL are only sending keys. For Space they all send all threes)
-        const bool ignore_char_inputs = (io.KeyCtrl && !io.KeyAlt) || (is_osx && io.KeySuper);
-        if ((flags & ImGuiInputTextFlags.AllowTabInput) && IsKeyPressed(ImGuiKey.Tab) && !ignore_char_inputs && !io.KeyShift && !is_readonly)
+        if ((flags & ImGuiInputTextFlags.AllowTabInput) && Shortcut(ImGuiKey.Tab, id) && !is_readonly)
         {
             uint c = '\t'; // Insert TAB
             if (InputTextFilterCharacter(&c, flags, callback, callback_user_data, ImGuiInputSource.Keyboard))
@@ -4371,6 +4374,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
         // Process regular text input (before we check for Return because using some IME will effectively send a Return?)
         // We ignore CTRL inputs, but need to allow ALT+CTRL as some keyboards (e.g. German) use AltGR (which _is_ Alt+Ctrl) to input certain characters.
+        const bool ignore_char_inputs = (io.KeyCtrl && !io.KeyAlt) || (is_osx && io.KeySuper);
         if (io.InputQueueCharacters.Size > 0)
         {
             if (!ignore_char_inputs && !is_readonly && !input_requested_by_nav)
@@ -4608,7 +4612,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 // The reason we specify the usage semantic (Completion/History) is that Completion needs to disable keyboard TABBING at the moment.
                 ImGuiInputTextFlags event_flag = ImGuiInputTextFlags.None;
                 ImGuiKey event_key = ImGuiKey.None;
-                if ((flags & ImGuiInputTextFlags.CallbackCompletion) != 0 && IsKeyPressed(ImGuiKey.Tab))
+                if ((flags & ImGuiInputTextFlags.CallbackCompletion) != 0 && Shortcut(ImGuiKey.Tab, id))
                 {
                     event_flag = ImGuiInputTextFlags.CallbackCompletion;
                     event_key = ImGuiKey.Tab;
@@ -4635,7 +4639,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 if (event_flag)
                 {
                     ImGuiInputTextCallbackData callback_data = ImGuiInputTextCallbackData(false);
-                    memset(&callback_data, 0, sizeof!(ImGuiInputTextCallbackData));
+                    callback_data.Ctx = g;
                     callback_data.EventFlag = event_flag;
                     callback_data.Flags = flags;
                     callback_data.UserData = callback_user_data;
@@ -4698,6 +4702,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         if (is_resizable)
         {
             ImGuiInputTextCallbackData callback_data = ImGuiInputTextCallbackData(false);
+            callback_data.Ctx = g;
             callback_data.EventFlag = ImGuiInputTextFlags.CallbackResize;
             callback_data.Flags = flags;
             callback_data.Buf = buf;
@@ -4964,7 +4969,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
     if (value_changed && !(flags & ImGuiInputTextFlags.NoMarkEdited))
         MarkItemEdited(id);
 
-    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags);
+    IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | ImGuiItemStatusFlags.Inputable);
     if ((flags & ImGuiInputTextFlags.EnterReturnsTrue) != 0)
         return validated;
     else
@@ -5821,7 +5826,8 @@ void ColorTooltip(string text, const float* col, ImGuiColorEditFlags flags)
 {
     ImGuiContext* g = GImGui;
 
-    BeginTooltipEx(ImGuiTooltipFlags.OverridePreviousTooltip, ImGuiWindowFlags.None);
+    if (!BeginTooltipEx(ImGuiTooltipFlags.OverridePreviousTooltip, ImGuiWindowFlags.None))
+        return;
     string text_end = text !is NULL ? FindRenderedTextEnd(text) : text;
     if (text_end.length > 0)
     {

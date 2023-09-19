@@ -1,4 +1,4 @@
-// dear imgui, v1.89.3
+// dear imgui, v1.89.4
 // (drawing and font code)
 module d_imgui.imgui_draw;
 
@@ -27,18 +27,17 @@ Index of this file:
 // #define _CRT_SECURE_NO_WARNINGS
 // #endif
 
-import d_imgui.imconfig;
-import d_imgui.imgui_h;
-import d_imgui.imgui;
-// #ifndef IMGUI_DISABLE
-
 // #ifndef IMGUI_DEFINE_MATH_OPERATORS
 // #define IMGUI_DEFINE_MATH_OPERATORS
 // #endif
 
+import d_imgui.imconfig;
+import d_imgui.imgui_h;
+import d_imgui.imgui;
 import d_imgui.imgui_internal;
-
 /+
+#ifndef IMGUI_DISABLE
+#include "imgui_internal.h"
 #ifdef IMGUI_ENABLE_FREETYPE
 #include "misc/freetype/imgui_freetype.h"
 #endif
