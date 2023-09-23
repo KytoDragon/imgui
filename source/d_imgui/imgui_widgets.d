@@ -76,10 +76,10 @@ alias uintptr_t = size_t;
 #pragma warning (disable: 4996)     // 'This function or variable may be unsafe': strcpy, strdup, sprintf, vsnprintf, sscanf, fopen
 #if defined(_MSC_VER) && _MSC_VER >= 1922 // MSVC 2019 16.2 or later
 #pragma warning (disable: 5054)     // operator '|': deprecated between enumerations of different types
-#endif
+}
 #pragma warning (disable: 26451)    // [Static Analyzer] Arithmetic overflow : Using operator 'xxx' on a 4 byte value and then casting the result to a 8 byte value. Cast the value to the wider type before calling operator 'xxx' to avoid overflow(io.2).
 #pragma warning (disable: 26812)    // [Static Analyzer] The enum type 'xxx' is unscoped. Prefer 'enum class' over 'enum' (Enum.3).
-#endif
+}
 +/
 
 // Clang/GCC warnings with -Weverything
@@ -87,7 +87,7 @@ alias uintptr_t = size_t;
 #if defined(__clang__)
 #if __has_warning("-Wunknown-warning-option")
 #pragma clang diagnostic ignored "-Wunknown-warning-option"         // warning: unknown warning group 'xxx'                      // not all warnings are known by all Clang versions and they tend to be rename-happy.. so ignoring warnings triggers new warnings on some configuration. Great!
-#endif
+}
 #pragma clang diagnostic ignored "-Wunknown-pragmas"                // warning: unknown warning group 'xxx'
 #pragma clang diagnostic ignored "-Wold-style-cast"                 // warning: use of old-style cast                            // yes, they are more terse.
 #pragma clang diagnostic ignored "-Wfloat-equal"                    // warning: comparing floating point with == or != is unsafe // storing and comparing against same constants (typically 0.0f) is ok.
@@ -103,7 +103,7 @@ alias uintptr_t = size_t;
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"                // warning: format not a string literal, format string not checked
 #pragma GCC diagnostic ignored "-Wclass-memaccess"                  // [__GNUC__ >= 8] warning: 'memset/memcpy' clearing/writing an object of type 'xxxx' with no trivial copy-assignment; use assignment or value-initialization instead
 #pragma GCC diagnostic ignored "-Wdeprecated-enum-enum-conversion"  // warning: bitwise operation between different enumeration types ('XXXFlags_' and 'XXXFlagsPrivate_') is deprecated
-#endif
+}
 +/
 
 //-------------------------------------------------------------------------
@@ -1983,8 +1983,8 @@ __gshared const ImGuiDataTypeInfo[ImGuiDataType.COUNT] GDataTypeInfo =
     { sizeof!(uint),     "U32",  "%u",   "%u"    },
     { sizeof!(ImS64),            "S64",  "%lld", "%lld"  },  // ImGuiDataType_S64
     { sizeof!(ImU64),            "U64",  "%llu", "%llu"  },
-    { sizeof!(float),            "float", "%.3f",  "%f"    },  // ImGuiDataType_Float (float are promoted to double in va_arg)
-    { sizeof!(double),           "double","%lf",  "%lf"  },  // ImGuiDataType_Double
+    { sizeof!(float),            "float", "%.3f","%f"    },  // ImGuiDataType_Float (float are promoted to double in va_arg)
+    { sizeof!(double),           "double","%lf",  "%lf"   },  // ImGuiDataType_Double
 ];
 
 const (ImGuiDataTypeInfo)* DataTypeGetInfo(ImGuiDataType data_type)
@@ -2309,7 +2309,7 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
 
     // Round to user desired precision based on format string
     if (is_floating_point && !(flags & ImGuiSliderFlags.NoRoundToFormat))
-        v_cur = RoundScalarWithFormatT!(TYPE)(format, data_type, v_cur);
+        v_cur = RoundScalarWithFormatT!TYPE(format, data_type, v_cur);
 
     // Preserve remainder after rounding has been applied. This also allow slow tweaking of values.
     g.DragCurrentAccumDirty = false;
@@ -2970,7 +2970,7 @@ bool SliderBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiDataType data_type, v
         return SliderBehaviorT!(float, float, float )(bb, id, data_type, cast(float*)p_v,  *cast(const float*)p_min,  *cast(const float*)p_max,  format, flags, out_grab_bb);
     case ImGuiDataType.Double:
         IM_ASSERT(*cast(const double*)p_min >= -DBL_MAX / 2.0f && *cast(const double*)p_max <= DBL_MAX / 2.0f);
-        return SliderBehaviorT!(double,double,double)(bb, id, data_type, cast(double*)p_v, *cast(const double*)p_min, *cast(const double*)p_max, format, flags, out_grab_bb);
+        return SliderBehaviorT!(double, double, double)(bb, id, data_type, cast(double*)p_v, *cast(const double*)p_min, *cast(const double*)p_max, format, flags, out_grab_bb);
     case ImGuiDataType.COUNT: break;
     default: break;
     }
@@ -4509,7 +4509,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 const int ib = state.HasSelection() ? ImMin(state.Stb.select_start, state.Stb.select_end) : 0;
                 const int ie = state.HasSelection() ? ImMax(state.Stb.select_start, state.Stb.select_end) : state.CurLenW;
                 const int clipboard_data_len = ImTextCountUtf8BytesFromStr(state.TextW.Data + ib, state.TextW.Data + ie) + 1;
-                char[] clipboard_data = IM_ALLOC!char(clipboard_data_len * sizeof!(char));
+                char[] clipboard_data = IM_ALLOC!char(clipboard_data_len);
                 int length = ImTextStrToUtf8(clipboard_data.ptr, clipboard_data_len, state.TextW.Data + ib, state.TextW.Data + ie);
                 SetClipboardText(cast(string)clipboard_data[0..length]);
                 MemFree(clipboard_data);
@@ -5281,14 +5281,12 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
     if ((g.LastItemData.StatusFlags & ImGuiItemStatusFlags.HoveredRect) && !(flags & ImGuiColorEditFlags.NoDragDrop) && BeginDragDropTarget())
     {
         bool accepted_drag_drop = false;
-        const (ImGuiPayload)* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F);
-        if (payload)
+        if (const ImGuiPayload* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F))
         {
             memcpy(col, payload.Data, sizeof!(float) * 3); // Preserve alpha if any //-V512 //-V1086
             value_changed = accepted_drag_drop = true;
         }
-        payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F);
-        if (payload)
+        if (const ImGuiPayload* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F))
         {
             memcpy(col, payload.Data, sizeof!(float) * components);
             value_changed = accepted_drag_drop = true;

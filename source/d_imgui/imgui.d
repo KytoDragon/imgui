@@ -881,13 +881,15 @@ CODE
 // [SECTION] INCLUDES
 //-------------------------------------------------------------------------
 
-// #if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
-// #define _CRT_SECURE_NO_WARNINGS
-// }
+/+
+#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
+#define _CRT_SECURE_NO_WARNINGS
+}
 
-// #ifndef IMGUI_DEFINE_MATH_OPERATORS
-// #define IMGUI_DEFINE_MATH_OPERATORS
-//}
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+}
++/
 
 import d_imgui.imconfig;
 import d_imgui.imgui_h;
@@ -939,7 +941,7 @@ import d_snprintf.snscanf : sscanf = snscanf;
 // [Apple] OS specific includes
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
-#endif
+}
 +/
 
 nothrow:
@@ -1015,8 +1017,8 @@ static void             FindHoveredWindow();
 static ImGuiWindow*     CreateNewWindow(string name, ImGuiWindowFlags flags);
 static ImVec2           CalcNextScrollFromScrollTargetAndClamp(ImGuiWindow* window);
 
-static void             AddDrawListToDrawData(ImVector<ImDrawList*>* out_list, ImDrawList* draw_list);
-static void             AddWindowToSortBuffer(ImVector<ImGuiWindow*>* out_sorted_windows, ImGuiWindow* window);
+static void             AddDrawListToDrawData(ImVector!(ImDrawList*)* out_list, ImDrawList* draw_list);
+static void             AddWindowToSortBuffer(ImVector!(ImGuiWindow*)* out_sorted_windows, ImGuiWindow* window);
 
 // Settings
 static void             WindowSettingsHandler_ClearAll(ImGuiContext*, ImGuiSettingsHandler*);
@@ -1040,7 +1042,7 @@ static void             NavUpdateCancelRequest();
 static void             NavUpdateCreateMoveRequest();
 static void             NavUpdateCreateTabbingRequest();
 static float            NavUpdatePageUpPageDown();
-static inline void      NavUpdateAnyRequestFlag();
+static pragma(inline, true) void      NavUpdateAnyRequestFlag();
 static void             NavUpdateCreateWrappingRequest();
 static void             NavEndFrame();
 static bool             NavScoreItem(ImGuiNavItemData* result);
@@ -1068,9 +1070,9 @@ static void             UpdateKeyRoutingTable(ImGuiKeyRoutingTable* rt);
 
 // Misc
 static void             UpdateSettings();
-static bool             UpdateWindowManualResize(ImGuiWindow* window, const ImVec2/*&*/ size_auto_fit, int* border_held, int resize_grip_count, ImU32 resize_grip_col[4], const ImRect/*&*/ visibility_rect);
+static bool             UpdateWindowManualResize(ImGuiWindow* window, const ImVec2/*&*/ size_auto_fit, int* border_held, int resize_grip_count, ImU32[4] resize_grip_col, const ImRect/*&*/ visibility_rect);
 static void             RenderWindowOuterBorders(ImGuiWindow* window);
-static void             RenderWindowDecorations(ImGuiWindow* window, const ImRect/*&*/ title_bar_rect, bool title_bar_is_highlight, bool handle_borders_and_resize_grips, int resize_grip_count, const ImU32 resize_grip_col[4], float resize_grip_draw_size);
+static void             RenderWindowDecorations(ImGuiWindow* window, const ImRect/*&*/ title_bar_rect, bool title_bar_is_highlight, bool handle_borders_and_resize_grips, int resize_grip_count, const ImU32[4] resize_grip_col, float resize_grip_draw_size);
 static void             RenderWindowTitleBarContents(ImGuiWindow* window, const ImRect/*&*/ title_bar_rect, string name, bool* p_open);
 static void             RenderDimmedBackgroundBehindWindow(ImGuiWindow* window, ImU32 col);
 static void             RenderDimmedBackgrounds();
@@ -1634,7 +1636,7 @@ void ImBezierCubicClosestPointCasteljauStep(const ImVec2/*&*/ p, ref ImVec2 p_cl
 
 // tess_tol is generally the same value you would find in ImGui::GetStyle().CurveTessellationTol
 // Because those ImXXX functions are lower-level than ImGui:: we cannot access this value automatically.
-ImVec2 ImBezierCubicClosestPointCasteljauStep(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, const ImVec2/*&*/ p, float tess_tol)
+ImVec2 ImBezierCubicClosestPointCasteljau(const ImVec2/*&*/ p1, const ImVec2/*&*/ p2, const ImVec2/*&*/ p3, const ImVec2/*&*/ p4, const ImVec2/*&*/ p, float tess_tol)
 {
     IM_ASSERT(tess_tol > 0.0f);
     ImVec2 p_last = p1;
@@ -1882,15 +1884,15 @@ ptrdiff_t ImIndexOf(string haystack, string needle) {
 #define STB_SPRINTF_IMPLEMENTATION
 #ifdef IMGUI_STB_SPRINTF_FILENAME
 #include IMGUI_STB_SPRINTF_FILENAME
-#else
+} else {
 #include "stb_sprintf.h"
-#endif
-#endif
+}
+}
 +/
 
 // #if defined(_MSC_VER) && !defined(vsnprintf)
 // #define vsnprintf _vsnprintf
-// #endif
+// }
 
 int ImFormatString(A...)(char[] buf, string fmt, A a)
 {
@@ -2678,10 +2680,10 @@ bool PassFilter(string text) const
 #ifndef va_copy
 #if defined(__GNUC__) || defined(__clang__)
 #define va_copy(dest, src) __builtin_va_copy(dest, src)
-#else
+} else {
 #define va_copy(dest, src) (dest = src)
-#endif
-#endif
+}
+}
 +/
 
 // D_IMGUI: Wrapper for ImGuiTextBuffer
@@ -2870,11 +2872,9 @@ static void ImGuiListClipper_SeekCursorAndSetupPrevLine(float pos_y, float line_
     window.DC.CursorMaxPos.y = ImMax(window.DC.CursorMaxPos.y, pos_y - g.Style.ItemSpacing.y);
     window.DC.CursorPosPrevLine.y = window.DC.CursorPos.y - line_height;  // Setting those fields so that SetScrollHereY() can properly function after the end of our clipper usage.
     window.DC.PrevLineSize.y = (line_height - g.Style.ItemSpacing.y);      // If we end up needing more accurate data (to e.g. use SameLine) we may as well make the clipper have a fourth step to let user process and display the last item in their list.
-    ImGuiOldColumns* columns = window.DC.CurrentColumns;
-    if (columns)
+    if (ImGuiOldColumns* columns = window.DC.CurrentColumns)
         columns.LineMinY = window.DC.CursorPos.y;                         // Setting this so that cell Y position are set properly
-    ImGuiTable* table = g.CurrentTable;
-    if (table)
+    if (ImGuiTable* table = g.CurrentTable)
     {
         if (table.IsInsideRow)
             TableEndRow(table);
@@ -2922,8 +2922,7 @@ void Begin(int items_count, float items_height)
     ImGuiWindow* window = g.CurrentWindow;
     IMGUI_DEBUG_LOG_CLIPPER("Clipper: Begin(%d,%.2f) in '%s'\n", items_count, items_height, window.Name);
 
-    ImGuiTable* table = g.CurrentTable;
-    if (table)
+    if (ImGuiTable* table = g.CurrentTable)
         if (table.IsInsideRow)
             TableEndRow(table);
 
@@ -4243,8 +4242,7 @@ float CalcWrapWidthForPos(const ImVec2/*&*/ pos, float wrap_pos_x)
 // IM_ALLOC() == ImGui::MemAlloc()
 void* MemAlloc(size_t size)
 {
-    ImGuiContext* ctx = GImGui;
-    if (ctx)
+    if (ImGuiContext* ctx = GImGui)
         ctx.IO.MetricsActiveAllocations++;
     return GImAllocatorAllocFunc(size, GImAllocatorUserData);
 }
@@ -4260,12 +4258,9 @@ pragma(inline, true) void MemFree(const void* ptr) {
 void MemFree(void* ptr)
 {
     if (ptr)
-    {
-        ImGuiContext* ctx = GImGui;
-        if (ctx)
+        if (ImGuiContext* ctx = GImGui)
             ctx.IO.MetricsActiveAllocations--;
-        return GImAllocatorFreeFunc(ptr, GImAllocatorUserData);
-    }
+    return GImAllocatorFreeFunc(ptr, GImAllocatorUserData);
 }
 
 string GetClipboardText()
@@ -4931,7 +4926,7 @@ void FlattenIntoSingleLayer()
         ImVector!(ImDrawList*)* layer = &Layers[layer_n];
         if (layer.empty())
             continue;
-        memcpy(&Layers[0][n], &(*layer)[0], layer.Size * (ImDrawList*).sizeof);
+        memcpy(&Layers[0][n], &(*layer)[0], layer.Size * sizeof!(ImDrawList*));
         n += layer.Size;
         layer.resize(0);
     }
@@ -8537,7 +8532,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         }
     }
 
-static if(!IMGUI_DISABLE_OBSOLETE_KEYIO) {
+static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     const bool nav_gamepad_active = (io.ConfigFlags & ImGuiConfigFlags.NavEnableGamepad) != 0 && (io.BackendFlags & ImGuiBackendFlags.HasGamepad) != 0;
     if (io.BackendUsingLegacyNavInputArray && nav_gamepad_active)
     {
@@ -10152,7 +10147,7 @@ bool BeginTooltipEx(ImGuiTooltipFlags tooltip_flags, ImGuiWindowFlags extra_wind
         ImVec2 tooltip_pos = g.IO.MousePos + ImVec2(16 * g.Style.MouseCursorScale, 8 * g.Style.MouseCursorScale);
         SetNextWindowPos(tooltip_pos);
         SetNextWindowBgAlpha(g.Style.Colors[ImGuiCol.PopupBg].w * 0.60f);
-        //PushStyleVar(ImGuiStyleVar.Alpha, g.Style.Alpha * 0.60f); // This would be nice but e.g ColorButton with checkboard has issue with transparent colors :(
+        //PushStyleVar(ImGuiStyleVar_Alpha, g.Style.Alpha * 0.60f); // This would be nice but e.g ColorButton with checkboard has issue with transparent colors :(
         tooltip_flags |= ImGuiTooltipFlags.OverridePreviousTooltip;
     }
 
@@ -12700,7 +12695,9 @@ void LogFinish()
     final switch (g.LogType)
     {
     case ImGuiLogType.TTY:
+static if (!IMGUI_DISABLE_TTY_FUNCTIONS) {
         ImFlushConsole(g.LogFile);
+}
         break;
     case ImGuiLogType.File:
         ImFileClose(g.LogFile);
@@ -12909,8 +12906,8 @@ void LoadIniSettingsFromMemory(string ini_data)
             ptrdiff_t name_start = type_end >= 0 ? ImIndexOf(ini_data[type_start + type_end + 1..name_end], '[') : -1;
             if (type_end < 0 || name_start < 0)
                 continue;
-            name_start += type_start + type_end + 1;
             //*type_end = 0; // Overwrite first ']'
+            name_start += type_start + type_end + 1;
             name_start++;  // Skip second '['
             entry_handler = FindSettingsHandler(ini_data[type_start..type_start + type_end]);
             entry_data = entry_handler ? entry_handler.ReadOpenFn(g, entry_handler, ini_data[name_start..name_end]) : NULL;
@@ -13251,7 +13248,7 @@ static void SetClipboardTextFn_DefaultImpl(void*, string text)
 
 static string GetClipboardTextFn_DefaultImpl(void* user_data_ctx)
 {
-    ImGuiContext& g = *cast(ImGuiContext*)user_data_ctx;
+    ImGuiContext* g = cast(ImGuiContext*)user_data_ctx;
     if (!main_clipboard)
         PasteboardCreate(kPasteboardClipboard, &main_clipboard);
     PasteboardSynchronize(main_clipboard);
@@ -13780,7 +13777,7 @@ void ShowMetricsWindow(bool* p_open = NULL)
         {
             // As it's difficult to interact with tree nodes while popups are open, we display everything inline.
             const ImGuiPopupData* popup_data = &g.OpenPopupStack[i];
-            const(ImGuiWindow)* window = popup_data.Window;
+            const (ImGuiWindow)* window = popup_data.Window;
             BulletText("PopupID: %08x, Window: '%s' (%s%s), BackupNavWindow '%s', ParentWindow '%s'",
                 popup_data.PopupId, window ? window.Name : "NULL", window && (window.Flags & ImGuiWindowFlags.ChildWindow) ? "Child;" : "", window && (window.Flags & ImGuiWindowFlags.ChildMenu) ? "Menu;" : "",
                 popup_data.BackupNavWindow ? popup_data.BackupNavWindow.Name : "NULL", window && window.ParentWindow ? window.ParentWindow.Name : "NULL");

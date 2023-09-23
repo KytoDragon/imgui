@@ -142,7 +142,7 @@ nothrow:
 #define IMGUI_ENABLE_STB_TRUETYPE
 }
 +/
-// D_IMGUI: We only support STB Truetyoe at the moment
+// D_IMGUI: We only support STB Truetype at the moment
 enum IMGUI_ENABLE_FREETYPE = false;
 enum IMGUI_ENABLE_STB_TRUETYPE = true;
 
@@ -459,7 +459,7 @@ int           ImParseFormatPrecision(string format, int default_value);
 /+
 
 // Helpers: UTF-8 <> wchar conversions
-const char*   ImTextCharToUtf8(char out_buf[5], uint c);  
+string   ImTextCharToUtf8(char[5] out_buf, uint c);                                                      // return out_buf
 int           ImTextStrToUtf8(char* out_buf, int out_buf_size, const ImWchar* in_text, const ImWchar* in_text_end);   // return output UTF-8 bytes count
 int           ImTextCharFromUtf8(uint* out_char, string in_text, string in_text_end);               // read one character. return input UTF-8 bytes count
 int           ImTextStrFromUtf8(ImWchar* out_buf, int out_buf_size, string in_text, string in_text_end, string* in_remaining = NULL);   // return input UTF-8 bytes count
@@ -980,7 +980,7 @@ enum ImGuiInputTextFlagsPrivate_
 // Extend ImGuiButtonFlags_
 // D_IMGUI: Moved into ImGuiButtonFlags
 /+
-enum ImGuiButtonFlags : int
+enum ImGuiButtonFlagsPrivate_
 {
     PressedOnClick         = 1 << 4,   // return true on click (mouse down event)
     PressedOnClickRelease  = 1 << 5,   // [Default] return true on click + release on same item <-- this is what the majority of Button are using
@@ -1017,7 +1017,7 @@ enum ImGuiComboFlagsPrivate_
 // Extend ImGuiSliderFlags_
 // D_IMGUI: Moved into ImGuiSliderFlags
 /+
-enum ImGuiSliderFlagsPrivate : int
+enum ImGuiSliderFlagsPrivate_
 {
     Vertical               = 1 << 20,  // Should this slider be orientated vertically?
     ReadOnly               = 1 << 21,
@@ -1027,7 +1027,7 @@ enum ImGuiSliderFlagsPrivate : int
 // Extend ImGuiSelectableFlags_
 // D_IMGUI: Moved into ImGuiSelectableFlags
 /+
-enum ImGuiSelectableFlagsPrivate : int
+enum ImGuiSelectableFlagsPrivate_
 {
     // NB: need to be in sync with last value of ImGuiSelectableFlags_
     NoHoldingActiveID      = 1 << 20,
@@ -1041,10 +1041,10 @@ enum ImGuiSelectableFlagsPrivate : int
 }
 +/
 
-// Extend ImGuiTreeNodeFlags
+// Extend ImGuiTreeNodeFlags_
 // D_IMGUI: Moved into ImGuiTreeNodeFlags
 /+
-enum ImGuiTreeNodeFlagsPrivate : int
+enum ImGuiTreeNodeFlagsPrivate_
 {
     ClipLabelForTrailingButton = 1 << 20,
 }
@@ -1136,12 +1136,12 @@ struct ImGuiDataTypeInfo
 // D_IMGUI: Moved into ImGuiDataType
 /+
 // Extend ImGuiDataType_
-enum ImGuiDataTypePrivate : int
+enum ImGuiDataTypePrivate_
 {
     String = ImGuiDataType.COUNT + 1,
     Pointer,
     ID,
-};
+}
 +/
 
 // Stacked color modifier, backup of modified data so we can restore it
@@ -1423,17 +1423,17 @@ alias ImBitArrayForNamedKeys = ImBitArray!(ImGuiKey.NamedKey_COUNT, -ImGuiKey.Na
 #define ImGuiKey.Aliases_END            (ImGuiKey.Mouse_END)
 
 // [Internal] Named shortcuts for Navigation
-#define ImGuiKey.NavKeyboardTweakSlow   ImGuiMod_Ctrl
-#define ImGuiKey.NavKeyboardTweakFast   ImGuiMod_Shift
+#define ImGuiKey.NavKeyboardTweakSlow   ImGuiMod.Ctrl
+#define ImGuiKey.NavKeyboardTweakFast   ImGuiMod.Shift
 #define ImGuiKey.NavGamepadTweakSlow    GamepadL1
 #define ImGuiKey.NavGamepadTweakFast    GamepadR1
-#define ImGuiKey.NavGamepadActivate     GamepadFaceDown
-#define ImGuiKey.NavGamepadCancel       GamepadFaceRight
-#define ImGuiKey.NavGamepadMenu         GamepadFaceLeft
-#define ImGuiKey.NavGamepadInput        GamepadFaceUp
+#define ImGuiKey.NavGamepadActivate     ImGuiKey.GamepadFaceDown
+#define ImGuiKey.NavGamepadCancel       ImGuiKey.GamepadFaceRight
+#define ImGuiKey.NavGamepadMenu         ImGuiKey.GamepadFaceLeft
+#define ImGuiKey.NavGamepadInput        ImGuiKey.GamepadFaceUp
 +/
 
-enum ImGuiInputEventType
+enum ImGuiInputEventType : int
 {
     None = 0,
     MousePos,
@@ -1445,7 +1445,7 @@ enum ImGuiInputEventType
     COUNT
 }
 
-enum ImGuiInputSource
+enum ImGuiInputSource : int
 {
     None = 0,
     Mouse,
@@ -1544,7 +1544,7 @@ struct ImGuiKeyOwnerData
 
 // Flags for extended versions of IsKeyPressed(), IsMouseClicked(), Shortcut(), SetKeyOwner(), SetItemKeyOwner()
 // Don't mistake with ImGuiInputTextFlags! (for ImGui::InputText() function)
-enum ImGuiInputFlags
+enum ImGuiInputFlags : int
 {
     // Flags for IsKeyPressed(), IsMouseClicked(), Shortcut()
     None                = 0,
@@ -1680,7 +1680,7 @@ enum ImGuiNavMoveFlags : int
     DontSetNavHighlight   = 1 << 12,  // Do not alter the visible state of keyboard vs mouse nav highlight
 }
 
-enum ImGuiNavLayer
+enum ImGuiNavLayer : int
 {
     Main  = 0,    // Main scrolling layer
     Menu  = 1,    // Menu layer (access with Alt)
@@ -1722,14 +1722,14 @@ enum ImGuiOldColumnFlags : int
 
     // Obsolete names (will be removed)
 /+
-#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     ImGuiColumnsFlags_None                      = ImGuiOldColumnFlags.None,
     ImGuiColumnsFlags_NoBorder                  = ImGuiOldColumnFlags.NoBorder,
     ImGuiColumnsFlags_NoResize                  = ImGuiOldColumnFlags.NoResize,
     ImGuiColumnsFlags_NoPreserveWidths          = ImGuiOldColumnFlags.NoPreserveWidths,
     ImGuiColumnsFlags_NoForceWithinWindow       = ImGuiOldColumnFlags.NoForceWithinWindow,
     ImGuiColumnsFlags_GrowParentContentsSize    = ImGuiOldColumnFlags.GrowParentContentsSize,
-#endif
+}
 +/
 }
 
@@ -2694,7 +2694,7 @@ struct ImGuiWindow
 // D_IMGUI: Moved into ImGuiTabBarFlags
 /+
 // Extend ImGuiTabBarFlags_
-enum ImGuiTabBarFlagsPrivate : int
+enum ImGuiTabBarFlagsPrivate_
 {
     DockNode                   = 1 << 20,  // Part of a dock node [we don't use this in the master branch but it facilitate branch syncing to keep this around]
     IsFocused                  = 1 << 21,
@@ -2705,7 +2705,7 @@ enum ImGuiTabBarFlagsPrivate : int
 // D_IMGUI: Moved into ImGuiTabItemFlags
 /+
 // Extend ImGuiTabItemFlags_
-enum ImGuiTabItemFlagsPrivate : int
+enum ImGuiTabItemFlagsPrivate_
 {
     SectionMask_              = ImGuiTabItemFlags.Leading | ImGuiTabItemFlags.Trailing,
     NoCloseButton             = 1 << 20,  // Track whether p_open was set or not (we'll need this info on the next frame to recompute ContentWidth during layout)
@@ -3180,7 +3180,7 @@ struct ImGuiTableSettings
 //#endif
 
     // Basic Accessors
-    pragma(inline, true) ImGuiItemStatusFlags GetItemStatusFlags() { ImGuiContext* g = GImGui; return g.LastItemData.StatusFlags; }
+    pragma(inline, true) ImGuiItemStatusFlags GetItemStatusFlags(){ ImGuiContext* g = GImGui; return g.LastItemData.StatusFlags; }
     pragma(inline, true) ImGuiItemFlags   GetItemFlags()  { ImGuiContext* g = GImGui; return g.LastItemData.InFlags; }
     pragma(inline, true) ImGuiID          GetActiveID()   { ImGuiContext* g = GImGui; return g.ActiveId; }
     pragma(inline, true) ImGuiID          GetFocusID()    { ImGuiContext* g = GImGui; return g.NavId; }
@@ -3392,9 +3392,7 @@ struct ImGuiTableSettings
 
     // Tables: Internals
     +/
-
     pragma(inline, true)    ImGuiTable*   GetCurrentTable() { ImGuiContext* g = GImGui; return g.CurrentTable; }
-
     /+
     ImGuiTable*   TableFindByID(ImGuiID id);
     bool          BeginTableEx(string name, ImGuiID id, int columns_count, ImGuiTableFlags flags = 0, const ImVec2/*&*/ outer_size = ImVec2(0, 0), float inner_width = 0.0f);
@@ -3543,13 +3541,12 @@ struct ImGuiTableSettings
     bool          TempInputText(const ImRect/*&*/ bb, ImGuiID id, string label, char* buf, int buf_size, ImGuiInputTextFlags flags);
     bool          TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataType data_type, void* p_data, string format, const void* p_clamp_min = NULL, const void* p_clamp_max = NULL);
     +/
-
     pragma(inline, true) bool             TempInputIsActive(ImGuiID id)       { ImGuiContext* g = GImGui; return (g.ActiveId == id && g.TempInputId == id); }
     pragma(inline, true) ImGuiInputTextState* GetInputTextState(ImGuiID id)   { ImGuiContext* g = GImGui; return (id != 0 && g.InputTextState.ID == id) ? &g.InputTextState : NULL; } // Get input text state if active
 
     /+
     // Color
-    IMGUI_API void          ColorTooltip(string text, const float* col, ImGuiColorEditFlags flags);
+    void          ColorTooltip(string text, const float* col, ImGuiColorEditFlags flags);
     void          ColorEditOptionsPopup(const float* col, ImGuiColorEditFlags flags);
     void          ColorPickerOptionsPopup(const float* ref_col, ImGuiColorEditFlags flags);
 
@@ -3594,7 +3591,7 @@ struct ImGuiTableSettings
     void          DebugNodeInputTextState(ImGuiInputTextState* state);
     void          DebugNodeWindow(ImGuiWindow* window, string label);
     void          DebugNodeWindowSettings(ImGuiWindowSettings* settings);
-    void          DebugNodeWindowsList(ImVector<ImGuiWindow*>* windows, string label);
+    void          DebugNodeWindowsList(ImVector!(ImGuiWindow*)* windows, string label);
     void          DebugNodeWindowsListByBeginStackParent(ImGuiWindow** windows, int windows_size, ImGuiWindow* parent_in_begin_stack);
     void          DebugNodeViewport(ImGuiViewportP* viewport);
     void          DebugRenderKeyboardPreview(ImDrawList* draw_list);

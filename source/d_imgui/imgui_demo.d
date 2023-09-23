@@ -659,7 +659,7 @@ static void ShowDemoWindowWidgets()
             if (ImGui.IsItemHovered() && ImGui.BeginTooltip())
             {
                 ImGui.Text("I am a fancy tooltip");
-                __gshared float[7] arr = [ 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f ];
+                __gshared float[] arr = [ 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f ];
                 ImGui.PlotLines("Curve", arr);
                 ImGui.Text("Sin(time) = %f", ImSin(cast(float)ImGui.GetTime()));
                 ImGui.EndTooltip();
@@ -770,6 +770,7 @@ static void ShowDemoWindowWidgets()
         ImGui.SeparatorText("Selectors/Pickers");
 
         {
+            IMGUI_DEMO_MARKER("Widgets/Basic/ColorEdit3, ColorEdit4");
             __gshared float[3] col1 = [ 1.0f, 0.0f, 0.2f ];
             __gshared float[4] col2 = [ 0.4f, 0.7f, 0.0f, 0.5f ];
             ImGui.ColorEdit3("color 1", col1);
@@ -1027,8 +1028,8 @@ static void ShowDemoWindowWidgets()
                 ~"Read docs/FONTS.md for details.");
             ImGui.Text("Hiragana: \xe3\x81\x8b\xe3\x81\x8d\xe3\x81\x8f\xe3\x81\x91\xe3\x81\x93 (kakikukeko)"); // Normally we would use u8"blah blah" with the proper characters directly in the string.
             ImGui.Text("Kanjis: \xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e (nihongo)");
-            //static char buf[32] = u8"NIHONGO"; // <- this is how you would write it with C++11, using real kanjis
             __gshared char[32] buf = "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";
+            //static char buf[32] = u8"NIHONGO"; // <- this is how you would write it with C++11, using real kanjis
             ImGui.InputText("UTF-8 input", buf);
             ImGui.TreePop();
         }
@@ -1135,7 +1136,7 @@ static void ShowDemoWindowWidgets()
         // Using the generic BeginCombo() API, you have full control over how to display the combo contents.
         // (your selection data could be an index, a pointer to the object, an id for the object, a flag intrusively
         // stored in the object itself, etc.)
-        __gshared const string[14] items = [ "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL", "MMMM", "OOOOOOO" ];
+        string[14] items = [ "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL", "MMMM", "OOOOOOO" ];
         __gshared int item_current_idx = 0; // Here we store our selection data as an index.
         string combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
         if (ImGui.BeginCombo("combo 1", combo_preview_value, flags))
@@ -1353,7 +1354,7 @@ static void ShowDemoWindowWidgets()
                 "By default, Selectables uses style.SelectableTextAlign but it can be overridden on a per-item "
                 ~"basis using PushStyleVar(). You'll probably want to always keep your default situation to "
                 ~"left-align otherwise it becomes difficult to layout multiple items on a same line");
-            __gshared bool[3*3] selected = [ true, false, true, false, true, false, true, false, true ];
+            __gshared bool[3 * 3] selected = [ true, false, true, false, true, false, true, false, true ];
             for (int y = 0; y < 3; y++)
             {
                 for (int x = 0; x < 3; x++)
@@ -1699,7 +1700,7 @@ static void ShowDemoWindowWidgets()
 
         // Plot as lines and plot as histogram
         IMGUI_DEMO_MARKER("Widgets/Plotting/PlotLines, PlotHistogram");
-        __gshared float[7] arr = [ 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f ];
+        __gshared float[] arr = [ 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f ];
         ImGui.PlotLines("Frame Times", arr);
         ImGui.PlotHistogram("Histogram", arr, 0, NULL, 0.0f, 1.0f, ImVec2(0, 80.0f));
 
@@ -1874,11 +1875,9 @@ static void ShowDemoWindowWidgets()
                 // drag source by default, unless specifying the ImGuiColorEditFlags_NoDragDrop flag.
                 if (ImGui.BeginDragDropTarget())
                 {
-                    const (ImGuiPayload)* payload = ImGui.AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F);
-                    if (payload)
+                    if (const ImGuiPayload* payload = ImGui.AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F))
                         memcpy(cast(float*)&saved_palette[n], payload.Data, sizeof!(float) * 3);
-                    payload = ImGui.AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F);
-                    if (payload)
+                    if (const ImGuiPayload* payload = ImGui.AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F))
                         memcpy(cast(float*)&saved_palette[n], payload.Data, sizeof!(float) * 4);
                     ImGui.EndDragDropTarget();
                 }
@@ -2095,7 +2094,7 @@ static void ShowDemoWindowWidgets()
         ImGui.SliderScalar("slider s32 low",       ImGuiDataType.S32,    &s32_v, &s32_zero, &s32_fifty,"%d");
         ImGui.SliderScalar("slider s32 high",      ImGuiDataType.S32,    &s32_v, &s32_hi_a, &s32_hi_b, "%d");
         ImGui.SliderScalar("slider s32 full",      ImGuiDataType.S32,    &s32_v, &s32_min,  &s32_max,  "%d");
-        ImGui.SliderScalar("slider s32 hex",       ImGuiDataType.S32,    &s32_v, &s32_zero,  &s32_fifty,  "0x%04X");
+        ImGui.SliderScalar("slider s32 hex",       ImGuiDataType.S32,    &s32_v, &s32_zero, &s32_fifty, "0x%04X");
         ImGui.SliderScalar("slider u32 low",       ImGuiDataType.U32,    &u32_v, &u32_zero, &u32_fifty,"%u");
         ImGui.SliderScalar("slider u32 high",      ImGuiDataType.U32,    &u32_v, &u32_hi_a, &u32_hi_b, "%u");
         ImGui.SliderScalar("slider u32 full",      ImGuiDataType.U32,    &u32_v, &u32_min,  &u32_max,  "%u");
@@ -2297,8 +2296,7 @@ static void ShowDemoWindowWidgets()
                 }
                 if (ImGui.BeginDragDropTarget())
                 {
-                    const ImGuiPayload* payload = ImGui.AcceptDragDropPayload("DND_DEMO_CELL");
-                    if (payload)
+                    if (const ImGuiPayload* payload = ImGui.AcceptDragDropPayload("DND_DEMO_CELL"))
                     {
                         IM_ASSERT(payload.DataSize == sizeof!(int));
                         int payload_n = *cast(const int*)payload.Data;
@@ -2332,7 +2330,7 @@ static void ShowDemoWindowWidgets()
             HelpMarker(
                 "We don't use the drag and drop api at all here! "
                 ~"Instead we query when the item is held but not hovered, and order items accordingly.");
-            __gshared string[5] item_names = [ "Item One", "Item Two", "Item Three", "Item Four", "Item Five" ];
+            __gshared string[] item_names = [ "Item One", "Item Two", "Item Three", "Item Four", "Item Five" ];
             for (int n = 0; n < IM_ARRAYSIZE(item_names); n++)
             {
                 string item = item_names[n];
@@ -3390,7 +3388,7 @@ static void ShowDemoWindowPopups()
 
         __gshared int selected_fish = -1;
         string[5] names = [ "Bream", "Haddock", "Mackerel", "Pollock", "Tilefish" ];
-        __gshared bool[5] toggles = [ true, false, false, false, false ];
+        __gshared bool[] toggles = [ true, false, false, false, false ];
 
         // Simple selection popup (if you want to show the current selection inside the Button itself,
         // you may want to build a string using the "###" operator to preserve a constant ID with a variable label)
@@ -3739,7 +3737,7 @@ static void PopStyleCompact()
 static void EditTableSizingFlags(ImGuiTableFlags* p_flags)
 {
     struct EnumDesc { ImGuiTableFlags Value; string Name; string Tooltip; }
-    __gshared const EnumDesc[5] policies =
+    __gshared const EnumDesc[] policies =
     [
         { ImGuiTableFlags.None,               "Default",                            "Use default sizing policy:\n- ImGuiTableFlags_SizingFixedFit if ScrollX is on or if host window has ImGuiWindowFlags_AlwaysAutoResize.\n- ImGuiTableFlags_SizingStretchSame otherwise." },
         { ImGuiTableFlags.SizingFixedFit,     "ImGuiTableFlags_SizingFixedFit",     "Columns default to _WidthFixed (if resizable) or _WidthAuto (if not resizable), matching contents width." },
@@ -4879,7 +4877,7 @@ static void ShowDemoWindowTables()
                     }
                 }
             }
-            __gshared const MyTreeNode[9] nodes =
+            __gshared const MyTreeNode[] nodes =
             [
                 { "Root",                         "Folder",       -1,       1, 3    }, // 0
                 { "Music",                        "Folder",       -1,       4, 2    }, // 1
@@ -5439,11 +5437,11 @@ static void ShowDemoWindowTables()
             {
                 for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
 /*
-#else
+} else {
             // Without clipper
             {
                 for (int row_n = 0; row_n < items.Size; row_n++)
-#endif
+}
 */
                 {
                     MyItem* item = &items[row_n];

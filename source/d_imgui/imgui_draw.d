@@ -513,7 +513,7 @@ void AddCallback(ImDrawCallback callback, void* callback_data)
 }
 
 // Compare ClipRect, TextureId and VtxOffset with a single memcmp()
-enum ImDrawCmd_HeaderSize                        = (ImDrawCmd.VtxOffset.offsetof + sizeof!(uint));
+enum ImDrawCmd_HeaderSize                            = (ImDrawCmd.VtxOffset.offsetof + sizeof!(uint));
 static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmd* CMD_LHS, ImDrawCmd* CMD_RHS)       { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
 static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmdHeader* CMD_LHS, ImDrawCmd* CMD_RHS)       { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
 static pragma(inline, true) int ImDrawCmd_HeaderCompare(ImDrawCmd* CMD_LHS, ImDrawCmdHeader* CMD_RHS)       { return (memcmp(CMD_LHS, CMD_RHS, ImDrawCmd_HeaderSize)); }    // Compare ClipRect, TextureId, VtxOffset
@@ -2975,9 +2975,9 @@ const (ImWchar)*  GetGlyphRangesChineseFull()
     return &ranges[0];
 }
 
-static void UnpackAccumulativeOffsetsIntoRanges(int base_codepoint, const short* accumulative_offsets, int accumulative_offsets_count, ImWchar* out_ranges)
+static void UnpackAccumulativeOffsetsIntoRanges(int base_codepoint, const short[] accumulative_offsets, ImWchar* out_ranges)
 {
-    for (int n = 0; n < accumulative_offsets_count; n++, out_ranges += 2)
+    for (int n = 0; n < accumulative_offsets.length; n++, out_ranges += 2)
     {
         out_ranges[0] = out_ranges[1] = cast(ImWchar)(base_codepoint + accumulative_offsets[n]);
         base_codepoint += accumulative_offsets[n];
@@ -3052,7 +3052,7 @@ const (ImWchar)*  GetGlyphRangesChineseSimplifiedCommon()
     if (!full_ranges[0])
     {
         memcpy(full_ranges, base_ranges, sizeof(base_ranges));
-        UnpackAccumulativeOffsetsIntoRanges(0x4E00, accumulative_offsets_from_0x4E00.ptr, IM_ARRAYSIZE(accumulative_offsets_from_0x4E00), full_ranges.ptr + IM_ARRAYSIZE(base_ranges));
+        UnpackAccumulativeOffsetsIntoRanges(0x4E00, accumulative_offsets_from_0x4E00, full_ranges.ptr + IM_ARRAYSIZE(base_ranges));
     }
     return &full_ranges[0];
 }
@@ -3142,7 +3142,7 @@ const (ImWchar)*  GetGlyphRangesJapanese()
     if (!full_ranges[0])
     {
         memcpy(full_ranges, base_ranges, sizeof(base_ranges));
-        UnpackAccumulativeOffsetsIntoRanges(0x4E00, accumulative_offsets_from_0x4E00.ptr, IM_ARRAYSIZE(accumulative_offsets_from_0x4E00), full_ranges.ptr + IM_ARRAYSIZE(base_ranges));
+        UnpackAccumulativeOffsetsIntoRanges(0x4E00, accumulative_offsets_from_0x4E00, full_ranges.ptr + IM_ARRAYSIZE(base_ranges));
     }
     return &full_ranges[0];
 }
@@ -4152,11 +4152,11 @@ static const (ubyte) *stb_decompress_token(const (ubyte) *i)
 
 static uint stb_adler32(uint adler32, ubyte *buffer, uint buflen)
 {
-    const ulong ADLER_MOD = 65521;
-    ulong s1 = adler32 & 0xffff, s2 = adler32 >> 16;
-    ulong blocklen = buflen % 5552;
+    const uint ADLER_MOD = 65521;
+    uint s1 = adler32 & 0xffff, s2 = adler32 >> 16;
+    uint blocklen = buflen % 5552;
 
-    ulong i;
+    uint i;
     while (buflen) {
         for (i=0; i + 7 < blocklen; i += 8) {
             s1 += buffer[0], s2 += s1;

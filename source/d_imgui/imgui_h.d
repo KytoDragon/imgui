@@ -113,12 +113,14 @@ pragma(inline, true) int strcmp(const char[] a, const char[] b) { return strncmp
 // Define attributes of all API symbols declarations (e.g. for DLL under Windows)
 // IMGUI_API is used for core imgui functions, IMGUI_IMPL_API is used for the default backends files (imgui_impl_xxx.h)
 // Using dear imgui via a shared library is not recommended, because we don't guarantee backward nor forward ABI compatibility (also function call overhead, as dear imgui is a call-heavy API)
-// #ifndef IMGUI_API
-// #define IMGUI_API
-// #endif
-// #ifndef IMGUI_IMPL_API
-// #define IMGUI_IMPL_API              IMGUI_API
-// #endif
+/+
+#ifndef IMGUI_API
+#define IMGUI_API
+}
+#ifndef IMGUI_IMPL_API
+#define IMGUI_IMPL_API              IMGUI_API
+}
++/
 
 // Helper Macros
 static if (!D_IMGUI_USER_DEFINED_ASSERT) {
@@ -126,6 +128,7 @@ static if (!D_IMGUI_USER_DEFINED_ASSERT) {
     pragma(inline, true) void IM_ASSERT(T)(T _EXPR) {assert(_EXPR);}                               // You can override the default assert handler by editing imconfig.h
     pragma(inline, true) void IM_ASSERT(T)(T _EXPR, string _MSG) {assert(_EXPR, _MSG);} // TODO D_IMGUI: See bug https://issues.dlang.org/show_bug.cgi?id=20905
 pragma(inline, true) int IM_ARRAYSIZE(T, size_t N)(T[N] _ARR) { return cast(int)N;}       // Size of a static C-style array. Don't use on pointers!
+pragma(inline, true) int IM_ARRAYSIZE(T)(T[] _ARR) { return cast(int)_ARR.length;}
 pragma(inline, true) void IM_UNUSED(T)(T _VAR) {}                              // Used to silence "unused variable warnings". Often useful as asserts may be stripped out from final builds.
 /+
 #define IM_OFFSETOF(_TYPE,_MEMBER)  offsetof(_TYPE, _MEMBER)                    // Offset of _MEMBER within _TYPE. Standardized as offsetof() in C++11
@@ -140,10 +143,10 @@ pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndData
 #elif !defined(IMGUI_USE_STB_SPRINTF) && (defined(__clang__) || defined(__GNUC__))
 #define IM_FMTARGS(FMT)             __attribute__((format(printf, FMT, FMT+1)))
 #define IM_FMTLIST(FMT)             __attribute__((format(printf, FMT, 0)))
-#else
+} else {
 #define IM_FMTARGS(FMT)
 #define IM_FMTLIST(FMT)
-#endif
+}
 +/
 
 // Disable some of MSVC most aggressive Debug runtime checks in function header/footer (used in some simple/low-level functions)
@@ -151,10 +154,10 @@ pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndData
 #if defined(_MSC_VER) && !defined(__clang__)  && !defined(__INTEL_COMPILER) && !defined(IMGUI_DEBUG_PARANOID)
 #define IM_MSVC_RUNTIME_CHECKS_OFF      __pragma(runtime_checks("",off))     __pragma(check_stack(off)) __pragma(strict_gs_check(push,off))
 #define IM_MSVC_RUNTIME_CHECKS_RESTORE  __pragma(runtime_checks("",restore)) __pragma(check_stack())    __pragma(strict_gs_check(pop))
-#else
+} else {
 #define IM_MSVC_RUNTIME_CHECKS_OFF
 #define IM_MSVC_RUNTIME_CHECKS_RESTORE
-#endif
+}
 +/
 
 // Warnings
@@ -162,18 +165,18 @@ pragma(inline, true) void IMGUI_CHECKVERSION()        { DebugCheckVersionAndData
 #ifdef _MSC_VER
 #pragma warning (push)
 #pragma warning (disable: 26495)    // [Static Analyzer] Variable 'XXX' is uninitialized. Always initialize a member variable (type.6).
-#endif
+}
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"
 #if __has_warning("-Wzero-as-null-pointer-constant")
 #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
-#endif
+}
 #elif defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"          // warning: unknown option after '#pragma GCC diagnostic' kind
 #pragma GCC diagnostic ignored "-Wclass-memaccess"  // [__GNUC__ >= 8] warning: 'memset/memcpy' clearing/writing an object of type 'xxxx' with no trivial copy-assignment; use assignment or value-initialization instead
-#endif
+}
 +/
 
 //-----------------------------------------------------------------------------
@@ -646,7 +649,7 @@ namespace ImGui
     // - The old Combo() api are helpers over BeginCombo()/EndCombo() which are kept available for convenience purpose. This is analogous to how ListBox are created.
     bool          BeginCombo(string label, string preview_value, ImGuiComboFlags flags = 0);
     void          EndCombo(); // only call EndCombo() if BeginCombo() returns true!
-    bool          Combo(string label, int* current_item, string const items[], int items_count, int popup_max_height_in_items = -1);
+    bool          Combo(string label, int* current_item, string const[] items, int items_count, int popup_max_height_in_items = -1);
     bool          Combo(string label, int* current_item, string items_separated_by_zeros, int popup_max_height_in_items = -1);      // Separate items with \0 within a string, end item-list with \0\0. e.g. "One\0Two\0Three\0"
     bool          Combo(string label, int* current_item, bool(*items_getter)(void* data, int idx, string* out_text), void* data, int items_count, int popup_max_height_in_items = -1);
 
@@ -663,14 +666,14 @@ namespace ImGui
     // - Legacy: Pre-1.78 there are DragXXX() function signatures that take a final `float power=1.0f' argument instead of the `ImGuiSliderFlags flags=0' argument.
     //   If you get a warning converting a float to ImGuiSliderFlags, read https://github.com/ocornut/imgui/issues/3361
     bool          DragFloat(string label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = 0);     // If v_min >= v_max we have no bound
-    bool          DragFloat2(string label, float v[2], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = 0);
-    bool          DragFloat3(string label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = 0);
-    bool          DragFloat4(string label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = 0);
+    bool          DragFloat2(string label, float[2] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = 0);
+    bool          DragFloat3(string label, float[3] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = 0);
+    bool          DragFloat4(string label, float[4] v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", ImGuiSliderFlags flags = 0);
     bool          DragFloatRange2(string label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, string format = "%.3f", string format_max = NULL, ImGuiSliderFlags flags = 0);
     bool          DragInt(string label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = 0);  // If v_min >= v_max we have no bound
-    bool          DragInt2(string label, int v[2], float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = 0);
-    bool          DragInt3(string label, int v[3], float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = 0);
-    bool          DragInt4(string label, int v[4], float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = 0);
+    bool          DragInt2(string label, int[2] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = 0);
+    bool          DragInt3(string label, int[3] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = 0);
+    bool          DragInt4(string label, int[4] v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", ImGuiSliderFlags flags = 0);
     bool          DragIntRange2(string label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, string format = "%d", string format_max = NULL, ImGuiSliderFlags flags = 0);
     bool          DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, ImGuiSliderFlags flags = 0);
     bool          DragScalarN(string label, ImGuiDataType data_type, void* p_data, int components, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, string format = NULL, ImGuiSliderFlags flags = 0);
@@ -682,14 +685,14 @@ namespace ImGui
     // - Legacy: Pre-1.78 there are SliderXXX() function signatures that take a final `float power=1.0f' argument instead of the `ImGuiSliderFlags flags=0' argument.
     //   If you get a warning converting a float to ImGuiSliderFlags, read https://github.com/ocornut/imgui/issues/3361
     bool          SliderFloat(string label, float* v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);     // adjust format to decorate the value with a prefix or a suffix for in-slider labels or unit display.
-    bool          SliderFloat2(string label, float v[2], float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);
-    bool          SliderFloat3(string label, float v[3], float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);
-    bool          SliderFloat4(string label, float v[4], float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);
+    bool          SliderFloat2(string label, float[2] v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);
+    bool          SliderFloat3(string label, float[3] v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);
+    bool          SliderFloat4(string label, float[4] v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);
     bool          SliderAngle(string label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f, string format = "%.0f deg", ImGuiSliderFlags flags = 0);
     bool          SliderInt(string label, int* v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = 0);
-    bool          SliderInt2(string label, int v[2], int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = 0);
-    bool          SliderInt3(string label, int v[3], int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = 0);
-    bool          SliderInt4(string label, int v[4], int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = 0);
+    bool          SliderInt2(string label, int[2] v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = 0);
+    bool          SliderInt3(string label, int[3] v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = 0);
+    bool          SliderInt4(string label, int[4] v, int v_min, int v_max, string format = "%d", ImGuiSliderFlags flags = 0);
     bool          SliderScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, string format = NULL, ImGuiSliderFlags flags = 0);
     bool          SliderScalarN(string label, ImGuiDataType data_type, void* p_data, int components, const void* p_min, const void* p_max, string format = NULL, ImGuiSliderFlags flags = 0);
     bool          VSliderFloat(string label, const ImVec2/*&*/ size, float* v, float v_min, float v_max, string format = "%.3f", ImGuiSliderFlags flags = 0);
@@ -703,13 +706,13 @@ namespace ImGui
     bool          InputTextMultiline(string label, char* buf, size_t buf_size, const ImVec2/*&*/ size = ImVec2(0, 0), ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
     bool          InputTextWithHint(string label, string hint, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
     bool          InputFloat(string label, float* v, float step = 0.0f, float step_fast = 0.0f, string format = "%.3f", ImGuiInputTextFlags flags = 0);
-    bool          InputFloat2(string label, float v[2], string format = "%.3f", ImGuiInputTextFlags flags = 0);
-    bool          InputFloat3(string label, float v[3], string format = "%.3f", ImGuiInputTextFlags flags = 0);
-    bool          InputFloat4(string label, float v[4], string format = "%.3f", ImGuiInputTextFlags flags = 0);
+    bool          InputFloat2(string label, float[2] v, string format = "%.3f", ImGuiInputTextFlags flags = 0);
+    bool          InputFloat3(string label, float[3] v, string format = "%.3f", ImGuiInputTextFlags flags = 0);
+    bool          InputFloat4(string label, float[4] v, string format = "%.3f", ImGuiInputTextFlags flags = 0);
     bool          InputInt(string label, int* v, int step = 1, int step_fast = 100, ImGuiInputTextFlags flags = 0);
-    bool          InputInt2(string label, int v[2], ImGuiInputTextFlags flags = 0);
-    bool          InputInt3(string label, int v[3], ImGuiInputTextFlags flags = 0);
-    bool          InputInt4(string label, int v[4], ImGuiInputTextFlags flags = 0);
+    bool          InputInt2(string label, int[2] v, ImGuiInputTextFlags flags = 0);
+    bool          InputInt3(string label, int[3] v, ImGuiInputTextFlags flags = 0);
+    bool          InputInt4(string label, int[4] v, ImGuiInputTextFlags flags = 0);
     bool          InputDouble(string label, double* v, double step = 0.0, double step_fast = 0.0, string format = "%.6f", ImGuiInputTextFlags flags = 0);
     bool          InputScalar(string label, ImGuiDataType data_type, void* p_data, const void* p_step = NULL, const void* p_step_fast = NULL, string format = NULL, ImGuiInputTextFlags flags = 0);
     bool          InputScalarN(string label, ImGuiDataType data_type, void* p_data, int components, const void* p_step = NULL, const void* p_step_fast = NULL, string format = NULL, ImGuiInputTextFlags flags = 0);
@@ -717,10 +720,10 @@ namespace ImGui
     // Widgets: Color Editor/Picker (tip: the ColorEdit* functions have a little color square that can be left-clicked to open a picker, and right-clicked to open an option menu.)
     // - Note that in C++ a 'float v[X]' function argument is the _same_ as 'float* v', the array syntax is just a way to document the number of elements that are expected to be accessible.
     // - You can pass the address of a first float element out of a contiguous structure, e.g. &myvector.x
-    bool          ColorEdit3(string label, float col[3], ImGuiColorEditFlags flags = 0);
-    bool          ColorEdit4(string label, float col[4], ImGuiColorEditFlags flags = 0);
-    bool          ColorPicker3(string label, float col[3], ImGuiColorEditFlags flags = 0);
-    bool          ColorPicker4(string label, float col[4], ImGuiColorEditFlags flags = 0, const float* ref_col = NULL);
+    bool          ColorEdit3(string label, float[3] col, ImGuiColorEditFlags flags = 0);
+    bool          ColorEdit4(string label, float[4] col, ImGuiColorEditFlags flags = 0);
+    bool          ColorPicker3(string label, float[3] col, ImGuiColorEditFlags flags = 0);
+    bool          ColorPicker4(string label, float[4] col, ImGuiColorEditFlags flags = 0, const float* ref_col = NULL);
     bool          ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flags = 0, const ImVec2/*&*/ size = ImVec2(0, 0)); // display a color square/button, hover for details, return true when pressed.
     void          SetColorEditOptions(ImGuiColorEditFlags flags);                     // initialize current options (generally on application startup) if you want to select a default format, picker type, etc. User will be able to change many settings, unless you pass the _NoOptions flag to your calls.
 
@@ -758,14 +761,14 @@ namespace ImGui
     // - Choose frame height:  size.y > 0.0f: custom  /  size.y < 0.0f or -FLT_MIN: bottom-align  /  size.y = 0.0f (default): arbitrary default height which can fit ~7 items
     bool          BeginListBox(string label, const ImVec2/*&*/ size = ImVec2(0, 0)); // open a framed scrolling region
     void          EndListBox();                                                       // only call EndListBox() if BeginListBox() returned true!
-    bool          ListBox(string label, int* current_item, string const items[], int items_count, int height_in_items = -1);
+    bool          ListBox(string label, int* current_item, string const[] items, int items_count, int height_in_items = -1);
     bool          ListBox(string label, int* current_item, bool (*items_getter)(void* data, int idx, string* out_text), void* data, int items_count, int height_in_items = -1);
 
     // Widgets: Data Plotting
     // - Consider using ImPlot (https://github.com/epezent/implot) which is much better!
-    void          PlotLines(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof(float));
+    void          PlotLines(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float));
     void          PlotLines(string label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0));
-    void          PlotHistogram(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof(float));
+    void          PlotHistogram(string label, const float* values, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof!(float));
     void          PlotHistogram(string label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, string overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0));
 
     // Widgets: Value() Helpers.
@@ -1007,8 +1010,8 @@ namespace ImGui
     // Color Utilities
     ImVec4        ColorConvertU32ToFloat4(ImU32 in);
     ImU32         ColorConvertFloat4ToU32(const ImVec4/*&*/ in);
-    void          ColorConvertRGBtoHSV(float r, float g, float b, float& out_h, float& out_s, float& out_v);
-    void          ColorConvertHSVtoRGB(float h, float s, float v, float& out_r, float& out_g, float& out_b);
+    void          ColorConvertRGBtoHSV(float r, float g, float b, ref float out_h, ref float out_s, ref float out_v);
+    void          ColorConvertHSVtoRGB(float h, float s, float v, ref float out_r, ref float out_g, ref float out_b);
 
     // Inputs Utilities: Keyboard/Mouse/Gamepad
     // - the ImGuiKey enum contains all possible keyboard, mouse and gamepad inputs (e.g. ImGuiKey_A, ImGuiKey_MouseLeft, ImGuiKey_GamepadDpadUp...).
@@ -2256,7 +2259,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     // This is still temporarily supported as a legacy feature. However the new preferred scheme is for backend to call io.AddKeyEvent().
     //   Old (<1.87):  ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Space]) --> New (1.87+) ImGui::IsKeyPressed(ImGuiKey_Space)
 static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
-    int[ImGuiKey.COUNT]         KeyMap;             // [LEGACY] Input: map of indices in[]to the KeysDown[512] entries array which represent your "native" keyboard state. The first 512 are now unused and should be kept zero. Legacy backend will write into KeyMap[] using ImGuiKey_ indices which are always >512.
+    int[ImGuiKey.COUNT]         KeyMap;             // [LEGACY] Input: map of indices into the KeysDown[512] entries array which represent your "native" keyboard state. The first 512 are now unused and should be kept zero. Legacy backend will write into KeyMap[] using ImGuiKey_ indices which are always >512.
     bool[ImGuiKey.COUNT]        KeysDown;           // [LEGACY] Input: Keyboard keys that are pressed (ideally left in the "native" order your engine has access to keyboard keys, so you can use your own defines/enums for keys). This used to be [512] sized. It is now ImGuiKey_COUNT to allow legacy io.KeysDown[GetKeyIndex(...)] to work without an overflow.
     float[ImGuiNavInput.COUNT]       NavInputs;     // [LEGACY] Since 1.88, NavInputs[] was removed. Backends from 1.60 to 1.86 won't build. Feed gamepad inputs via io.AddKeyEvent() and ImGuiKey_GamepadXXX enums.
 }
@@ -3350,32 +3353,32 @@ struct ImGuiPlatformImeData
 /+
 namespace ImGui
 {
-#ifndef IMGUI_DISABLE_OBSOLETE_KEYIO
+static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     ImGuiKey     GetKeyIndex(ImGuiKey key);  // map ImGuiKey_* values into legacy native key index. == io.KeyMap[key]
 } else {
-    __gshared inline ImGuiKey GetKeyIndex(ImGuiKey key)   { IM_ASSERT(key >= ImGuiKey.NamedKey_BEGIN && key < ImGuiKey.NamedKey_END, "ImGuiKey and native_index was merged together and native_index is disabled by IMGUI_DISABLE_OBSOLETE_KEYIO. Please switch to ImGuiKey."); return key; }
+    __gshared pragma(inline, true) ImGuiKey GetKeyIndex(ImGuiKey key)   { IM_ASSERT(key >= ImGuiKey.NamedKey_BEGIN && key < ImGuiKey.NamedKey_END, "ImGuiKey and native_index was merged together and native_index is disabled by IMGUI_DISABLE_OBSOLETE_KEYIO. Please switch to ImGuiKey."); return key; }
 }
 }
 
-#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 namespace ImGui
 {
     // OBSOLETED in 1.89.4 (from March 2023)
-    __gshared inline void  PushAllowKeyboardFocus(bool tab_stop)                               { PushTabStop(tab_stop); }
-    __gshared inline void  PopAllowKeyboardFocus()                                             { PopTabStop(); }
+    __gshared pragma(inline, true) void  PushAllowKeyboardFocus(bool tab_stop)                               { PushTabStop(tab_stop); }
+    __gshared pragma(inline, true) void  PopAllowKeyboardFocus()                                             { PopTabStop(); }
     // OBSOLETED in 1.89 (from August 2022)
     bool      ImageButton(ImTextureID user_texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0 = ImVec2(0, 0), const ImVec2/*&*/ uv1 = ImVec2(1, 1), int frame_padding = -1, const ImVec4/*&*/ bg_col = ImVec4(0, 0, 0, 0), const ImVec4/*&*/ tint_col = ImVec4(1, 1, 1, 1)); // Use new ImageButton() signature (explicit item id, regular FramePadding)
     // OBSOLETED in 1.88 (from May 2022)
-    __gshared inline void  CaptureKeyboardFromApp(bool want_capture_keyboard = true)           { SetNextFrameWantCaptureKeyboard(want_capture_keyboard); } // Renamed as name was misleading + removed default value.
-    __gshared inline void  CaptureMouseFromApp(bool want_capture_mouse = true)                 { SetNextFrameWantCaptureMouse(want_capture_mouse); }       // Renamed as name was misleading + removed default value.
+    __gshared pragma(inline, true) void  CaptureKeyboardFromApp(bool want_capture_keyboard = true)           { SetNextFrameWantCaptureKeyboard(want_capture_keyboard); } // Renamed as name was misleading + removed default value.
+    __gshared pragma(inline, true) void  CaptureMouseFromApp(bool want_capture_mouse = true)                 { SetNextFrameWantCaptureMouse(want_capture_mouse); }       // Renamed as name was misleading + removed default value.
     // OBSOLETED in 1.86 (from November 2021)
     void      CalcListClipping(int items_count, float items_height, int* out_items_display_start, int* out_items_display_end); // Calculate coarse clipping for large list of evenly sized items. Prefer using ImGuiListClipper.
     // OBSOLETED in 1.85 (from August 2021)
-    __gshared inline float GetWindowContentRegionWidth()                                       { return GetWindowContentRegionMax().x - GetWindowContentRegionMin().x; }
+    __gshared pragma(inline, true) float GetWindowContentRegionWidth()                                       { return GetWindowContentRegionMax().x - GetWindowContentRegionMin().x; }
     // OBSOLETED in 1.81 (from February 2021)
     bool      ListBoxHeader(string label, int items_count, int height_in_items = -1); // Helper to calculate size from items_count and height_in_items
-    __gshared inline bool  ListBoxHeader(string label, const ImVec2/*&*/ size = ImVec2(0, 0)) { return BeginListBox(label, size); }
-    __gshared inline void  ListBoxFooter()                                                     { EndListBox(); }
+    __gshared pragma(inline, true) bool  ListBoxHeader(string label, const ImVec2/*&*/ size = ImVec2(0, 0)) { return BeginListBox(label, size); }
+    __gshared pragma(inline, true) void  ListBoxFooter()                                                     { EndListBox(); }
 
     // Some of the older obsolete names along with their replacement (commented out so they are not reported in IDE)
     //-- OBSOLETED in 1.79 (from August 2020)
@@ -3443,7 +3446,7 @@ enum ImDrawCornerFlags : int
 // RENAMED and MERGED both ImGuiKey_ModXXX and ImGuiModFlags_XXX into ImGuiMod_XXX (from September 2022)
 // RENAMED ImGuiKeyModFlags -> ImGuiModFlags in 1.88 (from April 2022). Exceptionally commented out ahead of obscolescence schedule to reduce confusion and because they were not meant to be used in the first place.
 typedef ImGuiKeyChord ImGuiModFlags;      // == int. We generally use ImGuiKeyChord to mean "a ImGuiKey or-ed with any number of ImGuiMod_XXX value", but you may store only mods in there.
-enum ImGuiModFlags : int { ImGuiModFlags.None = 0, ImGuiModFlags.Ctrl = ImGuiMod_Ctrl, ImGuiModFlags.Shift = ImGuiMod_Shift, ImGuiModFlags.Alt = ImGuiMod_Alt, ImGuiModFlags.Super = ImGuiMod_Super };
+enum ImGuiModFlags : int { ImGuiModFlags.None = 0, ImGuiModFlags.Ctrl = ImGuiMod.Ctrl, ImGuiModFlags.Shift = ImGuiMod.Shift, ImGuiModFlags.Alt = ImGuiMod.Alt, ImGuiModFlags.Super = ImGuiMod.Super };
 //typedef ImGuiKeyChord ImGuiKeyModFlags; // == int
 //enum ImGuiKeyModFlags_ { ImGuiKeyModFlags_None = 0, ImGuiKeyModFlags_Ctrl = ImGuiMod_Ctrl, ImGuiKeyModFlags_Shift = ImGuiMod_Shift, ImGuiKeyModFlags_Alt = ImGuiMod_Alt, ImGuiKeyModFlags_Super = ImGuiMod_Super };
 
