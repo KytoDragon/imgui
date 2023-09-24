@@ -1,4 +1,4 @@
-// dear imgui, v1.89.4
+// dear imgui, v1.89.5
 // (internal structures/api)
 module d_imgui.imgui_internal;
 
@@ -162,6 +162,7 @@ struct ImGuiDataVarInfo;            // Variable information (e.g. to avoid style
 struct ImGuiDataTypeInfo;           // Type information associated to a ImGuiDataType enum
 struct ImGuiGroupData;              // Stacked storage data for BeginGroup()/EndGroup()
 struct ImGuiInputTextState;         // Internal state of the currently focused/edited text input box
+struct ImGuiInputTextDeactivateData;// Short term storage to backup text of a deactivating InputText() while another is stealing active id
 struct ImGuiLastItemData;           // Status storage for last submitted items
 struct ImGuiLocEntry;               // A localization entry.
 struct ImGuiMenuColumns;            // Simple column measurement, currently used for MenuItem() only
@@ -264,6 +265,7 @@ pragma(inline, true) void IMGUI_DEBUG_LOG_ACTIVEID(A...)(string fmt, A a)   { mi
 pragma(inline, true) void IMGUI_DEBUG_LOG_FOCUS(A...)(string fmt, A a)      { mixin va_start!a; if (GImGui.DebugLogFlags & ImGuiDebugLogFlags.EventFocus)    DebugLogV(fmt, va_args); }
 pragma(inline, true) void IMGUI_DEBUG_LOG_POPUP(A...)(string fmt, A a)      { mixin va_start!a; if (GImGui.DebugLogFlags & ImGuiDebugLogFlags.EventPopup)    DebugLogV(fmt, va_args); }
 pragma(inline, true) void IMGUI_DEBUG_LOG_NAV(A...)(string fmt, A a)        { mixin va_start!a; if (GImGui.DebugLogFlags & ImGuiDebugLogFlags.EventNav)      DebugLogV(fmt, va_args); }
+pragma(inline, true) void IMGUI_DEBUG_LOG_SELECTION(A...)(string fmt, A a)  { mixin va_start!a; if (GImGui.DebugLogFlags & ImGuiDebugLogFlags.EventSelection)DebugLogV(__VA_ARGS__); }
 pragma(inline, true) void IMGUI_DEBUG_LOG_CLIPPER(A...)(string fmt, A a)    { mixin va_start!a; if (GImGui.DebugLogFlags & ImGuiDebugLogFlags.EventClipper)  DebugLogV(fmt, va_args); }
 pragma(inline, true) void IMGUI_DEBUG_LOG_IO(A...)(string fmt, A a)         { mixin va_start!a; if (GImGui.DebugLogFlags & ImGuiDebugLogFlags.EventIO)       DebugLogV(fmt, va_args); }
 
@@ -1219,6 +1221,18 @@ struct ImGuiMenuColumns
     void        CalcNextTotalWidth(bool update_offsets) { (cast(ImGuiMenuColumns_Wrapper*)&this).CalcNextTotalWidth(update_offsets); }
 }
 
+// Internal temporary state for deactivating InputText() instances.
+struct ImGuiInputTextDeactivatedState
+{
+    nothrow:
+    @nogc:
+
+    ImGuiID            ID;              // widget id owning the text state (which just got deactivated)
+    ImVector!char     TextA;           // text buffer
+
+    //this(boool dummy)    { memset(&this, 0, sizeof(this)); }
+    void    ClearFreeMemory()           { ID = 0; TextA.clear(); }
+}
 // Internal state of the currently focused/edited text input box
 // For a given item ID, access with ImGui::GetInputTextState()
 struct ImGuiInputTextState
@@ -1448,19 +1462,18 @@ enum ImGuiInputEventType : int
 enum ImGuiInputSource : int
 {
     None = 0,
-    Mouse,
+    Mouse,         // Note: may be Mouse or TouchScreen or Pen. See io.MouseSource to distinguish them.
     Keyboard,
     Gamepad,
     Clipboard,     // Currently only used by InputText()
-    Nav,           // Stored in g.ActiveIdSource only
     COUNT
 }
 
 // FIXME: Structures in the union below need to be declared as anonymous unions appears to be an extension?
 // Using ImVec2() would fail on Clang 'union member 'MousePos' has a non-trivial default constructor'
-struct ImGuiInputEventMousePos      { float PosX, PosY; };
-struct ImGuiInputEventMouseWheel    { float WheelX, WheelY; };
-struct ImGuiInputEventMouseButton   { ImGuiMouseButton Button; bool Down; };
+struct ImGuiInputEventMousePos      { float PosX, PosY; ImGuiMouseSource MouseSource; };
+struct ImGuiInputEventMouseWheel    { float WheelX, WheelY; ImGuiMouseSource MouseSource; };
+struct ImGuiInputEventMouseButton   { ImGuiMouseButton Button; bool Down; ImGuiMouseSource MouseSource; };
 struct ImGuiInputEventKey           { ImGuiKey Key; bool Down; float AnalogValue; };
 struct ImGuiInputEventText          { uint Char; };
 struct ImGuiInputEventAppFocused    { bool Focused; };
@@ -1472,6 +1485,7 @@ struct ImGuiInputEvent
 
     ImGuiInputEventType             Type;
     ImGuiInputSource                Source;
+    ImU32                           EventId;        // Unique, sequential increasing integer to identify an event (if you need to correlate them to other data).
     union
     {
         ImGuiInputEventMousePos     MousePos;       // if Type == ImGuiInputEventType_MousePos
@@ -1907,8 +1921,9 @@ enum ImGuiDebugLogFlags : int
     EventPopup       = 1 << 2,
     EventNav         = 1 << 3,
     EventClipper     = 1 << 4,
-    EventIO          = 1 << 5,
-    EventMask_       = ImGuiDebugLogFlags.EventActiveId  | ImGuiDebugLogFlags.EventFocus | ImGuiDebugLogFlags.EventPopup | ImGuiDebugLogFlags.EventNav | ImGuiDebugLogFlags.EventClipper | ImGuiDebugLogFlags.EventIO,
+    EventSelection   = 1 << 5,
+    EventIO          = 1 << 6,
+    EventMask_       = ImGuiDebugLogFlags.EventActiveId  | ImGuiDebugLogFlags.EventFocus | ImGuiDebugLogFlags.EventPopup | ImGuiDebugLogFlags.EventNav | ImGuiDebugLogFlags.EventClipper | ImGuiDebugLogFlags.EventSelection | ImGuiDebugLogFlags.EventIO,
     OutputToTTY      = 1 << 10,  // Also send output to TTY
 }
 
@@ -1987,8 +2002,6 @@ struct ImGuiContext
     bool                    Initialized;
     bool                    FontAtlasOwnedByContext;            // IO.Fonts-> is owned by the ImGuiContext and will be destructed along with it.
     ImGuiIO                 IO;
-    ImVector!ImGuiInputEvent InputEventsQueue;                 // Input events which will be tricked/written into IO structure.
-    ImVector!ImGuiInputEvent InputEventsTrail;                 // Past input events processed in NewFrame(). This is to allow domain-specific application to access e.g mouse/pen trail.
     ImGuiStyle              Style;
     ImFont*                 Font;                               // (Shortcut) == FontStack.empty() ? IO.Font : FontStack.back()
     float                   FontSize;                           // (Shortcut) == FontBaseSize * g.CurrentWindow->FontWindowScale == window->FontSize(). Text height for current window.
@@ -2004,6 +2017,12 @@ struct ImGuiContext
     bool                    GcCompactAll;                       // Request full GC
     bool                    TestEngineHookItems;                // Will call test engine hooks: ImGuiTestEngineHook_ItemAdd(), ImGuiTestEngineHook_ItemInfo(), ImGuiTestEngineHook_Log()
     void*                   TestEngine;                         // Test engine user data
+
+    // Inputs
+    ImVector!ImGuiInputEvent InputEventsQueue;                 // Input events which will be trickled/written into IO structure.
+    ImVector!ImGuiInputEvent InputEventsTrail;                 // Past input events processed in NewFrame(). This is to allow domain-specific application to access e.g mouse/pen trail.
+    ImGuiMouseSource        InputEventsNextMouseSource;
+    ImU32                   InputEventsNextEventId;
 
     // Windows state
     ImVector!(ImGuiWindow*)  Windows;                            // Windows, sorted in display order, back to front
@@ -2043,7 +2062,7 @@ struct ImGuiContext
     bool                    ActiveIdHasBeenEditedThisFrame;
     ImVec2                  ActiveIdClickOffset;                // Clicked offset from upper-left corner, if applicable (currently only set by ButtonBehavior)
     ImGuiWindow*            ActiveIdWindow;
-    ImGuiInputSource        ActiveIdSource;                     // Activating with mouse or nav (gamepad/keyboard)
+    ImGuiInputSource        ActiveIdSource;                     // Activating source: ImGuiInputSource_Mouse OR ImGuiInputSource_Keyboard OR ImGuiInputSource_Gamepad
     ImGuiMouseButton                     ActiveIdMouseButton;
     ImGuiID                 ActiveIdPreviousFrame;
     bool                    ActiveIdPreviousFrameIsAlive;
@@ -2099,7 +2118,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     ImGuiKeyChord           NavJustMovedToKeyMods;
     ImGuiID                 NavNextActivateId;                  // Set by ActivateItem(), queued until next frame.
     ImGuiActivateFlags      NavNextActivateFlags;
-    ImGuiInputSource        NavInputSource;                     // Keyboard or Gamepad mode? THIS WILL ONLY BE None or NavGamepad or NavKeyboard.
+    ImGuiInputSource        NavInputSource;                     // Keyboard or Gamepad mode? THIS CAN ONLY BE ImGuiInputSource_Keyboard or ImGuiInputSource_Mouse
     ImGuiNavLayer           NavLayer;                           // Layer we are navigating on. For now the system is hard-coded for 0=main contents and 1=menu/title bar, may expose layers later.
     bool                    NavIdIsAlive;                       // Nav widget has been seen this frame ~~ NavRectRel is valid
     bool                    NavMousePosDirty;                   // When set we will update mouse position if (io.ConfigFlags & ImGuiConfigFlags_NavEnableSetMousePos) if set (NB: this not enabled by default)
@@ -2193,6 +2212,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     // Widget state
     ImVec2                  MouseLastValidPos;
     ImGuiInputTextState     InputTextState;
+    ImGuiInputTextDeactivatedState InputTextDeactivatedState;
     ImFont                  InputTextPasswordFont;
     ImGuiID                 TempInputId;                        // Temporary text input when CTRL+clicking on a slider, etc.
     ImGuiColorEditFlags     ColorEditOptions;                   // Store user options for color edit widgets
@@ -2303,6 +2323,9 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         TestEngineHookItems = false;
         TestEngine = NULL;
 
+        InputEventsNextMouseSource = ImGuiMouseSource.Mouse;
+        InputEventsNextEventId = 1;
+
         WindowsActiveCount = 0;
         CurrentWindow = NULL;
         HoveredWindow = NULL;
@@ -2352,7 +2375,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         NavJustMovedToId = NavJustMovedToFocusScopeId = NavNextActivateId = 0;
         NavActivateFlags = NavNextActivateFlags = ImGuiActivateFlags.None;
         NavJustMovedToKeyMods = ImGuiMod.None;
-        NavInputSource = ImGuiInputSource.None;
+        NavInputSource = ImGuiInputSource.Keyboard;
         NavLayer = ImGuiNavLayer.Main;
         NavIdIsAlive = false;
         NavMousePosDirty = false;
@@ -3204,6 +3227,7 @@ struct ImGuiTableSettings
     /+
     bool          ItemAdd(const ImRect/*&*/ bb, ImGuiID id, const ImRect* nav_bb = NULL, ImGuiItemFlags extra_flags = 0);
     bool          ItemHoverable(const ImRect/*&*/ bb, ImGuiID id);
+    bool          IsWindowContentHoverable(ImGuiWindow* window, ImGuiHoveredFlags flags = 0);
     bool          IsClippedEx(const ImRect/*&*/ bb, ImGuiID id);
     void          SetLastItemData(ImGuiID item_id, ImGuiItemFlags in_flags, ImGuiItemStatusFlags status_flags, const ImRect/*&*/ item_rect);
     ImVec2        CalcItemSize(ImVec2 size, float default_w, float default_h);
@@ -3274,9 +3298,9 @@ struct ImGuiTableSettings
     pragma(inline, true) bool             IsMouseKey(ImGuiKey key)                                    { return key >= ImGuiKey.Mouse_BEGIN && key < ImGuiKey.Mouse_END; }
     pragma(inline, true) bool             IsAliasKey(ImGuiKey key)                                    { return key >= ImGuiKey.Aliases_BEGIN && key < ImGuiKey.Aliases_END; }
     pragma(inline, true) ImGuiKeyChord    ConvertShortcutMod(ImGuiKeyChord key_chord)                 { ImGuiContext* g = GImGui; IM_ASSERT_PARANOID(key_chord & ImGuiMod.Shortcut); return (key_chord & ~ImGuiMod.Shortcut) | (g.IO.ConfigMacOSXBehaviors ? ImGuiMod.Super : ImGuiMod.Ctrl); }
-    pragma(inline, true) ImGuiKey         ConvertSingleModFlagToKey(ImGuiKey key)
+    pragma(inline, true) ImGuiKey         ConvertSingleModFlagToKey(ImGuiContext* ctx, ImGuiKey key)
     {
-        ImGuiContext* g = GImGui;
+        ImGuiContext* g = ctx;
         if (key == ImGuiMod.Ctrl) return ImGuiKey.ReservedForModCtrl;
         if (key == ImGuiMod.Shift) return ImGuiKey.ReservedForModShift;
         if (key == ImGuiMod.Alt) return ImGuiKey.ReservedForModAlt;
@@ -3286,7 +3310,8 @@ struct ImGuiTableSettings
     }
 
     /+
-    ImGuiKeyData* GetKeyData(ImGuiKey key);
+    ImGuiKeyData* GetKeyData(ImGuiContext* ctx, ImGuiKey key);
+    pragma(inline, true) ImGuiKeyData*    GetKeyData(ImGuiKey key)                                    { ImGuiContext* g = GImGui; return GetKeyData(g, key); }
     void          GetKeyChordName(ImGuiKeyChord key_chord, char* out_buf, int out_buf_size);
     +/
     pragma(inline, true) ImGuiKey         MouseButtonToKey(ImGuiMouseButton button)                   { IM_ASSERT(button >= 0 && button < ImGuiMouseButton.COUNT); return cast(ImGuiKey)(ImGuiKey.MouseLeft + button); }
@@ -3314,10 +3339,11 @@ struct ImGuiTableSettings
     //   Please open a GitHub Issue to submit your usage scenario or if there's a use case you need solved.
     ImGuiID           GetKeyOwner(ImGuiKey key);
     void              SetKeyOwner(ImGuiKey key, ImGuiID owner_id, ImGuiInputFlags flags = 0);
+    void              SetKeyOwnersForKeyChord(ImGuiKeyChord key, ImGuiID owner_id, ImGuiInputFlags flags = 0);
     void              SetItemKeyOwner(ImGuiKey key, ImGuiInputFlags flags = 0);           // Set key owner to last item if it is hovered or active. Equivalent to 'if (IsItemHovered() || IsItemActive()) { SetKeyOwner(key, GetItemID());'.
     bool              TestKeyOwner(ImGuiKey key, ImGuiID owner_id);                       // Test that key is either not owned, either owned by 'owner_id'
     +/
-    pragma(inline, true) ImGuiKeyOwnerData*   GetKeyOwnerData(ImGuiKey key)     { if (key & ImGuiMod.Mask_) key = ConvertSingleModFlagToKey(key); IM_ASSERT(IsNamedKey(key)); return &GImGui.KeysOwnerData[key - ImGuiKey.NamedKey_BEGIN]; }
+    pragma(inline, true) ImGuiKeyOwnerData*   GetKeyOwnerData(ImGuiContext* ctx, ImGuiKey key)                    { if (key & ImGuiMod.Mask_) key = ConvertSingleModFlagToKey(ctx, key); IM_ASSERT(IsNamedKey(key)); return &ctx.KeysOwnerData[key - ImGuiKey.NamedKey_BEGIN]; }
     /+
 
     // [EXPERIMENTAL] High-Level: Input Access functions w/ support for Key/Input Ownership
@@ -3538,6 +3564,7 @@ struct ImGuiTableSettings
 
     // InputText
     bool          InputTextEx(string label, string hint, char* buf, int buf_size, const ImVec2/*&*/ size_arg, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
+    void          InputTextDeactivateHook(ImGuiID id);
     bool          TempInputText(const ImRect/*&*/ bb, ImGuiID id, string label, char* buf, int buf_size, ImGuiInputTextFlags flags);
     bool          TempInputScalar(const ImRect/*&*/ bb, ImGuiID id, string label, ImGuiDataType data_type, void* p_data, string format, const void* p_clamp_min = NULL, const void* p_clamp_max = NULL);
     +/

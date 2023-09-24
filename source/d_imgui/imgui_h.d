@@ -1,15 +1,15 @@
-// dear imgui, v1.89.4
+// dear imgui, v1.89.5
 // (headers)
 module d_imgui.imgui_h;
 
 // Help:
-// - Read FAQ at http://dearimgui.org/faq
+// - Read FAQ at http://dearimgui.com/faq
 // - Newcomers, read 'Programmer guide' in imgui.cpp for notes on how to setup Dear ImGui in your codebase.
 // - Call and read ImGui::ShowDemoWindow() in imgui_demo.cpp. All applications in examples/ are doing that.
 // Read imgui.cpp for details, links and comments.
 
 // Resources:
-// - FAQ                   http://dearimgui.org/faq
+// - FAQ                   http://dearimgui.com/faq
 // - Homepage & latest     https://github.com/ocornut/imgui
 // - Releases & changelog  https://github.com/ocornut/imgui/releases
 // - Gallery               https://github.com/ocornut/imgui/issues/5886 (please post your screenshots/video there!)
@@ -23,8 +23,8 @@ module d_imgui.imgui_h;
 
 // Library Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals, e.g. '#if IMGUI_VERSION_NUM > 12345')
-enum IMGUI_VERSION               = "1.89.4";
-enum IMGUI_VERSION_NUM           = 18940;
+enum IMGUI_VERSION               = "1.89.5";
+enum IMGUI_VERSION_NUM           = 18950;
 version = IMGUI_HAS_TABLE;
 
 /*
@@ -224,6 +224,7 @@ struct ImGuiViewport;               // A Platform Window (always only one in 'ma
 //   With Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols in comments.
 /+
 enum ImGuiKey : int;                // -> enum ImGuiKey              // Enum: A key identifier (ImGuiKey_XXX or ImGuiMod_XXX value)
+enum ImGuiMouseSource : int;        // -> enum ImGuiMouseSource      // Enum; A mouse input source identifier (Mouse, TouchScreen, Pen)
 typedef int ImGuiCol;               // -> enum ImGuiCol_             // Enum: A color identifier for styling
 typedef int ImGuiCond;              // -> enum ImGuiCond_            // Enum: A condition for many Set*() functions
 typedef int ImGuiDataType;          // -> enum ImGuiDataType_        // Enum: A primary data type
@@ -317,8 +318,8 @@ struct ImVec2
 
     float                                   x = 0.0f, y = 0.0f;
     this(float _x, float _y)              { x = _x; y = _y; }
-    float  opIndex(size_t idx) const    { IM_ASSERT(idx == 0 || idx == 1); return (&x)[idx]; }    // We very rarely use this [] operator, the assert overhead is fine.
-    ref float opIndex(size_t idx)          { IM_ASSERT(idx == 0 || idx == 1); return (&x)[idx]; }    // We very rarely use this [] operator, the assert overhead is fine.
+    ref float opIndex(size_t idx)          { IM_ASSERT(idx == 0 || idx == 1); return (&x)[idx]; } // We very rarely use this [] operator, so the assert overhead is fine.
+    float  opIndex(size_t idx) const    { IM_ASSERT(idx == 0 || idx == 1); return (&x)[idx]; }
     // #ifdef IM_VEC2_CLASS_EXTRA
     //     IM_VEC2_CLASS_EXTRA     // Define additional constructors and implicit cast operators in imconfig.h to convert back and forth between your math types and ImVec2.
     // #endif
@@ -589,7 +590,7 @@ namespace ImGui
     float         GetFrameHeightWithSpacing();                                    // ~ FontSize + style.FramePadding.y * 2 + style.ItemSpacing.y (distance in pixels between 2 consecutive lines of framed widgets)
 
     // ID stack/scopes
-    // Read the FAQ (docs/FAQ.md or http://dearimgui.org/faq) for more details about how ID are handled in dear imgui.
+    // Read the FAQ (docs/FAQ.md or http://dearimgui.com/faq) for more details about how ID are handled in dear imgui.
     // - Those questions are answered and impacted by understanding of the ID stack system:
     //   - "Q: Why is my widget not reacting when I click on it?"
     //   - "Q: How can I have widgets with an empty label?"
@@ -1573,7 +1574,7 @@ enum ImGuiKey : int
     KeypadEqual,
 
     // Gamepad (some of those are analog values, 0.0f to 1.0f)                          // NAVIGATION ACTION
-    // (download controller mapping PNG/PSD at http://dearimgui.org/controls_sheets)
+    // (download controller mapping PNG/PSD at http://dearimgui.com/controls_sheets)
     GamepadStart,          // Menu (Xbox)      + (Switch)   Start/Options (PS)
     GamepadBack,           // View (Xbox)      - (Switch)   Share (PS)
     GamepadFaceLeft,       // X (Xbox)         Y (Switch)   Square (PS)        // Tap: Toggle Menu. Hold: Windowing mode (Focus/Move/Resize windows)
@@ -1657,7 +1658,7 @@ enum ImGuiKey : int
     NavKeyboardTweakSlow   = ImGuiMod.Ctrl,
     NavKeyboardTweakFast   = ImGuiMod.Shift,
     NavGamepadTweakSlow    = GamepadL1,
-    NavGamepadTweakFast    = GamepadR1,,
+    NavGamepadTweakFast    = GamepadR1,
     NavGamepadActivate     = GamepadFaceDown,
     NavGamepadCancel       = GamepadFaceRight,
     NavGamepadMenu         = GamepadFaceLeft,
@@ -1925,6 +1926,18 @@ enum ImGuiMouseCursor : int
     ResizeNWSE,        // When hovering over the bottom-right corner of a window
     Hand,              // (Unused by Dear ImGui functions. Use for e.g. hyperlinks)
     NotAllowed,        // When hovering something with disallowed interaction. Usually a crossed circle.
+    COUNT
+}
+
+// Enumeration for AddMouseSourceEvent() actual source of Mouse Input data.
+// Historically we use "Mouse" terminology everywhere to indicate pointer data, e.g. MousePos, IsMousePressed(), io.AddMousePosEvent()
+// But that "Mouse" data can come from different source which occasionally may be useful for application to know about.
+// You can submit a change of pointer type using io.AddMouseSourceEvent().
+enum ImGuiMouseSource : int
+{
+    Mouse = 0,         // Input is coming from an actual mouse.
+    TouchScreen,       // Input is coming from a touch screen (no hovering prior to initial press, less precise initial press aiming, dual-axis wheeling possible).
+    Pen,               // Input is coming from a pressure/magnetic pen (often used in conjunction with high-sampling rates).
     COUNT
 }
 
@@ -2224,6 +2237,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
     void  AddMousePosEvent(float x, float y) { (cast(ImGuiIO_Wrapper*)&this).AddMousePosEvent(x, y); }                     // Queue a mouse position update. Use -FLT_MAX,-FLT_MAX to signify no mouse (e.g. app not focused and not hovered)
     void  AddMouseButtonEvent(int button, bool down) { (cast(ImGuiIO_Wrapper*)&this).AddMouseButtonEvent(button, down); }             // Queue a mouse button change
     void  AddMouseWheelEvent(float wheel_x, float wheel_y) { (cast(ImGuiIO_Wrapper*)&this).AddMouseWheelEvent(wheel_x, wheel_y); }       // Queue a mouse wheel update. wheel_y<0: scroll down, wheel_y>0: scroll up, wheel_x<0: scroll right, wheel_x>0: scroll left.
+    void  AddMouseSourceEvent(ImGuiMouseSource source) { (cast(ImGuiIO_Wrapper*)&this).AddMouseSourceEvent(source); }           // Queue a mouse source change (Mouse/TouchScreen/Pen)
     void  AddFocusEvent(bool focused) { (cast(ImGuiIO_Wrapper*)&this).AddFocusEvent(focused); }                            // Queue a gain/loss of focus for the application (generally based on OS/platform focus of your window)
     void  AddInputCharacter(uint c) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacter(c); }                      // Queue a new character input
     void  AddInputCharacterUTF16(ImWchar16 c) { (cast(ImGuiIO_Wrapper*)&this).AddInputCharacterUTF16(c); }                    // Queue a new character input from a UTF-16 character, it can be a surrogate
@@ -2277,6 +2291,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     bool[5]        MouseDown;                       // Mouse buttons: 0=left, 1=right, 2=middle + extras (ImGuiMouseButton_COUNT == 5). Dear ImGui mostly uses left and right buttons. Other buttons allow us to track if the mouse is being used by your application + available to user as a convenience via IsMouse** API.
     float       MouseWheel;                         // Mouse wheel Vertical: 1 unit scrolls about 5 lines text. >0 scrolls Up, <0 scrolls Down. Hold SHIFT to turn vertical scroll into horizontal scroll.
     float       MouseWheelH;                        // Mouse wheel Horizontal. >0 scrolls Left, <0 scrolls Right. Most users don't have a mouse with a horizontal wheel, may not be filled by all backends.
+    ImGuiMouseSource MouseSource;                   // Mouse actual input peripheral (Mouse/TouchScreen/Pen).
     bool        KeyCtrl;                            // Keyboard modifier down: Control
     bool        KeyShift;                           // Keyboard modifier down: Shift
     bool        KeyAlt;                             // Keyboard modifier down: Alt
@@ -2296,6 +2311,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     bool[5]        MouseReleased;                   // Mouse button went from Down to !Down
     bool[5]        MouseDownOwned;                  // Track if button was clicked inside a dear imgui window or over void blocked by a popup. We don't request mouse capture from the application if click started outside ImGui bounds.
     bool[5]        MouseDownOwnedUnlessPopupClose;  // Track if button was clicked inside a dear imgui window.
+    bool        MouseWheelRequestAxisSwap;          // On a non-Mac system, holding SHIFT requests WheelY to perform the equivalent of a WheelX event. On a Mac system this is already enforced by the system.
     float[5]       MouseDownDuration;               // Duration the mouse button has been down (0.0f == just clicked)
     float[5]       MouseDownDurationPrev;           // Previous time the mouse button has been down
     float[5]       MouseDragMaxDistanceSqr;         // Squared maximum distance of how much mouse has traveled from the clicking point (used for moving thresholds)

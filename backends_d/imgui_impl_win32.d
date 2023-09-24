@@ -3,6 +3,7 @@
 
 // Implemented features:
 //  [X] Platform: Clipboard support (for Win32 this is actually part of core dear imgui)
+//  [X] Platform: Mouse support. Can discriminate Mouse/TouchScreen/Pen.
 //  [X] Platform: Keyboard support. Since 1.87 we are using the io.AddKeyEvent() function. Pass ImGuiKey values to all key functions e.g. ImGui::IsKeyPressed(ImGuiKey_Space). [Legacy VK_* values will also be supported unless IMGUI_DISABLE_OBSOLETE_KEYIO is set]
 //  [X] Platform: Gamepad support. Enabled with 'io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad'.
 //  [X] Platform: Mouse cursor shape and visibility. Disable with 'io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange'.
@@ -45,6 +46,7 @@ alias PFN_XInputGetState = extern(Windows) DWORD function(DWORD, XINPUT_STATE*);
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2023-04-04: Inputs: Added support for io.AddMouseSourceEvent() to discriminate ImGuiMouseSource_Mouse/ImGuiMouseSource_TouchScreen/ImGuiMouseSource_Pen. (#2702)
 //  2023-02-15: Inputs: Use WM_NCMOUSEMOVE / WM_NCMOUSELEAVE to track mouse position over non-client area (e.g. OS decorations) when app is not focused. (#6045, #6162)
 //  2023-02-02: Inputs: Flipping WM_MOUSEHWHEEL (horizontal mouse-wheel) value to match other backends and offer consistent horizontal scrolling direction. (#4019, #6096, #1463)
 //  2022-10-11: Using 'nullptr' instead of 'NULL' as per our switch to C++11.
@@ -520,6 +522,19 @@ static if (false) {
 // Copy this line into your .cpp file to forward declare the function.
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 }
+
+// See https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages
+// Prefer to call this at the top of the message handler to avoid the possibility of other Win32 calls interfering with this.
+static ImGuiMouseSource GetMouseSourceFromMessageExtraInfo()
+{
+    LPARAM extra_info = GetMessageExtraInfo();
+    if ((extra_info & 0xFFFFFF80) == 0xFF515700)
+        return ImGuiMouseSource.Pen;
+    if ((extra_info & 0xFFFFFF80) == 0xFF515780)
+        return ImGuiMouseSource.TouchScreen;
+    return ImGuiMouseSource.Mouse;
+}
+
 LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui.GetCurrentContext() == null)
@@ -534,6 +549,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
     case WM_NCMOUSEMOVE:
     {
         // We need to call TrackMouseEvent in order to receive WM_MOUSELEAVE events
+        ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
         const int area = (msg == WM_MOUSEMOVE) ? 1 : 2;
         bd.MouseHwnd = hwnd;
         if (bd.MouseTrackedArea != area)
@@ -548,6 +564,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         POINT mouse_pos = { cast(LONG)GET_X_LPARAM(lParam), cast(LONG)GET_Y_LPARAM(lParam) };
         if (msg == WM_NCMOUSEMOVE && ScreenToClient(hwnd, &mouse_pos) == FALSE) // WM_NCMOUSEMOVE are provided in absolute coordinates.
             break;
+        io.AddMouseSourceEvent(mouse_source);
         io.AddMousePosEvent(cast(float)mouse_pos.x, cast(float)mouse_pos.y);
         break;
     }
@@ -569,6 +586,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
     case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK:
     case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK:
     {
+        ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
         int button = 0;
         if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK) { button = 0; }
         if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK) { button = 1; }
@@ -577,6 +595,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         if (bd.MouseButtonsDown == 0 && GetCapture() == null)
             SetCapture(hwnd);
         bd.MouseButtonsDown |= 1 << button;
+        io.AddMouseSourceEvent(mouse_source);
         io.AddMouseButtonEvent(button, true);
         return 0;
     }
@@ -585,6 +604,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
     case WM_MBUTTONUP:
     case WM_XBUTTONUP:
     {
+        ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
         int button = 0;
         if (msg == WM_LBUTTONUP) { button = 0; }
         if (msg == WM_RBUTTONUP) { button = 1; }
@@ -593,6 +613,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         bd.MouseButtonsDown &= ~(1 << button);
         if (bd.MouseButtonsDown == 0 && GetCapture() == hwnd)
             ReleaseCapture();
+        io.AddMouseSourceEvent(mouse_source);
         io.AddMouseButtonEvent(button, false);
         return 0;
     }

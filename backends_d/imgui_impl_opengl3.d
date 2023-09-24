@@ -14,6 +14,8 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2023-03-23: OpenGL: Properly restoring "no shader program bound" if it was the case prior to running the rendering function. (#6267, #6220, #6224)
+//  2023-03-15: OpenGL: Fixed GL loader crash when GL_VERSION returns NULL. (#6154, #4445, #3530)
 //  2023-03-06: OpenGL: Fixed restoration of a potentially deleted OpenGL program, by calling glIsProgram(). (#6220, #6224)
 //  2022-11-09: OpenGL: Reverted use of glBufferSubData(), too many corruptions issues + old issues seemingly can't be reproed with Intel drivers nowadays (revert 2021-12-15 and 2022-05-23 changes).
 //  2022-10-11: Using 'nullptr' instead of 'NULL' as per our switch to C++11.
@@ -119,16 +121,19 @@ import core.stdc.stdint : intptr_t;
 //}
 import core.stdc.string : strcpy, strcat, strcmp;
 
-// Clang warnings with -Weverything
+// Clang/GCC warnings with -Weverything
 /+
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"     // warning: use of old-style cast
 #pragma clang diagnostic ignored "-Wsign-conversion"    // warning: implicit conversion changes signedness
+#pragma clang diagnostic ignored "-Wunused-macros"          // warning: macro is not used
+#pragma clang diagnostic ignored "-Wnonportable-system-include-path"
+#pragma clang diagnostic ignored "-Wcast-function-type"     // warning: cast between incompatible function types (for loader)
 }
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"   // warning: cast between incompatible function types
+#pragma GCC diagnostic ignored "-Wcast-function-type"       // warning: cast between incompatible function types (for loader)
 }
 +/
 
@@ -224,13 +229,14 @@ enum IMGUI_IMPL_OPENGL_MAY_HAVE_PRIMITIVE_RESTART = glSupport >= 31;
 enum IMGUI_IMPL_OPENGL_MAY_HAVE_EXTENSIONS = !IMGUI_IMPL_OPENGL_ES2 && !IMGUI_IMPL_OPENGL_ES3;
 
 // [Debugging]
-// D_IMGUI: D does not allow for void parameters, making this impossible
-//#define IMGUI_IMPL_OPENGL_DEBUG
+version = IMGUI_IMPL_OPENGL_DEBUG;
 version (IMGUI_IMPL_OPENGL_DEBUG) {
-//#include <stdio.h>
-//    void GL_CALL(T...)(T _CALL, string file = __FILE__, size_t line = __LINE__)      { GLenum gl_err = glGetError(); if (gl_err != 0) fprintf(stderr, "GL error 0x%x returned from '%s:%d'.\n", gl_err, file, line); }  // Call with error check
+    import core.stdc.stdio : printf;
+    void GL_CALL(alias f, T...)(T t, string file = __FILE__, size_t line = __LINE__)      {
+        f(t); GLenum gl_err = glGetError(); if (gl_err != 0) fprintf(stderr, "GL error 0x%x returned from '%s:%d'.\n", gl_err, file.ptr, cast(int)line);
+    }  // Call with error check
 } else {
-//    void GL_CALL(T...)(T _CALL)      {}   // Call without error check
+    void GL_CALL(alias f, T...)(T t)      { f(t); }   // Call without error check
 }
 
 // OpenGL Data
@@ -434,7 +440,7 @@ static if (glSupport >= 45) {
 
     // Setup viewport, orthographic projection matrix
     // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
-    glViewport(0, 0, cast(GLsizei)fb_width, cast(GLsizei)fb_height);
+    GL_CALL!(glViewport)(0, 0, cast(GLsizei)fb_width, cast(GLsizei)fb_height);
     float L = draw_data.DisplayPos.x;
     float R = draw_data.DisplayPos.x + draw_data.DisplaySize.x;
     float T = draw_data.DisplayPos.y;
@@ -464,14 +470,14 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
 }
 
     // Bind vertex/index buffers and setup attributes for ImDrawVert
-    glBindBuffer(GL_ARRAY_BUFFER, bd.VboHandle);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bd.ElementsHandle);
-    glEnableVertexAttribArray(bd.AttribLocationVtxPos);
-    glEnableVertexAttribArray(bd.AttribLocationVtxUV);
-    glEnableVertexAttribArray(bd.AttribLocationVtxColor);
-    glVertexAttribPointer(bd.AttribLocationVtxPos,   2, GL_FLOAT,         GL_FALSE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.pos.offsetof));
-    glVertexAttribPointer(bd.AttribLocationVtxUV,    2, GL_FLOAT,         GL_FALSE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.uv.offsetof));
-    glVertexAttribPointer(bd.AttribLocationVtxColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.col.offsetof));
+    GL_CALL!(glBindBuffer)(GL_ARRAY_BUFFER, bd.VboHandle);
+    GL_CALL!(glBindBuffer)(GL_ELEMENT_ARRAY_BUFFER, bd.ElementsHandle);
+    GL_CALL!(glEnableVertexAttribArray)(bd.AttribLocationVtxPos);
+    GL_CALL!(glEnableVertexAttribArray)(bd.AttribLocationVtxUV);
+    GL_CALL!(glEnableVertexAttribArray)(bd.AttribLocationVtxColor);
+    GL_CALL!(glVertexAttribPointer)(bd.AttribLocationVtxPos,   2, GL_FLOAT,         GL_FALSE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.pos.offsetof));
+    GL_CALL!(glVertexAttribPointer)(bd.AttribLocationVtxUV,    2, GL_FLOAT,         GL_FALSE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.uv.offsetof));
+    GL_CALL!(glVertexAttribPointer)(bd.AttribLocationVtxColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof!(ImDrawVert), cast(GLvoid*)(ImDrawVert.col.offsetof));
 }
 
 // OpenGL3 Render function.
@@ -559,20 +565,20 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
             if (bd.VertexBufferSize < vtx_buffer_size)
             {
                 bd.VertexBufferSize = vtx_buffer_size;
-                glBufferData(GL_ARRAY_BUFFER, bd.VertexBufferSize, null, GL_STREAM_DRAW);
+                GL_CALL!(glBufferData)(GL_ARRAY_BUFFER, bd.VertexBufferSize, null, GL_STREAM_DRAW);
             }
             if (bd.IndexBufferSize < idx_buffer_size)
             {
                 bd.IndexBufferSize = idx_buffer_size;
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, bd.IndexBufferSize, null, GL_STREAM_DRAW);
+                GL_CALL!(glBufferData)(GL_ELEMENT_ARRAY_BUFFER, bd.IndexBufferSize, null, GL_STREAM_DRAW);
             }
-            glBufferSubData(GL_ARRAY_BUFFER, 0, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data);
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data);
+            GL_CALL!(glBufferSubData)(GL_ARRAY_BUFFER, 0, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data);
+            GL_CALL!(glBufferSubData)(GL_ELEMENT_ARRAY_BUFFER, 0, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data);
         }
         else
         {
-            glBufferData(GL_ARRAY_BUFFER, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data, GL_STREAM_DRAW);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data, GL_STREAM_DRAW);
+            GL_CALL!(glBufferData)(GL_ARRAY_BUFFER, vtx_buffer_size, cast(const GLvoid*)cmd_list.VtxBuffer.Data, GL_STREAM_DRAW);
+            GL_CALL!(glBufferData)(GL_ELEMENT_ARRAY_BUFFER, idx_buffer_size, cast(const GLvoid*)cmd_list.IdxBuffer.Data, GL_STREAM_DRAW);
         }
 
         for (int cmd_i = 0; cmd_i < cmd_list.CmdBuffer.Size; cmd_i++)
@@ -596,17 +602,17 @@ static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
                     continue;
 
                 // Apply scissor/clipping rectangle (Y is inverted in OpenGL)
-                glScissor(cast(int)clip_min.x, cast(int)(cast(float)fb_height - clip_max.y), cast(int)(clip_max.x - clip_min.x), cast(int)(clip_max.y - clip_min.y));
+                GL_CALL!(glScissor)(cast(int)clip_min.x, cast(int)(cast(float)fb_height - clip_max.y), cast(int)(clip_max.x - clip_min.x), cast(int)(clip_max.y - clip_min.y));
 
                 // Bind texture, Draw
-                glBindTexture(GL_TEXTURE_2D, cast(GLuint)cast(intptr_t)pcmd.GetTexID());
+                GL_CALL!(glBindTexture)(GL_TEXTURE_2D, cast(GLuint)cast(intptr_t)pcmd.GetTexID());
 static if (IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET) {
                 if (bd.GlVersion >= 320)
-                    glDrawElementsBaseVertex(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)), cast(GLint)pcmd.VtxOffset);
+                    GL_CALL!(glDrawElementsBaseVertex)(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)), cast(GLint)pcmd.VtxOffset);
                 else
-                    glDrawElements(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
+                    GL_CALL!(glDrawElements)(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
 } else {
-                glDrawElements(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
+                GL_CALL!(glDrawElements)(GL_TRIANGLES, cast(GLsizei)pcmd.ElemCount, sizeof!(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, cast(void*)cast(intptr_t)(pcmd.IdxOffset * sizeof!(ImDrawIdx)));
 }
             }
         }
@@ -614,12 +620,12 @@ static if (IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET) {
 
     // Destroy the temporary VAO
 static if (IMGUI_IMPL_OPENGL_USE_VERTEX_ARRAY) {
-    glDeleteVertexArrays(1, &vertex_array_object);
+    GL_CALL!(glDeleteVertexArrays)(1, &vertex_array_object);
 }
 
     // Restore modified GL state
     // This "glIsProgram()" check is required because if the program is "pending deletion" at the time of binding backup, it will have been deleted by now and will cause an OpenGL error. See #6220.
-    if (glIsProgram(last_program)) glUseProgram(last_program);
+    if (last_program == 0 || glIsProgram(last_program)) glUseProgram(last_program);
     glBindTexture(GL_TEXTURE_2D, last_texture);
 static if (IMGUI_IMPL_OPENGL_MAY_HAVE_BIND_SAMPLER) {
     if (bd.GlVersion >= 330)
@@ -667,21 +673,21 @@ bool ImGui_ImplOpenGL3_CreateFontsTexture()
 
     // Upload texture to graphics system
     GLint last_texture;
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
-    glGenTextures(1, &bd.FontTexture);
-    glBindTexture(GL_TEXTURE_2D, bd.FontTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    GL_CALL!(glGetIntegerv)(GL_TEXTURE_BINDING_2D, &last_texture);
+    GL_CALL!(glGenTextures)(1, &bd.FontTexture);
+    GL_CALL!(glBindTexture)(GL_TEXTURE_2D, bd.FontTexture);
+    GL_CALL!(glTexParameteri)(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    GL_CALL!(glTexParameteri)(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 //#ifdef GL_UNPACK_ROW_LENGTH // Not on WebGL/ES
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    GL_CALL!(glPixelStorei)(GL_UNPACK_ROW_LENGTH, 0);
 //#endif
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.ptr);
+    GL_CALL!(glTexImage2D)(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.ptr);
 
     // Store our identifier
     io.Fonts.SetTexID(cast(ImTextureID)cast(intptr_t)bd.FontTexture);
 
     // Restore state
-    glBindTexture(GL_TEXTURE_2D, last_texture);
+    GL_CALL!(glBindTexture)(GL_TEXTURE_2D, last_texture);
 
     return true;
 }

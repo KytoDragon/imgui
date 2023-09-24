@@ -233,7 +233,7 @@ struct ImGui_ImplVulkan_Data
     @disable this();
     this(bool dummy) nothrow @nogc
     {
-        memset(&this, 0, sizeof(this));
+        memset(cast(void*)&this, 0, sizeof(this));
         BufferMemoryAlignment = 256;
     }
 }
@@ -567,7 +567,7 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
     {
         wrb.Index = 0;
         wrb.Count = v.ImageCount;
-        wrb.FrameRenderBuffers = cast(ImGui_ImplVulkanH_FrameRenderBuffers*)IM_ALLOC!ImGui_ImplVulkanH_FrameRenderBuffers(wrb.Count);
+        wrb.FrameRenderBuffers = IM_ALLOC!ImGui_ImplVulkanH_FrameRenderBuffers(wrb.Count).ptr;
         memset(wrb.FrameRenderBuffers, 0, sizeof!(ImGui_ImplVulkanH_FrameRenderBuffers) * wrb.Count);
     }
     IM_ASSERT(wrb.Count == v.ImageCount);
@@ -668,7 +668,7 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
                     IM_ASSERT(pcmd.TextureId == cast(ImTextureID)bd.FontDescriptorSet);
                     desc_set[0] = bd.FontDescriptorSet;
                 }
-                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, bd.PipelineLayout, 0, 1, desc_set.ptr, 0, NULL);
+                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, bd.PipelineLayout, 0, 1, desc_set.ptr, 0, null);
 
                 // Draw
                 vkCmdDrawIndexed(command_buffer, pcmd.ElemCount, 1, pcmd.IdxOffset + global_idx_offset, pcmd.VtxOffset + global_vtx_offset, 0);
@@ -877,15 +877,15 @@ static void ImGui_ImplVulkan_CreatePipeline(VkDevice device, const (VkAllocation
     attribute_desc[0].location = 0;
     attribute_desc[0].binding = binding_desc[0].binding;
     attribute_desc[0].format = VK_FORMAT_R32G32_SFLOAT;
-    attribute_desc[0].offset = ImDrawVert.pos.offsetof;
+    attribute_desc[0].offset = (ImDrawVert.pos.offsetof);
     attribute_desc[1].location = 1;
     attribute_desc[1].binding = binding_desc[0].binding;
     attribute_desc[1].format = VK_FORMAT_R32G32_SFLOAT;
-    attribute_desc[1].offset = ImDrawVert.uv.offsetof;
+    attribute_desc[1].offset = (ImDrawVert.uv.offsetof);
     attribute_desc[2].location = 2;
     attribute_desc[2].binding = binding_desc[0].binding;
     attribute_desc[2].format = VK_FORMAT_R8G8B8A8_UNORM;
-    attribute_desc[2].offset = ImDrawVert.col.offsetof;
+    attribute_desc[2].offset = (ImDrawVert.col.offsetof);
 
     VkPipelineVertexInputStateCreateInfo vertex_info;
     vertex_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -909,7 +909,7 @@ static void ImGui_ImplVulkan_CreatePipeline(VkDevice device, const (VkAllocation
     raster_info.cullMode = VK_CULL_MODE_NONE;
     raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     raster_info.lineWidth = 1.0f;
-    raster_info.depthBiasClamp = 0;
+    raster_info.depthBiasClamp = 0; // NOTE: D does not zero-initialize floats!
 
     VkPipelineMultisampleStateCreateInfo ms_info;
     ms_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -1271,8 +1271,8 @@ VkPresentModeKHR ImGui_ImplVulkanH_SelectPresentMode(VkPhysicalDevice physical_d
 void ImGui_ImplVulkanH_CreateWindowCommandBuffers(VkPhysicalDevice physical_device, VkDevice device, ImGui_ImplVulkanH_Window* wd, uint32_t queue_family, const (VkAllocationCallbacks)* allocator)
 {
     IM_ASSERT(physical_device != VK_NULL_HANDLE && device != VK_NULL_HANDLE);
-    //(void)physical_device;
-    //(void)allocator;
+    //cast(void)physical_device;
+    //cast(void)allocator;
 
     // Create Command Buffers
     VkResult err;
@@ -1402,8 +1402,8 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
         check_vk_result(err);
 
         IM_ASSERT(wd.Frames == null);
-        wd.Frames = cast(ImGui_ImplVulkanH_Frame*)IM_ALLOC!ImGui_ImplVulkanH_Frame(wd.ImageCount);
-        wd.FrameSemaphores = cast(ImGui_ImplVulkanH_FrameSemaphores*)IM_ALLOC!ImGui_ImplVulkanH_FrameSemaphores(wd.ImageCount);
+        wd.Frames = IM_ALLOC!ImGui_ImplVulkanH_Frame(wd.ImageCount).ptr;
+        wd.FrameSemaphores = IM_ALLOC!ImGui_ImplVulkanH_FrameSemaphores(wd.ImageCount).ptr;
         memset(wd.Frames, 0, sizeof(wd.Frames[0]) * wd.ImageCount);
         memset(wd.FrameSemaphores, 0, sizeof(wd.FrameSemaphores[0]) * wd.ImageCount);
         for (uint32_t i = 0; i < wd.ImageCount; i++)
@@ -1499,7 +1499,7 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
 void ImGui_ImplVulkanH_CreateOrResizeWindow(VkInstance instance, VkPhysicalDevice physical_device, VkDevice device, ImGui_ImplVulkanH_Window* wd, uint32_t queue_family, const (VkAllocationCallbacks)* allocator, int width, int height, uint32_t min_image_count)
 {
     IM_ASSERT(g_FunctionsLoaded, "Need to call ImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!");
-    //(void)instance;
+    //cast(void)instance;
     ImGui_ImplVulkanH_CreateWindowSwapChain(physical_device, device, wd, allocator, width, height, min_image_count);
     ImGui_ImplVulkanH_CreateWindowCommandBuffers(physical_device, device, wd, queue_family, allocator);
 }

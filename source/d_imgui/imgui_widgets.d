@@ -1,4 +1,4 @@
-// dear imgui, v1.89.4
+// dear imgui, v1.89.5
 // (widgets code)
 module d_imgui.imgui_widgets;
 
@@ -622,7 +622,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
             // Set active id so it can be queried by user via IsItemActive(), equivalent of holding the mouse button.
             pressed = true;
             SetActiveID(id, window);
-            g.ActiveIdSource = ImGuiInputSource.Nav;
+            g.ActiveIdSource = g.NavInputSource;
             if (!(flags & ImGuiButtonFlags.NoNavFocus))
                 SetFocusID(id, window);
         }
@@ -638,7 +638,12 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
                 g.ActiveIdClickOffset = g.IO.MousePos - bb.Min;
 
             const int mouse_button = g.ActiveIdMouseButton;
-            if (IsMouseDown(cast(ImGuiMouseButton)mouse_button, test_owner_id))
+            if (mouse_button == -1)
+            {
+                // Fallback for the rare situation were g.ActiveId was set programmatically or from another widget (e.g. #6304).
+                ClearActiveID();
+            }
+            else if (IsMouseDown(cast(ImGuiMouseButton)mouse_button, test_owner_id))
             {
                 held = true;
             }
@@ -660,7 +665,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
             if (!(flags & ImGuiButtonFlags.NoNavFocus))
                 g.NavDisableHighlight = true;
         }
-        else if (g.ActiveIdSource == ImGuiInputSource.Nav)
+        else if (g.ActiveIdSource == ImGuiInputSource.Keyboard || g.ActiveIdSource == ImGuiInputSource.Gamepad)
         {
             // When activated using Nav, we hold on the ActiveID until activation button is released
             if (g.NavActivateDownId != id)
@@ -827,7 +832,7 @@ bool CloseButton(ImGuiID id, const ImVec2/*&*/ pos)
     ImU32 col = GetColorU32(held ? ImGuiCol.ButtonActive : ImGuiCol.ButtonHovered);
     ImVec2 center = bb.GetCenter();
     if (hovered)
-        window.DrawList.AddCircleFilled(center, ImMax(2.0f, g.FontSize * 0.5f + 1.0f), col, 12);
+        window.DrawList.AddCircleFilled(center, ImMax(2.0f, g.FontSize * 0.5f + 1.0f), col);
 
     float cross_extent = g.FontSize * 0.5f * 0.7071f - 1.0f;
     ImU32 cross_col = GetColorU32(ImGuiCol.Text);
@@ -852,7 +857,7 @@ bool CollapseButton(ImGuiID id, const ImVec2/*&*/ pos)
     ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol.ButtonActive : hovered ? ImGuiCol.ButtonHovered : ImGuiCol.Button);
     ImU32 text_col = GetColorU32(ImGuiCol.Text);
     if (hovered || held)
-        window.DrawList.AddCircleFilled(bb.GetCenter()/*+ ImVec2(0.0f, -0.5f)*/, g.FontSize * 0.5f + 1.0f, bg_col, 12);
+        window.DrawList.AddCircleFilled(bb.GetCenter()/*+ ImVec2(0.0f, -0.5f)*/, g.FontSize * 0.5f + 1.0f, bg_col);
     RenderArrow(window.DrawList, bb.Min + g.Style.FramePadding, text_col, window.Collapsed ? ImGuiDir.Right : ImGuiDir.Down, 1.0f);
 
     // Switch to moving the window after mouse is moved beyond the initial drag threshold
@@ -1237,17 +1242,18 @@ bool RadioButton(string label, bool active)
         MarkItemEdited(id);
 
     RenderNavHighlight(total_bb, id);
-    window.DrawList.AddCircleFilled(center, radius, GetColorU32((held && hovered) ? ImGuiCol.FrameBgActive : hovered ? ImGuiCol.FrameBgHovered : ImGuiCol.FrameBg), 16);
+    const int num_segment = window.DrawList._CalcCircleAutoSegmentCount(radius);
+    window.DrawList.AddCircleFilled(center, radius, GetColorU32((held && hovered) ? ImGuiCol.FrameBgActive : hovered ? ImGuiCol.FrameBgHovered : ImGuiCol.FrameBg), num_segment);
     if (active)
     {
         const float pad = ImMax(1.0f, IM_FLOOR(square_sz / 6.0f));
-        window.DrawList.AddCircleFilled(center, radius - pad, GetColorU32(ImGuiCol.CheckMark), 16);
+        window.DrawList.AddCircleFilled(center, radius - pad, GetColorU32(ImGuiCol.CheckMark));
     }
 
     if (style.FrameBorderSize > 0.0f)
     {
-        window.DrawList.AddCircle(center + ImVec2(1, 1), radius, GetColorU32(ImGuiCol.BorderShadow), 16, style.FrameBorderSize);
-        window.DrawList.AddCircle(center, radius, GetColorU32(ImGuiCol.Border), 16, style.FrameBorderSize);
+        window.DrawList.AddCircle(center + ImVec2(1, 1), radius, GetColorU32(ImGuiCol.BorderShadow), num_segment, style.FrameBorderSize);
+        window.DrawList.AddCircle(center, radius, GetColorU32(ImGuiCol.Border), num_segment, style.FrameBorderSize);
     }
 
     ImVec2 label_pos = ImVec2(check_bb.Max.x + style.ItemInnerSpacing.x, check_bb.Min.y + style.FramePadding.y);
@@ -2248,7 +2254,7 @@ bool DragBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(ImGuiDataType data_type, TYPE* v
         if (g.IO.KeyShift)
             adjust_delta *= 10.0f;
     }
-    else if (g.ActiveIdSource == ImGuiInputSource.Nav)
+    else if (g.ActiveIdSource == ImGuiInputSource.Keyboard || g.ActiveIdSource == ImGuiInputSource.Gamepad)
     {
         const int decimal_precision = is_floating_point ? ImParseFormatPrecision(format, 3) : 0;
         const bool tweak_slow = IsKeyDown((g.NavInputSource == ImGuiInputSource.Gamepad) ? ImGuiKey.NavGamepadTweakSlow : ImGuiKey.NavKeyboardTweakSlow);
@@ -2355,7 +2361,7 @@ bool DragBehavior(ImGuiID id, ImGuiDataType data_type, void* p_v, float v_speed,
         // Those are the things we can do easily outside the DragBehaviorT<> template, saves code generation.
         if (g.ActiveIdSource == ImGuiInputSource.Mouse && !g.IO.MouseDown[0])
             ClearActiveID();
-        else if (g.ActiveIdSource == ImGuiInputSource.Nav && g.NavActivatePressedId == id && !g.ActiveIdIsJustActivated)
+        else if ((g.ActiveIdSource == ImGuiInputSource.Keyboard || g.ActiveIdSource == ImGuiInputSource.Gamepad) && g.NavActivatePressedId == id && !g.ActiveIdIsJustActivated)
             ClearActiveID();
     }
     if (g.ActiveId != id)
@@ -2827,7 +2833,7 @@ bool SliderBehaviorT(TYPE, SIGNEDTYPE, FLOATTYPE)(const /*ref*/ ImRect bb, ImGui
                 set_new_value = true;
             }
         }
-        else if (g.ActiveIdSource == ImGuiInputSource.Nav)
+        else if (g.ActiveIdSource == ImGuiInputSource.Keyboard || g.ActiveIdSource == ImGuiInputSource.Gamepad)
         {
             if (g.ActiveIdIsJustActivated)
             {
@@ -3316,7 +3322,7 @@ string ImParseFormatSanitizeForPrinting(string fmt_in, char[] fmt_out)
     return cast(string)fmt_out[0..j];
 }
 
-// - For scanning we need to remove all width and precision fields "%3.7f" -> "%f". BUT don't strip types like "%I64d" which includes digits. ! "%07I64d" -> "%I64d"
+// - For scanning we need to remove all width and precision fields and flags "%+3.7f" -> "%f". BUT don't strip types like "%I64d" which includes digits. ! "%07I64d" -> "%I64d"
 string ImParseFormatSanitizeForScanning(string fmt_in, char[] fmt_out)
 {
     size_t fmt_end = ImParseFormatFindEnd(fmt_in, 0);
@@ -3328,7 +3334,7 @@ string ImParseFormatSanitizeForScanning(string fmt_in, char[] fmt_out)
     for (int i = 0; i < fmt_end; i++)
     {
         char c = fmt_in[i];
-        if (!has_type && ((c >= '0' && c <= '9') || c == '.'))
+        if (!has_type && ((c >= '0' && c <= '9') || c == '.' || c == '+' || c == '#'))
             continue;
         has_type |= ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')); // Stop skipping digits
         if (c != '\'' && c != '$' && c != '_') // Custom flags provided by stb_sprintf.h. POSIX 2008 also supports '.
@@ -3467,7 +3473,12 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
     flags |= ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.NoMarkEdited; // We call MarkItemEdited() ourselves by comparing the actual data rather than the string.
 
     bool value_changed = false;
-    if (p_step != NULL)
+    if (p_step == NULL)
+    {
+        if (InputText(label, buf, flags))
+            value_changed = DataTypeApplyFromText(ImCstring(buf), data_type, p_data, format);
+    }
+    else
     {
         const float button_size = GetFrameHeight();
 
@@ -3509,11 +3520,6 @@ bool InputScalar(string label, ImGuiDataType data_type, void* p_data, const void
 
         PopID();
         EndGroup();
-    }
-    else
-    {
-        if (InputText(label, buf, flags))
-            value_changed = DataTypeApplyFromText(ImCstring(buf), data_type, p_data, format);
     }
     if (value_changed)
         MarkItemEdited(g.LastItemData.ID);
@@ -3719,10 +3725,34 @@ static void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* ob
     r.num_chars = cast(int)(text_remaining - (text + line_start_idx));
 }
 
-// When ImGuiInputTextFlags_Password is set, we don't want actions such as CTRL+Arrow to leak the fact that underlying data are blanks or separators.
-static bool is_separator(uint c)                                        { return ImCharIsBlankW(c) || c==',' || c==';' || c=='(' || c==')' || c=='{' || c=='}' || c=='[' || c==']' || c=='|' || c=='\n' || c=='\r'; }
-static int  is_word_boundary_from_right(ImGuiInputTextState* obj, int idx)      { if (obj.Flags & ImGuiInputTextFlags.Password) return 0; return idx > 0 ? (is_separator(obj.TextW[idx - 1]) && !is_separator(obj.TextW[idx]) ) : 1; }
-static int  is_word_boundary_from_left(ImGuiInputTextState* obj, int idx)       { if (obj.Flags & ImGuiInputTextFlags.Password) return 0; return idx > 0 ? (!is_separator(obj.TextW[idx - 1]) && is_separator(obj.TextW[idx])) : 1; }
+static bool is_separator(uint c)
+{
+    return c==',' || c==';' || c=='(' || c==')' || c=='{' || c=='}' || c=='[' || c==']' || c=='|' || c=='\n' || c=='\r' || c=='.' || c=='!';
+}
+
+static int is_word_boundary_from_right(ImGuiInputTextState* obj, int idx)
+{
+    // When ImGuiInputTextFlags_Password is set, we don't want actions such as CTRL+Arrow to leak the fact that underlying data are blanks or separators.
+    if ((obj.Flags & ImGuiInputTextFlags.Password) || idx <= 0)
+        return 0;
+
+    bool prev_white = ImCharIsBlankW(obj.TextW[idx - 1]);
+    bool prev_separ = is_separator(obj.TextW[idx - 1]);
+    bool curr_white = ImCharIsBlankW(obj.TextW[idx]);
+    bool curr_separ = is_separator(obj.TextW[idx]);
+    return ((prev_white || prev_separ) && !(curr_separ || curr_white)) || (curr_separ && !prev_separ);
+}
+static int is_word_boundary_from_left(ImGuiInputTextState* obj, int idx)
+{
+    if ((obj.Flags & ImGuiInputTextFlags.Password) || idx <= 0)
+        return 0;
+
+    bool prev_white = ImCharIsBlankW(obj.TextW[idx]);
+    bool prev_separ = is_separator(obj.TextW[idx]);
+    bool curr_white = ImCharIsBlankW(obj.TextW[idx - 1]);
+    bool curr_separ = is_separator(obj.TextW[idx - 1]);
+    return ((prev_white) && !(curr_separ || curr_white)) || (curr_separ && !prev_separ);
+}
 static int  STB_TEXTEDIT_MOVEWORDLEFT_IMPL(ImGuiInputTextState* obj, int idx)   { idx--; while (idx >= 0 && !is_word_boundary_from_right(obj, idx)) idx--; return idx < 0 ? 0 : idx; }
 static int  STB_TEXTEDIT_MOVEWORDRIGHT_MAC(ImGuiInputTextState* obj, int idx)   { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_left(obj, idx)) idx++; return idx > len ? len : idx; }
 static int  STB_TEXTEDIT_MOVEWORDRIGHT_WIN(ImGuiInputTextState* obj, int idx)   { idx++; int len = obj.CurLenW; while (idx < len && !is_word_boundary_from_right(obj, idx)) idx++; return idx > len ? len : idx; }
@@ -4047,6 +4077,21 @@ static void InputTextReconcileUndoStateAfterUserCallback(ImGuiInputTextState* st
                 p[i] = STB_TEXTEDIT_GETCHAR(state, first_diff + i);
 }
 
+// As InputText() retain textual data and we currently provide a path for user to not retain it (via local variables)
+// we need some form of hook to reapply data back to user buffer on deactivation frame. (#4714)
+// It would be more desirable that we discourage users from taking advantage of the "user not retaining data" trick,
+// but that more likely be attractive when we do have _NoLiveEdit flag available.
+void InputTextDeactivateHook(ImGuiID id)
+{
+    ImGuiContext* g = GImGui;
+    ImGuiInputTextState* state = &g.InputTextState;
+    if (id == 0 || state.ID != id)
+        return;
+    g.InputTextDeactivatedState.ID = state.ID;
+    g.InputTextDeactivatedState.TextA.resize(state.CurLenA + 1);
+    memcpy(g.InputTextDeactivatedState.TextA.Data, state.TextA.Data ? state.TextA.Data : "", state.CurLenA + 1);
+}
+
 // Edit a string of text
 // - buf_size account for the zero-terminator, so a buf_size of 6 can hold "Hello" but not "Hello!".
 //   This is so we can easily call InputText() on static arrays using ARRAYSIZE() and to match
@@ -4153,7 +4198,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
     float scroll_y = is_multiline ? draw_window.Scroll.y : FLT_MAX;
 
-    const bool init_changed_specs = (state != NULL && state.Stb.single_line != !is_multiline);
+    const bool init_changed_specs = (state != NULL && state.Stb.single_line != !is_multiline); // state != NULL means its our state.
     const bool init_make_active = (user_clicked || user_scroll_finish || input_requested_by_nav || input_requested_by_tabbing);
     const bool init_state = (init_make_active || user_scroll_active);
     if ((init_state && g.ActiveId != id) || init_changed_specs)
@@ -4161,6 +4206,9 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
         // Access state even if we don't own it yet.
         state = &g.InputTextState;
         state.CursorAnimReset();
+
+        // Backup state of deactivating item so they'll have a chance to do a write to output buffer on the same frame they report IsItemDeactivatedAfterEdit (#4714)
+        InputTextDeactivateHook(state.ID);
 
         // Take a copy of the initial buffer value (both in original UTF-8 format and converted to wchar)
         // From the moment we focused we are ignoring the content of 'buf' (unless we are in read-only mode)
@@ -4574,6 +4622,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 // Push records into the undo stack so we can CTRL+Z the revert operation itself
                 apply_new_text = cast(string)state.InitialTextA.asArray();
                 apply_new_text_length = state.InitialTextA.Size;
+                value_changed = true;
                 ImVector!ImWchar w_text;
                 scope (exit) w_text.destroy();
                 if (apply_new_text_length > 0)
@@ -4688,8 +4737,22 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
             {
                 apply_new_text = cast(string)state.TextA.asArray();
                 apply_new_text_length = state.CurLenA;
+                value_changed = true;
             }
         }
+    }
+
+    // Handle reapplying final data on deactivation (see InputTextDeactivateHook() for details)
+    if (g.InputTextDeactivatedState.ID == id)
+    {
+        if (g.ActiveId != id && IsItemDeactivatedAfterEdit() && !is_readonly)
+        {
+            apply_new_text = cast(string)g.InputTextDeactivatedState.TextA.asArray();
+            apply_new_text_length = g.InputTextDeactivatedState.TextA.Size - 1;
+            value_changed |= (strcmp(apply_new_text, buf) != 0);
+            //IMGUI_DEBUG_LOG("InputText(): apply Deactivated data for 0x%08X: \"%.*s\".\n", id, apply_new_text_length, apply_new_text);
+        }
+        g.InputTextDeactivatedState.ID = 0;
     }
 
     // Copy result to user buffer. This can currently only happen when (g.ActiveId == id)
@@ -4719,7 +4782,6 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
 
         // If the underlying buffer resize was denied or not carried to the next frame, apply_new_text_length+1 may be >= buf_size.
         ImStrncpy(buf[], apply_new_text[0..ImMin(apply_new_text_length, buf_size)]);
-        value_changed = true;
     }
 
     // Release active ID at the end of the function (so e.g. pressing Return still does a final application of the value)
@@ -5642,7 +5704,7 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         float sin_hue_angle = ImSin(H * 2.0f * IM_PI);
         ImVec2 hue_cursor_pos = ImVec2(wheel_center.x + cos_hue_angle * (wheel_r_inner + wheel_r_outer) * 0.5f, wheel_center.y + sin_hue_angle * (wheel_r_inner + wheel_r_outer) * 0.5f);
         float hue_cursor_rad = value_changed_h ? wheel_thickness * 0.65f : wheel_thickness * 0.55f;
-        int hue_cursor_segments = ImClamp(cast(int)(hue_cursor_rad / 1.4f), 9, 32);
+        int hue_cursor_segments = draw_list._CalcCircleAutoSegmentCount(hue_cursor_rad); // Lock segment count so the +1 one matches others.
         draw_list.AddCircleFilled(hue_cursor_pos, hue_cursor_rad, hue_color32, hue_cursor_segments);
         draw_list.AddCircle(hue_cursor_pos, hue_cursor_rad + 1, col_midgrey, hue_cursor_segments);
         draw_list.AddCircle(hue_cursor_pos, hue_cursor_rad, col_white, hue_cursor_segments);
@@ -5652,13 +5714,10 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
         ImVec2 trb = wheel_center + ImRotate(triangle_pb, cos_hue_angle, sin_hue_angle);
         ImVec2 trc = wheel_center + ImRotate(triangle_pc, cos_hue_angle, sin_hue_angle);
         ImVec2 uv_white = GetFontTexUvWhitePixel();
-        draw_list.PrimReserve(6, 6);
+        draw_list.PrimReserve(3, 3);
         draw_list.PrimVtx(tra, uv_white, hue_color32);
-        draw_list.PrimVtx(trb, uv_white, hue_color32);
-        draw_list.PrimVtx(trc, uv_white, col_white);
-        draw_list.PrimVtx(tra, uv_white, 0);
         draw_list.PrimVtx(trb, uv_white, col_black);
-        draw_list.PrimVtx(trc, uv_white, 0);
+        draw_list.PrimVtx(trc, uv_white, col_white);
         draw_list.AddTriangle(tra, trb, trc, col_midgrey, 1.5f);
         sv_cursor_pos = ImLerp(ImLerp(trc, tra, ImSaturate(S)), trb, ImSaturate(1 - V));
     }
@@ -5681,9 +5740,10 @@ bool ColorPicker4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = Im
 
     // Render cursor/preview circle (clamp S/V within 0..1 range because floating points colors may lead HSV values to be out of range)
     float sv_cursor_rad = value_changed_sv ? 10.0f : 6.0f;
-    draw_list.AddCircleFilled(sv_cursor_pos, sv_cursor_rad, user_col32_striped_of_alpha, 12);
-    draw_list.AddCircle(sv_cursor_pos, sv_cursor_rad + 1, col_midgrey, 12);
-    draw_list.AddCircle(sv_cursor_pos, sv_cursor_rad, col_white, 12);
+    int sv_cursor_segments = draw_list._CalcCircleAutoSegmentCount(sv_cursor_rad); // Lock segment count so the +1 one matches others.
+    draw_list.AddCircleFilled(sv_cursor_pos, sv_cursor_rad, user_col32_striped_of_alpha, sv_cursor_segments);
+    draw_list.AddCircle(sv_cursor_pos, sv_cursor_rad + 1, col_midgrey, sv_cursor_segments);
+    draw_list.AddCircle(sv_cursor_pos, sv_cursor_rad, col_white, sv_cursor_segments);
 
     // Render alpha bar
     if (alpha_bar)
@@ -7661,6 +7721,12 @@ void    EndTabBar()
     g.CurrentTabBar = g.CurrentTabBarStack.empty() ? NULL : GetTabBarFromTabBarRef(g.CurrentTabBarStack.back());
 }
 
+// Scrolling happens only in the central section (leading/trailing sections are not scrolling)
+static float TabBarCalcScrollableWidth(ImGuiTabBar* tab_bar, ImGuiTabBarSection* sections)
+{
+    return tab_bar.BarRect.GetWidth() - sections[0].Width - sections[2].Width - sections[1].Spacing;
+}
+
 // This is called only once a frame before by the first call to ItemTab()
 // The reason we're not calling it in BeginTabBar() is to leave a chance to the user to call the SetTabItemClosed() functions.
 static void TabBarLayout(ImGuiTabBar* tab_bar)
@@ -7863,9 +7929,23 @@ static void TabBarLayout(ImGuiTabBar* tab_bar)
     tab_bar.VisibleTabId = tab_bar.SelectedTabId;
     tab_bar.VisibleTabWasSubmitted = false;
 
-    // Update scrolling
+    // Apply request requests
     if (scroll_to_tab_id != 0)
         TabBarScrollToTab(tab_bar, scroll_to_tab_id, sections.ptr);
+    else if ((tab_bar.Flags & ImGuiTabBarFlags.FittingPolicyScroll) && IsMouseHoveringRect(tab_bar.BarRect.Min, tab_bar.BarRect.Max, true) && IsWindowContentHoverable(g.CurrentWindow))
+    {
+        const float wheel = g.IO.MouseWheelRequestAxisSwap ? g.IO.MouseWheel : g.IO.MouseWheelH;
+        const ImGuiKey wheel_key = g.IO.MouseWheelRequestAxisSwap ? ImGuiKey.MouseWheelY : ImGuiKey.MouseWheelX;
+        if (TestKeyOwner(wheel_key, tab_bar.ID) && wheel != 0.0f)
+        {
+            const float scroll_step = wheel * TabBarCalcScrollableWidth(tab_bar, sections.ptr) / 3.0f;
+            tab_bar.ScrollingTargetDistToVisibility = 0.0f;
+            tab_bar.ScrollingTarget = TabBarScrollClamp(tab_bar, tab_bar.ScrollingTarget - scroll_step);
+        }
+        SetKeyOwner(wheel_key, tab_bar.ID);
+    }
+
+    // Update scrolling
     tab_bar.ScrollingAnim = TabBarScrollClamp(tab_bar, tab_bar.ScrollingAnim);
     tab_bar.ScrollingTarget = TabBarScrollClamp(tab_bar, tab_bar.ScrollingTarget);
     if (tab_bar.ScrollingAnim != tab_bar.ScrollingTarget)
@@ -8002,8 +8082,7 @@ static void TabBarScrollToTab(ImGuiTabBar* tab_bar, ImGuiID tab_id, ImGuiTabBarS
     int order = TabBarGetTabOrder(tab_bar, tab);
 
     // Scrolling happens only in the central section (leading/trailing sections are not scrolling)
-    // FIXME: This is all confusing.
-    float scrollable_width = tab_bar.BarRect.GetWidth() - sections[0].Width - sections[2].Width - sections[1].Spacing;
+    float scrollable_width = TabBarCalcScrollableWidth(tab_bar, sections);
 
     // We make all tabs positions all relative Sections[0].Width to make code simpler
     float tab_x1 = tab.Offset - sections[0].Width + (order > sections[0].TabCount - 1 ? -margin : 0.0f);

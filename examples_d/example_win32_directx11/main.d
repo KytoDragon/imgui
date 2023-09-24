@@ -14,10 +14,10 @@ import imgui_windows;
 //#include <tchar.h>
 
 // Data
-static ID3D11Device            g_pd3dDevice = NULL;
-static ID3D11DeviceContext     g_pd3dDeviceContext = NULL;
-static IDXGISwapChain          g_pSwapChain = NULL;
-static ID3D11RenderTargetView  g_mainRenderTargetView = NULL;
+static ID3D11Device            g_pd3dDevice = null;
+static ID3D11DeviceContext     g_pd3dDeviceContext = null;
+static IDXGISwapChain          g_pSwapChain = null;
+static ID3D11RenderTargetView  g_mainRenderTargetView = null;
 
 // Forward declarations of helper functions
 bool CreateDeviceD3D(HWND hWnd);
@@ -32,9 +32,9 @@ int main()
 {
     // Create application window
     ImGui_ImplWin32_EnableDpiAwareness();
-    WNDCLASSEXW wc = { sizeof!(WNDCLASSEXW), CS_CLASSDC, cast(WndProcFn)&WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, "ImGui Example", NULL };
+    WNDCLASSEXW wc = { sizeof!(WNDCLASSEXW), CS_CLASSDC, cast(WndProcFn)&WndProc, 0L, 0L, GetModuleHandle(null), null, null, null, null, "ImGui Example", null };
     RegisterClassExW(&wc);
-    HWND hwnd = CreateWindowW(wc.lpszClassName, "Dear ImGui DirectX11 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = CreateWindowW(wc.lpszClassName, "Dear ImGui DirectX11 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, null, null, wc.hInstance, null);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -66,7 +66,7 @@ int main()
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
     // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
+    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
     // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
     // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
     // - Read 'docs/FONTS.md' for more instructions and details.
@@ -76,8 +76,8 @@ int main()
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
+    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
+    //IM_ASSERT(font != nullptr);
 
     // Our state
     bool show_demo_window = true;
@@ -91,7 +91,7 @@ int main()
         // Poll and handle messages (inputs, window resize, etc.)
         // See the WndProc() function below for our to dispatch events to the Win32 backend.
         MSG msg;
-        while (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        while (PeekMessage(&msg, null, 0U, 0U, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
@@ -146,7 +146,7 @@ int main()
         // Rendering
         ImGui.Render();
         /*const*/ float[4] clear_color_with_alpha = [ clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w ];
-        g_pd3dDeviceContext.OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
+        g_pd3dDeviceContext.OMSetRenderTargets(1, &g_mainRenderTargetView, null);
         g_pd3dDeviceContext.ClearRenderTargetView(g_mainRenderTargetView, clear_color_with_alpha.ptr);
         ImGui_ImplDX11_RenderDrawData(ImGui.GetDrawData());
 
@@ -191,9 +191,9 @@ bool CreateDeviceD3D(HWND hWnd)
     //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
     D3D_FEATURE_LEVEL featureLevel;
     const D3D_FEATURE_LEVEL[2] featureLevelArray = [ D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, ];
-    HRESULT res = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, featureLevelArray.ptr, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
+    HRESULT res = D3D11CreateDeviceAndSwapChain(null, D3D_DRIVER_TYPE_HARDWARE, null, createDeviceFlags, featureLevelArray.ptr, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
     if (res == DXGI_ERROR_UNSUPPORTED) // Try high-performance WARP software driver if hardware is not available.
-        res = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_WARP, NULL, createDeviceFlags, featureLevelArray.ptr, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
+        res = D3D11CreateDeviceAndSwapChain(null, D3D_DRIVER_TYPE_WARP, null, createDeviceFlags, featureLevelArray.ptr, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
     if (res != S_OK)
         return false;
 
@@ -204,22 +204,22 @@ bool CreateDeviceD3D(HWND hWnd)
 void CleanupDeviceD3D()
 {
     CleanupRenderTarget();
-    if (g_pSwapChain) { g_pSwapChain.Release(); g_pSwapChain = NULL; }
-    if (g_pd3dDeviceContext) { g_pd3dDeviceContext.Release(); g_pd3dDeviceContext = NULL; }
-    if (g_pd3dDevice) { g_pd3dDevice.Release(); g_pd3dDevice = NULL; }
+    if (g_pSwapChain) { g_pSwapChain.Release(); g_pSwapChain = null; }
+    if (g_pd3dDeviceContext) { g_pd3dDeviceContext.Release(); g_pd3dDeviceContext = null; }
+    if (g_pd3dDevice) { g_pd3dDevice.Release(); g_pd3dDevice = null; }
 }
 
 void CreateRenderTarget()
 {
     ID3D11Texture2D pBackBuffer;
     g_pSwapChain.GetBuffer(0, &IID_ID3D11Texture2D, cast(void**)&pBackBuffer);
-    g_pd3dDevice.CreateRenderTargetView(pBackBuffer, NULL, &g_mainRenderTargetView);
+    g_pd3dDevice.CreateRenderTargetView(pBackBuffer, null, &g_mainRenderTargetView);
     pBackBuffer.Release();
 }
 
 void CleanupRenderTarget()
 {
-    if (g_mainRenderTargetView) { g_mainRenderTargetView.Release(); g_mainRenderTargetView = NULL; }
+    if (g_mainRenderTargetView) { g_mainRenderTargetView.Release(); g_mainRenderTargetView = null; }
 }
 
 // Forward declare message handler from imgui_impl_win32.cpp
@@ -238,7 +238,7 @@ extern(Windows) LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     switch (msg)
     {
     case WM_SIZE:
-        if (g_pd3dDevice !is NULL && wParam != SIZE_MINIMIZED)
+        if (g_pd3dDevice !is null && wParam != SIZE_MINIMIZED)
         {
             CleanupRenderTarget();
             g_pSwapChain.ResizeBuffers(0, cast(UINT)LOWORD(lParam), cast(UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, 0);

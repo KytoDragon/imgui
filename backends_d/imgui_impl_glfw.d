@@ -5,6 +5,7 @@
 
 // Implemented features:
 //  [X] Platform: Clipboard support.
+//  [X] Platform: Mouse support. Can discriminate Mouse/TouchScreen/Pen (Windows only).
 //  [X] Platform: Keyboard support. Since 1.87 we are using the io.AddKeyEvent() function. Pass ImGuiKey values to all key functions e.g. ImGui::IsKeyPressed(ImGuiKey_Space). [Legacy GLFW_KEY_* values will also be supported unless IMGUI_DISABLE_OBSOLETE_KEYIO is set]
 //  [X] Platform: Gamepad support. Enable with 'io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad'.
 //  [X] Platform: Mouse cursor shape and visibility. Disable with 'io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange' (note: the resizing cursors requires GLFW 3.4+).
@@ -16,6 +17,8 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2023-04-04: Inputs: Added support for io.AddMouseSourceEvent() to discriminate ImGuiMouseSource_Mouse/ImGuiMouseSource_TouchScreen/ImGuiMouseSource_Pen on Windows ONLY, using a custom WndProc hook. (#2702)
+//  2023-03-16: Inputs: Fixed key modifiers handling on secondary viewports (docking branch). Broken on 2023/01/04. (#6248, #6034)
 //  2023-03-14: Emscripten: Avoid using glfwGetError() and glfwGetGamepadState() which are not correctly implemented in Emscripten emulation. (#6240)
 //  2023-02-03: Emscripten: Registering custom low-level mouse wheel handler to get more accurate scrolling impulses on Emscripten. (#4019, #6096)
 //  2023-01-04: Inputs: Fixed mods state on Linux when using Alt-GR text input (e.g. German keyboard layout), could lead to broken text input. Revert a 2022/01/17 change were we resumed using mods provided by GLFW, turns out they were faulty.
@@ -64,6 +67,7 @@ nothrow @nogc:
 
 import ImGui = d_imgui.imgui;
 import d_imgui.imgui_h;
+import d_imgui.imgui_h : NULL;
 
 // Clang warnings with -Weverything
 /+
@@ -77,7 +81,7 @@ import d_imgui.imgui_h;
 // GLFW
 import bindbc.glfw;
 version(Windows) {
-    import core.sys.windows.windows : HWND;    // Import the platform API bindings
+    import core.sys.windows.windows;    // Import the platform API bindings
     mixin(bindGLFW_Windows);          // Mixin the function declarations and loader
 }
 /+
@@ -144,8 +148,11 @@ struct ImGui_ImplGlfw_Data
     GLFWkeyfun              PrevUserCallbackKey;
     GLFWcharfun             PrevUserCallbackChar;
     GLFWmonitorfun          PrevUserCallbackMonitor;
+version (Windows) {
+    WNDPROC                 GlfwWndProc;
+}
 
-    //ImGui_ImplGlfw_Data()   { memset(&this, 0, sizeof(this)); }
+    //ImGui_ImplGlfw_Data()   { memset(cast(void*)&this, 0, sizeof(this)); }
 }
 
 // Backend data stored in io.BackendPlatformUserData to allow support for multiple Dear ImGui contexts
@@ -286,14 +293,13 @@ static ImGuiKey ImGui_ImplGlfw_KeyToImGuiKey(int key)
 
 // X11 does not include current pressed/released modifier key in 'mods' flags submitted by GLFW
 // See https://github.com/ocornut/imgui/issues/6034 and https://github.com/glfw/glfw/issues/1630
-static void ImGui_ImplGlfw_UpdateKeyModifiers()
+static void ImGui_ImplGlfw_UpdateKeyModifiers(GLFWwindow* window)
 {
     ImGuiIO* io = &ImGui.GetIO();
-    ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
-    io.AddKeyEvent(ImGuiMod.Ctrl,  (glfwGetKey(bd.Window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) || (glfwGetKey(bd.Window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS));
-    io.AddKeyEvent(ImGuiMod.Shift, (glfwGetKey(bd.Window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS) || (glfwGetKey(bd.Window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS));
-    io.AddKeyEvent(ImGuiMod.Alt,   (glfwGetKey(bd.Window, GLFW_KEY_LEFT_ALT)     == GLFW_PRESS) || (glfwGetKey(bd.Window, GLFW_KEY_RIGHT_ALT)     == GLFW_PRESS));
-    io.AddKeyEvent(ImGuiMod.Super, (glfwGetKey(bd.Window, GLFW_KEY_LEFT_SUPER)   == GLFW_PRESS) || (glfwGetKey(bd.Window, GLFW_KEY_RIGHT_SUPER)   == GLFW_PRESS));
+    io.AddKeyEvent(ImGuiMod.Ctrl,  (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS));
+    io.AddKeyEvent(ImGuiMod.Shift, (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS));
+    io.AddKeyEvent(ImGuiMod.Alt,   (glfwGetKey(window, GLFW_KEY_LEFT_ALT)     == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_ALT)     == GLFW_PRESS));
+    io.AddKeyEvent(ImGuiMod.Super, (glfwGetKey(window, GLFW_KEY_LEFT_SUPER)   == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SUPER)   == GLFW_PRESS));
 }
 
 extern(C) bool ImGui_ImplGlfw_ShouldChainCallback(GLFWwindow* window)
@@ -308,7 +314,7 @@ extern(C) void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button
     if (bd.PrevUserCallbackMousebutton != null && ImGui_ImplGlfw_ShouldChainCallback(window))
         bd.PrevUserCallbackMousebutton(window, button, action, mods);
 
-    ImGui_ImplGlfw_UpdateKeyModifiers();
+    ImGui_ImplGlfw_UpdateKeyModifiers(window);
 
     ImGuiIO* io = &ImGui.GetIO();
     if (button >= 0 && button < ImGuiMouseButton.COUNT)
@@ -375,7 +381,7 @@ extern(C) void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int keycode, int s
     if (action != GLFW_PRESS && action != GLFW_RELEASE)
         return;
 
-    ImGui_ImplGlfw_UpdateKeyModifiers();
+    ImGui_ImplGlfw_UpdateKeyModifiers(window);
 
     keycode = ImGui_ImplGlfw_TranslateUntranslatedKey(keycode, scancode);
 
@@ -458,10 +464,41 @@ static EM_BOOL ImGui_ImplEmscripten_WheelCallback(int, const EmscriptenWheelEven
     else if (ev.deltaMode == DOM_DELTA_PAGE)   { multiplier = 80.0f; }         // A page makes up 80 steps.
     float wheel_x = ev.deltaX * -multiplier;
     float wheel_y = ev.deltaY * -multiplier;
-    ImGuiIO& io = ImGui.GetIO();
+    ImGuiIO* io = &ImGui.GetIO();
     io.AddMouseWheelEvent(wheel_x, wheel_y);
     //IMGUI_DEBUG_LOG("[Emsc] mode %d dx: %.2f, dy: %.2f, dz: %.2f --> feed %.2f %.2f\n", (int)ev->deltaMode, ev->deltaX, ev->deltaY, ev->deltaZ, wheel_x, wheel_y);
     return EM_TRUE;
+}
+}
+
+version (Windows) {
+// GLFW doesn't allow to distinguish Mouse vs TouchScreen vs Pen.
+// Add support for Win32 (based on imgui_impl_win32), because we rely on _TouchScreen info to trickle inputs differently.
+static ImGuiMouseSource GetMouseSourceFromMessageExtraInfo()
+{
+    LPARAM extra_info = GetMessageExtraInfo();
+    if ((extra_info & 0xFFFFFF80) == 0xFF515700)
+        return ImGuiMouseSource.Pen;
+    if ((extra_info & 0xFFFFFF80) == 0xFF515780)
+        return ImGuiMouseSource.TouchScreen;
+    return ImGuiMouseSource.Mouse;
+}
+static LRESULT ImGui_ImplGlfw_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
+    switch (msg)
+    {
+    case WM_MOUSEMOVE: case WM_NCMOUSEMOVE:
+    case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK: case WM_LBUTTONUP:
+    case WM_RBUTTONDOWN: case WM_RBUTTONDBLCLK: case WM_RBUTTONUP:
+    case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK: case WM_MBUTTONUP:
+    case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK: case WM_XBUTTONUP:
+        ImGui.GetIO().AddMouseSourceEvent(GetMouseSourceFromMessageExtraInfo());
+        break;
+    default:
+        break;
+    }
+    return CallWindowProc(bd.GlfwWndProc, hWnd, msg, wParam, lParam);
 }
 }
 
@@ -570,7 +607,7 @@ static if (GLFW_HAS_GETERROR && !Emscripten) { // Eat errors (see #5785)
     // We intentionally do not check 'if (install_callbacks)' here, as some users may set it to false and call GLFW callback themselves.
     // FIXME: May break chaining in case user registered their own Emscripten callback?
 version (Emscripten) {
-    emscripten_set_wheel_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, NULL, false, ImGui_ImplEmscripten_WheelCallback);
+    emscripten_set_wheel_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, null, false, ImGui_ImplEmscripten_WheelCallback);
 }
 
     // Set platform dependent data in viewport
@@ -583,6 +620,13 @@ version (Windows) {
     main_viewport.PlatformHandleRaw = cast(void*)glfwGetCocoaWindow(bd.Window);
 } else {
     IM_UNUSED(main_viewport);
+}
+
+    // Windows: register a WndProc hook so we can intercept some messages.
+version (Windows) {
+    bd.GlfwWndProc = cast(WNDPROC)GetWindowLongPtr(cast(HWND)main_viewport.PlatformHandleRaw, GWLP_WNDPROC);
+    IM_ASSERT(bd.GlfwWndProc != null);
+    SetWindowLongPtr(cast(HWND)main_viewport.PlatformHandleRaw, GWLP_WNDPROC, cast(LONG_PTR)&ImGui_ImplGlfw_WndProc);
 }
 
     bd.ClientApi = client_api;
@@ -615,6 +659,13 @@ void ImGui_ImplGlfw_Shutdown()
 
     for (ImGuiMouseCursor cursor_n = cast(ImGuiMouseCursor)0; cursor_n < ImGuiMouseCursor.COUNT; cursor_n++)
         glfwDestroyCursor(bd.MouseCursors[cursor_n]);
+
+    // Windows: register a WndProc hook so we can intercept some messages.
+version (Windows) {
+    ImGuiViewport* main_viewport = ImGui.GetMainViewport();
+    SetWindowLongPtr(cast(HWND)main_viewport.PlatformHandleRaw, GWLP_WNDPROC, cast(LONG_PTR)bd.GlfwWndProc);
+    bd.GlfwWndProc = null;
+}
 
     io.BackendPlatformName = null;
     io.BackendPlatformUserData = null;
