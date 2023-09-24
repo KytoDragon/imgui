@@ -588,6 +588,7 @@ void ImGui_ImplDX11_Shutdown()
     if (bd.pd3dDeviceContext)    { bd.pd3dDeviceContext.Release(); }
     io.BackendRendererName = null;
     io.BackendRendererUserData = null;
+    io.BackendFlags &= ~ImGuiBackendFlags.RendererHasVtxOffset;
     IM_DELETE(bd);
 }
 

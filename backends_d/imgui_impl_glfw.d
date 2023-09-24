@@ -669,6 +669,7 @@ version (Windows) {
 
     io.BackendPlatformName = null;
     io.BackendPlatformUserData = null;
+    io.BackendFlags &= ~(ImGuiBackendFlags.HasMouseCursors | ImGuiBackendFlags.HasSetMousePos | ImGuiBackendFlags.HasGamepad);
     IM_DELETE(bd);
 }
 

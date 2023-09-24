@@ -1,4 +1,4 @@
-// dear imgui, v1.89.5
+// dear imgui, v1.89.6
 // (internal structures/api)
 module d_imgui.imgui_internal;
 
@@ -198,6 +198,7 @@ typedef int ImGuiLayoutType;            // -> enum ImGuiLayoutType_         // E
 // Flags
 typedef int ImGuiActivateFlags;         // -> enum ImGuiActivateFlags_      // Flags: for navigation/focus function (will be for ActivateItem() later)
 typedef int ImGuiDebugLogFlags;         // -> enum ImGuiDebugLogFlags_      // Flags: for ShowDebugLogWindow(), g.DebugLogFlags
+typedef int ImGuiFocusRequestFlags;     // -> enum ImGuiFocusRequestFlags_  // Flags: for FocusWindow();
 typedef int ImGuiInputFlags;            // -> enum ImGuiInputFlags_         // Flags: for IsKeyPressed(), IsMouseClicked(), SetKeyOwner(), SetItemKeyOwner() etc.
 typedef int ImGuiItemFlags;             // -> enum ImGuiItemFlags_          // Flags: for PushItemFlag(), g.LastItemData.InFlags
 typedef int ImGuiItemStatusFlags;       // -> enum ImGuiItemStatusFlags_    // Flags: for g.LastItemData.StatusFlags
@@ -578,7 +579,6 @@ static pragma(inline, true) float  ImExponentialMovingAverage(float avg, float s
 //ImVec2     ImTriangleClosestPoint(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ c, const ImVec2/*&*/ p);
 //void       ImTriangleBarycentricCoords(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ c, const ImVec2/*&*/ p, float& out_u, float& out_v, float& out_w);
 pragma(inline, true) float         ImTriangleArea(const ImVec2/*&*/ a, const ImVec2/*&*/ b, const ImVec2/*&*/ c) { return ImFabs((a.x * (b.y - c.y)) + (b.x * (c.y - a.y)) + (c.x * (a.y - b.y))) * 0.5f; }
-//ImGuiDir   ImGetDirQuadrantFromDelta(float dx, float dy);
 
 // Helper: ImVec1 (1D vector)
 // (this odd construct is used to facilitate the transition between 1D and 2D, and the maintenance of some branches/patches)
@@ -1057,7 +1057,17 @@ enum ImGuiSeparatorFlags : int
     None                    = 0,
     Horizontal              = 1 << 0,   // Axis default to current layout type, so generally Horizontal unless e.g. in a menu bar
     Vertical                = 1 << 1,
-    SpanAllColumns          = 1 << 2,
+    SpanAllColumns          = 1 << 2,   // Make separator cover all columns of a legacy Columns() set.
+}
+
+// Flags for FocusWindow(). This is not called ImGuiFocusFlags to avoid confusion with public-facing ImGuiFocusedFlags.
+// FIXME: Once we finishing replacing more uses of GetTopMostPopupModal()+IsWindowWithinBeginStackOf()
+// and FindBlockingModal() with this, we may want to change the flag to be opt-out instead of opt-in.
+enum ImGuiFocusRequestFlags : int
+{
+    None                 = 0,
+    RestoreFocusedChild  = 1 << 0,   // Find last focused child (if any) and focus it instead.
+    UnlessBelowModal     = 1 << 1,   // Do not set focus if the window is below a modal.
 }
 
 enum ImGuiTextFlags : int
@@ -1608,6 +1618,7 @@ enum ImGuiInputFlags : int
 // [SECTION] Clipper support
 //-----------------------------------------------------------------------------
 
+// Note that Max is exclusive, so perhaps should be using a Begin/End convention.
 struct ImGuiListClipperRange
 {
     nothrow:
@@ -1683,6 +1694,7 @@ enum ImGuiNavMoveFlags : int
     LoopY                 = 1 << 1,
     WrapX                 = 1 << 2,   // On failed request, request from opposite side one line down (when NavDir==right) or one line up (when NavDir==left)
     WrapY                 = 1 << 3,   // This is not super useful but provided for completeness
+    WrapMask_             = ImGuiNavMoveFlags.LoopX | ImGuiNavMoveFlags.LoopY | ImGuiNavMoveFlags.WrapX | ImGuiNavMoveFlags.WrapY,
     AllowCurrentNavId     = 1 << 4,   // Allow scoring and considering the current NavId as a move target candidate. This is used when the move source is offset (e.g. pressing PageDown actually needs to send a Up move request, if we are pressing PageDown from the bottom-most item we need to stay in place)
     AlsoScoreVisibleSet   = 1 << 5,   // Store alternate result in NavMoveResultLocalVisible that only comprise elements that are already fully visible (used by PageUp/PageDown)
     ScrollToEdgeY         = 1 << 6,   // Force scrolling to min/max (used by Home/End) // FIXME-NAV: Aim to remove or reword, probably unnecessary
@@ -2129,8 +2141,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     bool                    NavAnyRequest;                      // ~~ NavMoveRequest || NavInitRequest this is to perform early out in ItemAdd()
     bool                    NavInitRequest;                     // Init request for appearing window to select first item
     bool                    NavInitRequestFromMove;
-    ImGuiID                 NavInitResultId;                    // Init request result (first item of the window, or one for which SetItemDefaultFocus() was called)
-    ImRect                  NavInitResultRectRel;               // Init request result rectangle (relative to parent window)
+    ImGuiNavItemData        NavInitResult;                      // Init request result (first item of the window, or one for which SetItemDefaultFocus() was called)
     bool                    NavMoveSubmitted;                   // Move request submitted, will process result on next NewFrame()
     bool                    NavMoveScoringItems;                // Move request submitted, still scoring incoming items
     bool                    NavMoveForwardToNextFrame;
@@ -2306,6 +2317,7 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         ComboPreviewData = ImGuiComboPreviewData(false);
         NavMoveResultLocalVisible = ImGuiNavItemData(false);
         NavTabbingResultFirst = ImGuiNavItemData(false);
+        NavInitResult = ImGuiNavItemData(false);
 
         IO.Ctx = &this;
         InputTextState.Ctx = &this;
@@ -2384,7 +2396,6 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         NavAnyRequest = false;
         NavInitRequest = false;
         NavInitRequestFromMove = false;
-        NavInitResultId = 0;
         NavMoveSubmitted = false;
         NavMoveScoringItems = false;
         NavMoveForwardToNextFrame = false;
@@ -2541,14 +2552,15 @@ struct ImGuiWindowTempData
     ImVec1                  Indent;                 // Indentation / start position from left of window (increased by TreePush/TreePop, etc.)
     ImVec1                  ColumnsOffset;          // Offset to the current column (if ColumnsCurrent > 0). FIXME: This and the above should be a stack to allow use cases like Tree->Column->Tree. Need revamp columns API.
     ImVec1                  GroupOffset;
-    ImVec2                  CursorStartPosLossyness;// Record the loss of precision of CursorStartPos due to really large scrolling amount. This is used by clipper to compensentate and fix the most common use case of large scroll area.
+    ImVec2                  CursorStartPosLossyness;// Record the loss of precision of CursorStartPos due to really large scrolling amount. This is used by clipper to compensate and fix the most common use case of large scroll area.
 
     // Keyboard/Gamepad navigation
     ImGuiNavLayer           NavLayerCurrent;        // Current layer, 0..31 (we currently only use 0..1)
     short                   NavLayersActiveMask;    // Which layers have been written to (result from previous frame)
     short                   NavLayersActiveMaskNext;// Which layers have been written to (accumulator for current frame)
+    bool                    NavIsScrollPushableX;   // Set when current work location may be scrolled horizontally when moving left / right. This is generally always true UNLESS within a column.
     bool                    NavHideHighlightOneFrame;
-    bool                    NavHasScroll;           // Set when scrolling can be used (ScrollMax > 0.0f)
+    bool                    NavWindowHasScrollY;    // Set per window when scrolling can be used (== ScrollMax.y > 0.0f)
 
     // Miscellaneous
     bool                    MenuBarAppending;       // FIXME: Remove this
@@ -2683,6 +2695,7 @@ struct ImGuiWindow
     ImGuiWindow*            NavLastChildNavWindow;              // When going to the menu bar, we remember the child window we came from. (This could probably be made implicit if we kept g.Windows sorted by last focused including child window.)
     ImGuiID[ImGuiNavLayer.COUNT]                 NavLastIds;    // Last known NavId for this window, per layer (0/1)
     ImRect[ImGuiNavLayer.COUNT]                  NavRectRel;    // Reference rectangle, in window relative space
+    ImVec2[ImGuiNavLayer.COUNT]                  NavPreferredScoringPosRel; // Preferred X/Y position updated when moving on a given axis, reset to FLT_MAX.
     ImGuiID                 NavRootFocusScopeId;                // Focus Scope ID at the time of Begin()
 
     int                     MemoryDrawListIdxCapacity;          // Backup of last idx/vtx count, so when waking up the window we can preallocate and avoid iterative alloc/copy
@@ -2817,7 +2830,7 @@ enum IMGUI_TABLE_MAX_COLUMNS         = 512;                 // May be further li
 alias ImGuiTableColumnIdx = ImS16;
 alias ImGuiTableDrawChannelIdx = ImU16;
 
-// [Internal] sizeof() ~ 104
+// [Internal] sizeof() ~ 112
 // We use the terminology "Enabled" to refer to a column that is not Hidden by user/api.
 // We use the terminology "Clipped" to refer to a column that is out of sight because of scrolling/clipping.
 // This is in contrast with some user-facing api such as IsItemVisible() / IsRectVisible() which use "Visible" to mean "not clipped".
@@ -2866,7 +2879,7 @@ struct ImGuiTableColumn
     ImU8                    SortDirection/* : 2*/;              // ImGuiSortDirection_Ascending or ImGuiSortDirection_Descending
     ImU8                    SortDirectionsAvailCount/* : 2*/;   // Number of available sort directions (0 to 3)
     ImU8                    SortDirectionsAvailMask/* : 4*/;    // Mask of available sort directions (1-bit each)
-    ImU8                    SortDirectionsAvailList;        // Ordered of available sort directions (2-bits each)
+    ImU8                    SortDirectionsAvailList;        // Ordered list of available sort directions (2-bits each, total 8-bits)
 
     @disable this();
     this(bool dummy)
@@ -2902,6 +2915,7 @@ struct ImGuiTableInstanceData
 }
 
 // FIXME-TABLE: more transient data could be stored in a stacked ImGuiTableTempData: e.g. SortSpecs, incoming RowData
+// sizeof() ~ 580 bytes + heap allocs described in TableBeginInitMemory()
 struct ImGuiTable
 {
     nothrow:
@@ -3021,6 +3035,7 @@ struct ImGuiTable
 // Transient data that are only needed between BeginTable() and EndTable(), those buffers are shared (1 per level of stacked table).
 // - Accessing those requires chasing an extra pointer so for very frequently used data we leave them in the main table structure.
 // - We also leave out of this structure data that tend to be particularly useful for debugging/metrics.
+// sizeof() ~ 112 bytes.
 struct ImGuiTableTempData
 {
     nothrow:
@@ -3124,11 +3139,12 @@ struct ImGuiTableSettings
     +/
     pragma(inline, true) ImRect           WindowRectAbsToRel(ImGuiWindow* window, const ImRect/*&*/ r) { ImVec2 off = window.DC.CursorStartPos; return ImRect(r.Min.x - off.x, r.Min.y - off.y, r.Max.x - off.x, r.Max.y - off.y); }
     pragma(inline, true) ImRect           WindowRectRelToAbs(ImGuiWindow* window, const ImRect/*&*/ r) { ImVec2 off = window.DC.CursorStartPos; return ImRect(r.Min.x + off.x, r.Min.y + off.y, r.Max.x + off.x, r.Max.y + off.y); }
+    pragma(inline, true) ImVec2           WindowPosRelToAbs(ImGuiWindow* window, const ImVec2/*&*/ p)  { ImVec2 off = window.DC.CursorStartPos; return ImVec2(p.x + off.x, p.y + off.y); }
 
     /+
     // Windows: Display Order and Focus Order
-    void          FocusWindow(ImGuiWindow* window);
-    void          FocusTopMostWindowUnderOne(ImGuiWindow* under_this_window, ImGuiWindow* ignore_window);
+    void          FocusWindow(ImGuiWindow* window, ImGuiFocusRequestFlags flags = 0);
+    void          FocusTopMostWindowUnderOne(ImGuiWindow* under_this_window, ImGuiWindow* ignore_window, ImGuiViewport* filter_viewport, ImGuiFocusRequestFlags flags);
     void          BringWindowToFocusFront(ImGuiWindow* window);
     void          BringWindowToDisplayFront(ImGuiWindow* window);
     void          BringWindowToDisplayBack(ImGuiWindow* window);
@@ -3260,6 +3276,7 @@ struct ImGuiTableSettings
     ImRect        GetPopupAllowedExtentRect(ImGuiWindow* window);
     ImGuiWindow*  GetTopMostPopupModal();
     ImGuiWindow*  GetTopMostAndVisiblePopupModal();
+    ImGuiWindow*  FindBlockingModal(ImGuiWindow* window);
     ImVec2        FindBestWindowPosForPopup(ImGuiWindow* window);
     ImVec2        FindBestWindowPosForPopupEx(const ImVec2/*&*/ ref_pos, const ImVec2/*&*/ size, ImGuiDir* last_dir, const ImRect/*&*/ r_outer, const ImRect/*&*/ r_avoid, ImGuiPopupPositionPolicy policy);
 
@@ -3283,6 +3300,8 @@ struct ImGuiTableSettings
     void          NavMoveRequestCancel();
     void          NavMoveRequestApplyResult();
     void          NavMoveRequestTryWrapping(ImGuiWindow* window, ImGuiNavMoveFlags move_flags);
+    void          NavClearPreferredPosForAxis(ImGuiAxis axis);
+    void          NavUpdateCurrentWindowIsScrollPushableX();
     void          ActivateItem(ImGuiID id);   // Remotely activate a button, checkbox, tree node etc. given its unique ID. activation is queued and processed on the next frame when the item is encountered again.
     void          SetNavWindow(ImGuiWindow* window);
     void          SetNavID(ImGuiID id, ImGuiNavLayer nav_layer, ImGuiID focus_scope_id, const ImRect/*&*/ rect_rel);
@@ -3519,7 +3538,7 @@ struct ImGuiTableSettings
     bool          ButtonEx(string label, const ImVec2/*&*/ size_arg = ImVec2(0, 0), ImGuiButtonFlags flags = 0);
     bool          ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size_arg, ImGuiButtonFlags flags = 0);
     bool          ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2/*&*/ size, const ImVec2/*&*/ uv0, const ImVec2/*&*/ uv1, const ImVec4/*&*/ bg_col, const ImVec4/*&*/ tint_col, ImGuiButtonFlags flags = 0);
-    void          SeparatorEx(ImGuiSeparatorFlags flags);
+    void          SeparatorEx(ImGuiSeparatorFlags flags, float thickness = 1.0f);
     void          SeparatorTextEx(ImGuiID id, string label, string label_end, float extra_width);
     bool          CheckboxFlags(string label, ImS64* flags, ImS64 flags_value);
     bool          CheckboxFlags(string label, ImU64* flags, ImU64 flags_value);

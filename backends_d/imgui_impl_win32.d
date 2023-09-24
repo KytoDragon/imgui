@@ -46,6 +46,7 @@ alias PFN_XInputGetState = extern(Windows) DWORD function(DWORD, XINPUT_STATE*);
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2023-04-19: Added ImGui_ImplWin32_InitForOpenGL() to facilitate combining raw Win32/Winapi with OpenGL. (#3218)
 //  2023-04-04: Inputs: Added support for io.AddMouseSourceEvent() to discriminate ImGuiMouseSource_Mouse/ImGuiMouseSource_TouchScreen/ImGuiMouseSource_Pen. (#2702)
 //  2023-02-15: Inputs: Use WM_NCMOUSEMOVE / WM_NCMOUSELEAVE to track mouse position over non-client area (e.g. OS decorations) when app is not focused. (#6045, #6162)
 //  2023-02-02: Inputs: Flipping WM_MOUSEHWHEEL (horizontal mouse-wheel) value to match other backends and offer consistent horizontal scrolling direction. (#4019, #6096, #1463)
@@ -125,7 +126,7 @@ static ImGui_ImplWin32_Data* ImGui_ImplWin32_GetBackendData()
 }
 
 // Functions
-bool    ImGui_ImplWin32_Init(void* hwnd)
+static bool ImGui_ImplWin32_InitEx(void* hwnd, bool platform_has_own_dc)
 {
     ImGuiIO* io = &ImGui.GetIO();
     IM_ASSERT(io.BackendPlatformUserData == null, "Already initialized a platform backend!");
@@ -150,6 +151,7 @@ bool    ImGui_ImplWin32_Init(void* hwnd)
 
     // Set platform dependent data in viewport
     ImGui.GetMainViewport().PlatformHandleRaw = cast(void*)hwnd;
+    IM_UNUSED(platform_has_own_dc); // Used in 'docking' branch
 
     // Dynamically load XInput library
 version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
@@ -175,6 +177,17 @@ version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
     return true;
 }
 
+bool     ImGui_ImplWin32_Init(void* hwnd)
+{
+    return ImGui_ImplWin32_InitEx(hwnd, false);
+}
+
+bool     ImGui_ImplWin32_InitForOpenGL(void* hwnd)
+{
+    // OpenGL needs CS_OWNDC
+    return ImGui_ImplWin32_InitEx(hwnd, true);
+}
+
 void    ImGui_ImplWin32_Shutdown()
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
@@ -189,6 +202,7 @@ version (IMGUI_IMPL_WIN32_DISABLE_GAMEPAD) {} else {
 
     io.BackendPlatformName = null;
     io.BackendPlatformUserData = null;
+    io.BackendFlags &= ~(ImGuiBackendFlags.HasMouseCursors | ImGuiBackendFlags.HasSetMousePos | ImGuiBackendFlags.HasGamepad);
     IM_DELETE(bd);
 }
 

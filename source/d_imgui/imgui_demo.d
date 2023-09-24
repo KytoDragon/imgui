@@ -1,4 +1,4 @@
-// dear imgui, v1.89.5
+// dear imgui, v1.89.6
 // (demo code)
 module d_imgui.imgui_demo;
 
@@ -417,23 +417,21 @@ static if (!IMGUI_DISABLE_DEBUG_TOOLS) {
     IMGUI_DEMO_MARKER("Help");
     if (ImGui.CollapsingHeader("Help"))
     {
-        ImGui.Text("ABOUT THIS DEMO:");
+        ImGui.SeparatorText("ABOUT THIS DEMO:");
         ImGui.BulletText("Sections below are demonstrating many aspects of the library.");
         ImGui.BulletText("The \"Examples\" menu above leads to more demo contents.");
         ImGui.BulletText("The \"Tools\" menu above gives access to: About Box, Style Editor,\n"
                           ~"and Metrics/Debugger (general purpose Dear ImGui debugging tool).");
-        ImGui.Separator();
 
-        ImGui.Text("PROGRAMMER GUIDE:");
+        ImGui.SeparatorText("PROGRAMMER GUIDE:");
         ImGui.BulletText("See the ShowDemoWindow() code in imgui_demo.cpp. <- you are here!");
         ImGui.BulletText("See comments in imgui.cpp.");
         ImGui.BulletText("See example applications in the examples/ folder.");
         ImGui.BulletText("Read the FAQ at http://www.dearimgui.com/faq/");
         ImGui.BulletText("Set 'io.ConfigFlags |= NavEnableKeyboard' for keyboard controls.");
         ImGui.BulletText("Set 'io.ConfigFlags |= NavEnableGamepad' for gamepad controls.");
-        ImGui.Separator();
 
-        ImGui.Text("USER GUIDE:");
+        ImGui.SeparatorText("USER GUIDE:");
         ImGui.ShowUserGuide();
     }
 
@@ -490,6 +488,8 @@ static if (!IMGUI_DISABLE_DEBUG_TOOLS) {
             ImGui.SameLine(); HelpMarker("First calls to Begin()/BeginChild() will return false.\n\nTHIS OPTION IS DISABLED because it needs to be set at application boot-time to make sense. Showing the disabled option is a way to make this feature easier to discover");
             ImGui.Checkbox("io.ConfigDebugBeginReturnValueLoop", &io.ConfigDebugBeginReturnValueLoop);
             ImGui.SameLine(); HelpMarker("Some calls to Begin()/BeginChild() will return false.\n\nWill cycle through window depths then repeat. Windows should be flickering while running.");
+            ImGui.Checkbox("io.ConfigDebugIgnoreFocusLoss", &io.ConfigDebugIgnoreFocusLoss);
+            ImGui.SameLine(); HelpMarker("Option to deactivate io.AddFocusEvent(false) handling. May facilitate interactions with a debugger when focus loss leads to clearing inputs data.");
 
             ImGui.TreePop();
             ImGui.Spacing();
@@ -650,7 +650,7 @@ static void ShowDemoWindowWidgets()
             ImGui.Text("Tooltips:");
 
             ImGui.SameLine();
-            ImGui.SmallButton("Button");
+            ImGui.SmallButton("Basic");
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("I am a tooltip");
 
@@ -763,7 +763,7 @@ static void ShowDemoWindowWidgets()
             __gshared int elem = Element.Fire;
             string[Element.COUNT] elems_names = [ "Fire", "Earth", "Air", "Water" ];
             string elem_name = (elem >= 0 && elem < Element.COUNT) ? elems_names[elem] : "Unknown";
-            ImGui.SliderInt("slider enum", &elem, 0, Element.COUNT - 1, elem_name);
+            ImGui.SliderInt("slider enum", &elem, 0, Element.COUNT - 1, elem_name); // Use ImGuiSliderFlags_NoInput flag to disable CTRL+Click here.
             ImGui.SameLine(); HelpMarker("Using the format string parameter to display a name instead of the underlying integer.");
         }
 
@@ -1409,7 +1409,15 @@ static void ShowDemoWindowWidgets()
         {
             struct TextFilters
             {
-                // Return 0 (pass) if the character is 'i' or 'm' or 'g' or 'u' or 'i'
+                // Modify character input by altering 'data->Eventchar' (ImGuiInputTextFlags_CallbackCharFilter callback)
+                static int FilterCasingSwap(ImGuiInputTextCallbackData* data) nothrow @nogc
+                {
+                    if (data.EventChar >= 'a' && data.EventChar <= 'z')       { data.EventChar = cast(ImWchar)(data.EventChar - 'A' - 'a'); } // Lowercase becomes uppercase
+                    else if (data.EventChar >= 'A' && data.EventChar <= 'Z')  { data.EventChar = cast(ImWchar)(data.EventChar + 'a' - 'A'); } // Uppercase becomes lowercase
+                    return 0;
+                }
+
+                // Return 0 (pass) if the character is 'i' or 'm' or 'g' or 'u' or 'i', otherwise return 1 (filter out)
                 static int FilterImGuiLetters(ImGuiInputTextCallbackData* data) nothrow @nogc
                 {
                     if (data.EventChar < 256 && ImIndexOf("imgui", cast(char)data.EventChar) >= 0)
@@ -1418,12 +1426,13 @@ static void ShowDemoWindowWidgets()
                 }
             }
 
-            __gshared char[64] buf1 = ""; ImGui.InputText("default",     buf1);
-            __gshared char[64] buf2 = ""; ImGui.InputText("decimal",     buf2, ImGuiInputTextFlags.CharsDecimal);
-            __gshared char[64] buf3 = ""; ImGui.InputText("hexadecimal", buf3, ImGuiInputTextFlags.CharsHexadecimal | ImGuiInputTextFlags.CharsUppercase);
-            __gshared char[64] buf4 = ""; ImGui.InputText("uppercase",   buf4, ImGuiInputTextFlags.CharsUppercase);
-            __gshared char[64] buf5 = ""; ImGui.InputText("no blank",    buf5, ImGuiInputTextFlags.CharsNoBlank);
-            __gshared char[64] buf6 = ""; ImGui.InputText("\"imgui\" letters", buf6, ImGuiInputTextFlags.CallbackCharFilter, &TextFilters.FilterImGuiLetters);
+            __gshared char[32] buf1 = ""; ImGui.InputText("default",     buf1);
+            __gshared char[32] buf2 = ""; ImGui.InputText("decimal",     buf2, ImGuiInputTextFlags.CharsDecimal);
+            __gshared char[32] buf3 = ""; ImGui.InputText("hexadecimal", buf3, ImGuiInputTextFlags.CharsHexadecimal | ImGuiInputTextFlags.CharsUppercase);
+            __gshared char[32] buf4 = ""; ImGui.InputText("uppercase",   buf4, ImGuiInputTextFlags.CharsUppercase);
+            __gshared char[32] buf5 = ""; ImGui.InputText("no blank",    buf5, ImGuiInputTextFlags.CharsNoBlank);
+            __gshared char[32] buf6 = ""; ImGui.InputText("casing swap", buf6, ImGuiInputTextFlags.CallbackCharFilter, &TextFilters.FilterCasingSwap); // Use CharFilter callback to replace characters.
+            __gshared char[32] buf7 = ""; ImGui.InputText("\"imgui\"",   buf7, ImGuiInputTextFlags.CallbackCharFilter, &TextFilters.FilterImGuiLetters); // Use CharFilter callback to disable some characters.
             ImGui.TreePop();
         }
 

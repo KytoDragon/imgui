@@ -1117,6 +1117,7 @@ void ImGui_ImplVulkan_Shutdown()
     ImGui_ImplVulkan_DestroyDeviceObjects();
     io.BackendRendererName = null;
     io.BackendRendererUserData = null;
+    io.BackendFlags &= ~ImGuiBackendFlags.RendererHasVtxOffset;
     IM_DELETE(bd);
 }
 
