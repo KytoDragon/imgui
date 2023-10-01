@@ -1,4 +1,4 @@
-// dear imgui, v1.89.6
+// dear imgui, v1.89.7
 // (headers)
 module d_imgui.imgui_h;
 
@@ -10,21 +10,23 @@ module d_imgui.imgui_h;
 
 // Resources:
 // - FAQ                   http://dearimgui.com/faq
-// - Homepage & latest     https://github.com/ocornut/imgui
+// - Homepage              https://github.com/ocornut/imgui
 // - Releases & changelog  https://github.com/ocornut/imgui/releases
 // - Gallery               https://github.com/ocornut/imgui/issues/6478 (please post your screenshots/video there!)
 // - Wiki                  https://github.com/ocornut/imgui/wiki (lots of good stuff there)
+// - Getting Started       https://github.com/ocornut/imgui/wiki/Getting-Started
 // - Glossary              https://github.com/ocornut/imgui/wiki/Glossary
 // - Issues & support      https://github.com/ocornut/imgui/issues
 
 // Getting Started?
-// - For first-time users having issues compiling/linking/running or issues loading fonts:
+// - Read https://github.com/ocornut/imgui/wiki/Getting-Started
+// - For first-time users having issues compiling/linking/running/loading fonts:
 //   please post in https://github.com/ocornut/imgui/discussions if you cannot find a solution in resources above.
 
 // Library Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals, e.g. '#if IMGUI_VERSION_NUM >= 12345')
-enum IMGUI_VERSION       = "1.89.6";
-enum IMGUI_VERSION_NUM   = 18960;
+enum IMGUI_VERSION       = "1.89.7";
+enum IMGUI_VERSION_NUM   = 18970;
 version = IMGUI_HAS_TABLE;
 
 /*
@@ -794,11 +796,20 @@ namespace ImGui
     bool          MenuItem(string label, string shortcut, bool* p_selected, bool enabled = true);              // return true when activated + toggle (*p_selected) if p_selected != NULL
 
     // Tooltips
-    // - Tooltip are windows following the mouse. They do not take focus away.
-    bool          BeginTooltip();                                                     // begin/append a tooltip window. to create full-featured tooltip (with any kind of items).
-    void          EndTooltip();                                                       // only call EndTooltip() if BeginTooltip() returns true!
-    void          SetTooltip(string fmt, ...) IM_FMTARGS(1);                     // set a text-only tooltip, typically use with ImGui::IsItemHovered(). override any previous call to SetTooltip().
+    // - Tooltips are windows following the mouse. They do not take focus away.
+    // - A tooltip window can contain items of any types. SetTooltip() is a shortcut for the 'if (BeginTooltip()) { Text(...); EndTooltip(); }' idiom.
+    bool          BeginTooltip();                                                     // begin/append a tooltip window.
+    void          EndTooltip();                                                       // only call EndTooltip() if BeginTooltip()/BeginItemTooltip() returns true!
+    void          SetTooltip(string fmt, ...) IM_FMTARGS(1);                     // set a text-only tooltip. Often used after a ImGui::IsItemHovered() check. Override any previous call to SetTooltip().
     void          SetTooltipV(string fmt, va_list args) IM_FMTLIST(1);
+
+    // Tooltips: helpers for showing a tooltip when hovering an item
+    // - BeginItemTooltip() is a shortcut for the 'if (IsItemHovered(ImGuiHoveredFlags_Tooltip) && BeginTooltip())' idiom.
+    // - SetItemTooltip() is a shortcut for the 'if (IsItemHovered(ImGuiHoveredFlags_Tooltip)) { SetTooltip(...); }' idiom.
+    // - Where 'ImGuiHoveredFlags_Tooltip' itself is a shortcut to use 'style.HoverFlagsForTooltipMouse' or 'style.HoverFlagsForTooltipNav' depending on active input type. For mouse it defaults to 'ImGuiHoveredFlags_Stationary | ImGuiHoveredFlags_DelayShort'.
+    bool          BeginItemTooltip();                                                 // begin/append a tooltip window if preceding item was hovered.
+    void          SetItemTooltip(string fmt, ...) IM_FMTARGS(1);                 // set a text-only tooltip if preceeding item was hovered. override any previous call to SetTooltip().
+    void          SetItemTooltipV(string fmt, va_list args) IM_FMTLIST(1);
 
     // Popups, Modals
     //  - They block normal mouse hovering detection (and therefore most mouse interactions) behind them.
@@ -961,6 +972,9 @@ namespace ImGui
     void          SetItemDefaultFocus();                                              // make last item the default focused item of a window.
     void          SetKeyboardFocusHere(int offset = 0);                               // focus keyboard on the next widget. Use positive 'offset' to access sub components of a multiple component widget. Use -1 to access previous widget.
 
+    // Overlapping mode
+    void          SetNextItemAllowOverlap();                                          // allow next item to be overlapped by a subsequent item. Useful with invisible buttons, selectable, treenode covering an area where subsequent items may need to be added. Note that both Selectable() and TreeNode() have dedicated flags doing this.
+
     // Item/Widgets Utilities and Query Functions
     // - Most of the functions are referring to the previous Item that has been submitted.
     // - See Demo Window under "Widgets->Querying Status" for an interactive visualization of most of those functions.
@@ -981,7 +995,6 @@ namespace ImGui
     ImVec2        GetItemRectMin();                                                   // get upper-left bounding rectangle of the last item (screen space)
     ImVec2        GetItemRectMax();                                                   // get lower-right bounding rectangle of the last item (screen space)
     ImVec2        GetItemRectSize();                                                  // get size of last item
-    void          SetItemAllowOverlap();                                              // allow last item to be overlapped by a subsequent item. sometimes useful with invisible buttons, selectables, etc. to catch unused area.
 
     // Viewports
     // - Currently represents the Platform Window created by the application which is hosting our Dear ImGui windows.
@@ -1152,7 +1165,7 @@ enum ImGuiInputTextFlags : int
     // [Internal]
     Multiline           = 1 << 26,  // For internal use by InputTextMultiline()
     NoMarkEdited        = 1 << 27,  // For internal use by functions using InputText() before reformatting data
-    MergedItem = 1 << 28 // For internal use by TempInputText(), will skip calling ItemAdd(). Require bounding-box to strictly match.
+    MergedItem          = 1 << 28,  // For internal use by TempInputText(), will skip calling ItemAdd(). Require bounding-box to strictly match.
 }
 
 // Flags for ImGui::TreeNodeEx(), ImGui::CollapsingHeader*()
@@ -1161,7 +1174,7 @@ enum ImGuiTreeNodeFlags : int
     None                 = 0,
     Selected             = 1 << 0,   // Draw as selected
     Framed               = 1 << 1,   // Draw frame with background (e.g. for CollapsingHeader)
-    AllowItemOverlap     = 1 << 2,   // Hit testing to allow subsequent widgets to overlap this one
+    AllowOverlap         = 1 << 2,   // Hit testing to allow subsequent widgets to overlap this one
     NoTreePushOnOpen     = 1 << 3,   // Don't do a TreePush() when open (e.g. for CollapsingHeader) = no extra indent nor pushing on ID stack
     NoAutoOpenOnLog      = 1 << 4,   // Don't automatically and temporarily open node when Logging is active (by default logging will automatically open tree nodes)
     DefaultOpen          = 1 << 5,   // Default node to be open
@@ -1175,9 +1188,14 @@ enum ImGuiTreeNodeFlags : int
     NavLeftJumpsBackHere = 1 << 13,  // (WIP) Nav: left direction may move to this TreeNode() from any of its child (items submitted between TreeNode and TreePop)
     //ImGuiTreeNodeFlags_NoScrollOnOpen     = 1 << 14,  // FIXME: TODO: Disable automatic scroll on TreePop() if node got just open and contents is not visible
     CollapsingHeader     = ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.NoAutoOpenOnLog,
-    
+
+//static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    AllowItemOverlap     = ImGuiTreeNodeFlags.AllowOverlap,  // Renamed in 1.89.7
+//}
+
     // [Internal]
-    ClipLabelForTrailingButton = 1 << 20
+    ClipLabelForTrailingButton = 1 << 20,
+    UpsideDownArrow            = 1 << 21,// (FIXME-WIP) Turn Down arrow into an Up arrow, but reversed trees (#6517)
 }
 
 // Flags for OpenPopup*(), BeginPopupContext*(), IsPopupOpen() functions.
@@ -1211,7 +1229,11 @@ enum ImGuiSelectableFlags : int
     SpanAllColumns     = 1 << 1,   // Selectable frame can span all columns (text will still fit in current column)
     AllowDoubleClick   = 1 << 2,   // Generate press events on double clicks too
     Disabled           = 1 << 3,   // Cannot be selected, display grayed out text
-    AllowItemOverlap   = 1 << 4,   // (WIP) Hit testing to allow subsequent widgets to overlap this one
+    AllowOverlap       = 1 << 4,   // (WIP) Hit testing to allow subsequent widgets to overlap this one
+
+//static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    AllowItemOverlap   = ImGuiSelectableFlags.AllowOverlap,  // Renamed in 1.89.7
+//}
 
     // [Internal]
     NoHoldingActiveID      = 1 << 20,
@@ -1440,16 +1462,35 @@ enum ImGuiHoveredFlags : int
     AllowWhenBlockedByPopup       = 1 << 5,   // Return true even if a popup window is normally blocking access to this item/window
     //ImGuiHoveredFlags_AllowWhenBlockedByModal     = 1 << 6,   // Return true even if a modal popup window is normally blocking access to this item/window. FIXME-TODO: Unavailable yet.
     AllowWhenBlockedByActiveItem  = 1 << 7,   // Return true even if an active item is blocking access to this item/window. Useful for Drag and Drop patterns.
-    AllowWhenOverlapped           = 1 << 8,   // IsItemHovered() only: Return true even if the position is obstructed or overlapped by another window
-    AllowWhenDisabled             = 1 << 9,   // IsItemHovered() only: Return true even if the item is disabled
-    NoNavOverride                 = 1 << 10,  // Disable using gamepad/keyboard navigation state when active, always query mouse.
+    AllowWhenOverlappedByItem     = 1 << 8,   // IsItemHovered() only: Return true even if the item uses AllowOverlap mode and is overlapped by another hoverable item.
+    AllowWhenOverlappedByWindow   = 1 << 9,   // IsItemHovered() only: Return true even if the position is obstructed or overlapped by another window.
+    AllowWhenDisabled             = 1 << 10,  // IsItemHovered() only: Return true even if the item is disabled
+    NoNavOverride                 = 1 << 11,  // IsItemHovered() only: Disable using gamepad/keyboard navigation state when active, always query mouse
+    AllowWhenOverlapped           = ImGuiHoveredFlags.AllowWhenOverlappedByItem | ImGuiHoveredFlags.AllowWhenOverlappedByWindow,
     RectOnly                      = ImGuiHoveredFlags.AllowWhenBlockedByPopup | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenOverlapped,
     RootAndChildWindows           = ImGuiHoveredFlags.RootWindow | ImGuiHoveredFlags.ChildWindows,
 
-    // Hovering delays (for tooltips)
-    DelayNormal                   = 1 << 11,  // Return true after io.HoverDelayNormal elapsed (~0.30 sec)
-    DelayShort                    = 1 << 12,  // Return true after io.HoverDelayShort elapsed (~0.10 sec)
-    NoSharedDelay                 = 1 << 13,  // Disable shared delay system where moving from one item to the next keeps the previous timer for a short time (standard for tooltips with long delays)
+    // Tooltips mode
+    // - typically used in IsItemHovered() + SetTooltip() sequence.
+    // - this is a shortcut to pull flags from 'style.HoverFlagsForTooltipMouse' or 'style.HoverFlagsForTooltipNav' where you can reconfigure desired behavior.
+    //   e.g. 'TooltipHoveredFlagsForMouse' defaults to 'ImGuiHoveredFlags_Stationary | ImGuiHoveredFlags_DelayShort'.
+    // - for frequently actioned or hovered items providing a tooltip, you want may to use ImGuiHoveredFlags_ForTooltip (stationary + delay) so the tooltip doesn't show too often.
+    // - for items which main purpose is to be hovered, or items with low affordance, or in less consistent apps, prefer no delay or shorter delay.
+    ForTooltip                    = 1 << 11,  // Shortcut for standard flags when using IsItemHovered() + SetTooltip() sequence.
+
+    // (Advanced) Mouse Hovering delays.
+    // - generally you can use ImGuiHoveredFlags_ForTooltip to use application-standardized flags.
+    // - use those if you need specific overrides.
+    Stationary                    = 1 << 12,  // Require mouse to be stationary for style.HoverStationaryDelay (~0.15 sec) _at least one time_. After this, can move on same item/window. Using the stationary test tends to reduces the need for a long delay.
+    DelayNone                     = 1 << 13,  // IsItemHovered() only: Return true immediately (default). As this is the default you generally ignore this.
+    DelayShort                    = 1 << 14,  // IsItemHovered() only: Return true after style.HoverDelayShort elapsed (~0.15 sec) (shared between items) + requires mouse to be stationary for style.HoverStationaryDelay (once per item).
+    DelayNormal                   = 1 << 15,  // IsItemHovered() only: Return true after style.HoverDelayNormal elapsed (~0.40 sec) (shared between items) + requires mouse to be stationary for style.HoverStationaryDelay (once per item).
+    NoSharedDelay                 = 1 << 16,  // IsItemHovered() only: Disable shared delay system where moving from one item to the next keeps the previous timer for a short time (standard for tooltips with long delays)
+    
+    // Internal
+    DelayMask_                    = ImGuiHoveredFlags.DelayNone | ImGuiHoveredFlags.DelayShort | ImGuiHoveredFlags.DelayNormal | ImGuiHoveredFlags.NoSharedDelay,
+    AllowedMaskForIsWindowHovered = ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.RootWindow | ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.NoPopupHierarchy | ImGuiHoveredFlags.AllowWhenBlockedByPopup | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.ForTooltip | ImGuiHoveredFlags.Stationary,
+    AllowedMaskForIsItemHovered   = ImGuiHoveredFlags.AllowWhenBlockedByPopup | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenOverlapped | ImGuiHoveredFlags.AllowWhenDisabled | ImGuiHoveredFlags.NoNavOverride | ImGuiHoveredFlags.ForTooltip | ImGuiHoveredFlags.Stationary | ImGuiHoveredFlags.DelayMask_,
 }
 
 // Flags for ImGui::BeginDragDropSource(), ImGui::AcceptDragDropPayload()
@@ -1823,7 +1864,7 @@ enum ImGuiButtonFlags : int
     PressedOnDragDropHold  = 1 << 9,   // return true when held into while we are drag and dropping another item (used by e.g. tree nodes, collapsing headers)
     Repeat                 = 1 << 10,  // hold to repeat
     FlattenChildren        = 1 << 11,  // allow interactions even if a child window is overlapping
-    AllowItemOverlap       = 1 << 12,  // require previous frame HoveredId to either match id or be null before being usable, use along with SetItemAllowOverlap()
+    AllowOverlap       = 1 << 12,  // require previous frame HoveredId to either match id or be null before being usable, use along with SetItemAllowOverlap()
     DontClosePopups        = 1 << 13,  // disable automatically closing parent popup on press // [UNUSED]
     //ImGuiButtonFlags_Disabled             = 1 << 14,  // disable interactions -> use BeginDisabled() or ImGuiItemFlags_Disabled
     AlignTextBaseLine      = 1 << 15,  // vertically align button to match text baseline - ButtonEx() only // FIXME: Should be removed and handled by SmallButton(), not possible currently because of DC.CursorPosPrevLine
@@ -2129,6 +2170,14 @@ struct ImGuiStyle
     float       CircleTessellationMaxError; // Maximum error (in pixels) allowed when using AddCircle()/AddCircleFilled() or drawing rounded corner rectangles with no explicit segment count specified. Decrease for higher quality but more geometry.
     ImVec4[ImGuiCol.COUNT]      Colors;
 
+    // Behaviors
+    // (It is possible to modify those fields mid-frame if specific behavior need it, unlike e.g. configuration fields in ImGuiIO)
+    float             HoverStationaryDelay;     // Delay for IsItemHovered(ImGuiHoveredFlags_Stationary). Time required to consider mouse stationary.
+    float             HoverDelayShort;          // Delay for IsItemHovered(ImGuiHoveredFlags_DelayShort). Usually used along with HoverStationaryDelay.
+    float             HoverDelayNormal;         // Delay for IsItemHovered(ImGuiHoveredFlags_DelayNormal). "
+    ImGuiHoveredFlags HoverFlagsForTooltipMouse;// Default flags when using IsItemHovered(ImGuiHoveredFlags_ForTooltip) or BeginItemTooltip()/SetItemTooltip() while using mouse.
+    ImGuiHoveredFlags HoverFlagsForTooltipNav;  // Default flags when using IsItemHovered(ImGuiHoveredFlags_ForTooltip) or BeginItemTooltip()/SetItemTooltip() while using keyboard/gamepad.
+
     @disable this();
     this(bool dummy) { (cast(ImGuiStyle_Wrapper*)&this).__ctor(dummy); }
     void ScaleAllSizes(float scale_factor) { (cast(ImGuiStyle_Wrapper*)&this).ScaleAllSizes(scale_factor); }
@@ -2166,13 +2215,6 @@ struct ImGuiIO
     float       IniSavingRate;                  // = 5.0f           // Minimum time between saving positions/sizes to .ini file, in seconds.
     string IniFilename;                    // = "imgui.ini"    // Path to .ini file (important: default "imgui.ini" is relative to current working dir!). Set NULL to disable automatic .ini loading/saving or if you want to manually call LoadIniSettingsXXX() / SaveIniSettingsXXX() functions.
     string LogFilename;                    // = "imgui_log.txt"// Path to .log file (default parameter to ImGui::LogToFile when no file is specified).
-    float       MouseDoubleClickTime;           // = 0.30f          // Time for a double-click, in seconds.
-    float       MouseDoubleClickMaxDist;        // = 6.0f           // Distance threshold to stay in to validate a double-click, in pixels.
-    float       MouseDragThreshold;             // = 6.0f           // Distance threshold before considering we are dragging.
-    float       KeyRepeatDelay;                 // = 0.275f         // When holding a key/button, time before it starts repeating, in seconds (for buttons in Repeat mode, etc.).
-    float       KeyRepeatRate;                  // = 0.050f         // When holding a key/button, rate at which it repeats, in seconds.
-    float       HoverDelayNormal;               // = 0.30 sec       // Delay on hovering before IsItemHovered(ImGuiHoveredFlags_DelayNormal) returns true.
-    float       HoverDelayShort;                // = 0.10 sec       // Delay on hovering before IsItemHovered(ImGuiHoveredFlags_DelayShort) returns true.
     void*       UserData;                       // = NULL           // Store your own data.
 
     ImFontAtlas*Fonts;                          // <auto>           // Font atlas: load, rasterize and pack one or more fonts into a single texture.
@@ -2192,17 +2234,32 @@ struct ImGuiIO
     bool        ConfigWindowsMoveFromTitleBarOnly; // = false       // Enable allowing to move windows only when clicking on their title bar. Does not apply to windows without a title bar.
     float       ConfigMemoryCompactTimer;       // = 60.0f          // Timer (in seconds) to free transient windows/tables memory buffers when unused. Set to -1.0f to disable.
 
+    // Inputs Behaviors
+    // (other variables, ones which are expected to be tweaked within UI code, are exposed in ImGuiStyle)
+    float       MouseDoubleClickTime;           // = 0.30f          // Time for a double-click, in seconds.
+    float       MouseDoubleClickMaxDist;        // = 6.0f           // Distance threshold to stay in to validate a double-click, in pixels.
+    float       MouseDragThreshold;             // = 6.0f           // Distance threshold before considering we are dragging.
+    float       KeyRepeatDelay;                 // = 0.275f         // When holding a key/button, time before it starts repeating, in seconds (for buttons in Repeat mode, etc.).
+    float       KeyRepeatRate;                  // = 0.050f         // When holding a key/button, rate at which it repeats, in seconds.
+
+    //------------------------------------------------------------------
     // Debug options
-    // - tools to test correct Begin/End and BeginChild/EndChild behaviors.
-    // - presently Begin()/End() and BeginChild()/EndChild() needs to ALWAYS be called in tandem, regardless of return value of BeginXXX()
-    //   this is inconsistent with other BeginXXX functions and create confusion for many users.
-    // - we expect to update the API eventually. In the meanwhile we provide tools to facilitate checking user-code behavior.
+    //------------------------------------------------------------------
+
+    // Tools to test correct Begin/End and BeginChild/EndChild behaviors.
+    // Presently Begin()/End() and BeginChild()/EndChild() needs to ALWAYS be called in tandem, regardless of return value of BeginXXX()
+    // This is inconsistent with other BeginXXX functions and create confusion for many users.
+    // We expect to update the API eventually. In the meanwhile we provide tools to facilitate checking user-code behavior.
     bool        ConfigDebugBeginReturnValueOnce;// = false          // First-time calls to Begin()/BeginChild() will return false. NEEDS TO BE SET AT APPLICATION BOOT TIME if you don't want to miss windows.
     bool        ConfigDebugBeginReturnValueLoop;// = false          // Some calls to Begin()/BeginChild() will return false. Will cycle through window depths then repeat. Suggested use: add "io.ConfigDebugBeginReturnValue = io.KeyShift" in your main loop then occasionally press SHIFT. Windows should be flickering while running.
-    // - option to deactivate io.AddFocusEvent(false) handling. May facilitate interactions with a debugger when focus loss leads to clearing inputs data.
-    // - backends may have other side-effects on focus loss, so this will reduce side-effects but not necessary remove all of them.
-    // - consider using e.g. Win32's IsDebuggerPresent() as an additional filter (or see ImOsIsDebuggerPresent() in imgui_test_engine/imgui_te_utils.cpp for a Unix compatible version).
+
+    // Option to deactivate io.AddFocusEvent(false) handling. May facilitate interactions with a debugger when focus loss leads to clearing inputs data.
+    // Backends may have other side-effects on focus loss, so this will reduce side-effects but not necessary remove all of them.
+    // Consider using e.g. Win32's IsDebuggerPresent() as an additional filter (or see ImOsIsDebuggerPresent() in imgui_test_engine/imgui_te_utils.cpp for a Unix compatible version).
     bool        ConfigDebugIgnoreFocusLoss;     // = false          // Ignore io.AddFocusEvent(false), consequently not calling io.ClearInputKeys() in input processing.
+
+    // Options to audit .ini data
+    bool        ConfigDebugIniSettings;         // = false          // Save .ini data with extra comments (particularly helpful for Docking, but makes saving slower)
 
     //------------------------------------------------------------------
     // Platform Functions
@@ -3386,6 +3443,8 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
 static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 namespace ImGui
 {
+    // OBSOLETED in 1.89.7 (from June 2023)
+    void      SetItemAllowOverlap();                                              // Use SetNextItemAllowOverlap() before item.
     // OBSOLETED in 1.89.4 (from March 2023)
     __gshared pragma(inline, true) void  PushAllowKeyboardFocus(bool tab_stop)                               { PushTabStop(tab_stop); }
     __gshared pragma(inline, true) void  PopAllowKeyboardFocus()                                             { PopTabStop(); }

@@ -1,4 +1,4 @@
-// dear imgui, v1.89.6
+// dear imgui, v1.89.7
 // (widgets code)
 module d_imgui.imgui_widgets;
 
@@ -492,6 +492,14 @@ bool ButtonBehavior(const ImRect/*&*/ bb, ImGuiID id, bool* out_hovered, bool* o
     if ((flags & ImGuiButtonFlags.PressedOnMask_) == 0)
         flags |= ImGuiButtonFlags.PressedOnDefault_;
 
+    // Default behavior inherited from item flags
+    // Note that _both_ ButtonFlags and ItemFlags are valid sources, so copy one into the item_flags and only check that.
+    ImGuiItemFlags item_flags = (g.LastItemData.ID == id ? g.LastItemData.InFlags : g.CurrentItemFlags);
+    if (flags & ImGuiButtonFlags.AllowOverlap)
+        item_flags |= ImGuiItemFlags.AllowOverlap;
+    if (flags & ImGuiButtonFlags.Repeat)
+        item_flags |= ImGuiItemFlags.ButtonRepeat;
+
     ImGuiWindow* backup_hovered_window = g.HoveredWindow;
     const bool flatten_hovered_children = (flags & ImGuiButtonFlags.FlattenChildren) && g.HoveredWindow && g.HoveredWindow.RootWindow == window;
     if (flatten_hovered_children)
@@ -504,11 +512,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
 }
 
     bool pressed = false;
-    bool hovered = ItemHoverable(bb, id);
-
-    // Drag source doesn't report as hovered
-    if (hovered && g.DragDropActive && g.DragDropPayload.SourceId == id && !(g.DragDropSourceFlags & ImGuiDragDropFlags.SourceNoDisableHover))
-        hovered = false;
+    bool hovered = ItemHoverable(bb, id, item_flags);
 
     // Special mode for Drag and Drop where holding button pressed for a long time while dragging another item triggers the button
     if (g.DragDropActive && (flags & ImGuiButtonFlags.PressedOnDragDropHold) && !(g.DragDropSourceFlags & ImGuiDragDropFlags.SourceNoHoldToOpenOthers))
@@ -526,10 +530,6 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
 
     if (flatten_hovered_children)
         g.HoveredWindow = backup_hovered_window;
-
-    // AllowOverlap mode (rarely used) requires previous frame HoveredId to be null or to match. This allows using patterns where a later submitted widget overlaps a previous one.
-    if (hovered && (flags & ImGuiButtonFlags.AllowItemOverlap) && (g.HoveredIdPreviousFrame != id && g.HoveredIdPreviousFrame != 0))
-        hovered = false;
 
     // Mouse handling
     const ImGuiID test_owner_id = (flags & ImGuiButtonFlags.NoTestKeyOwner) ? ImGuiKeyOwner.Any : id;
@@ -579,7 +579,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
             {
                 if (mouse_button_released != ImGuiMouseButton.None)
                 {
-                    const bool has_repeated_at_least_once = (flags & ImGuiButtonFlags.Repeat) && g.IO.MouseDownDurationPrev[mouse_button_released] >= g.IO.KeyRepeatDelay; // Repeat mode trumps on release behavior
+                    const bool has_repeated_at_least_once = (item_flags & ImGuiItemFlags.ButtonRepeat) && g.IO.MouseDownDurationPrev[mouse_button_released] >= g.IO.KeyRepeatDelay; // Repeat mode trumps on release behavior
                     if (!has_repeated_at_least_once)
                         pressed = true;
                     if (!(flags & ImGuiButtonFlags.NoNavFocus))
@@ -590,7 +590,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
 
             // 'Repeat' mode acts when held regardless of _PressedOn flags (see table above).
             // Relies on repeat logic of IsMouseClicked() but we may as well do it ourselves if we end up exposing finer RepeatDelay/RepeatRate settings.
-            if (g.ActiveId == id && (flags & ImGuiButtonFlags.Repeat))
+            if (g.ActiveId == id && (item_flags & ImGuiItemFlags.ButtonRepeat))
                 if (g.IO.MouseDownDuration[g.ActiveIdMouseButton] > 0.0f && IsMouseClicked(g.ActiveIdMouseButton, test_owner_id, ImGuiInputFlags.Repeat))
                     pressed = true;
         }
@@ -608,7 +608,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
     {
         bool nav_activated_by_code = (g.NavActivateId == id);
         bool nav_activated_by_inputs = (g.NavActivatePressedId == id);
-        if (!nav_activated_by_inputs && (flags & ImGuiButtonFlags.Repeat))
+        if (!nav_activated_by_inputs && (item_flags & ImGuiItemFlags.ButtonRepeat))
         {
             // Avoid pressing multiple keys from triggering excessive amount of repeat events
             const ImGuiKeyData* key1 = GetKeyData(ImGuiKey.Space);
@@ -655,7 +655,7 @@ version (IMGUI_ENABLE_TEST_ENGINE) {
                 {
                     // Report as pressed when releasing the mouse (this is the most common path)
                     bool is_double_click_release = (flags & ImGuiButtonFlags.PressedOnDoubleClick) && g.IO.MouseReleased[mouse_button] && g.IO.MouseClickedLastCount[mouse_button] == 2;
-                    bool is_repeating_already = (flags & ImGuiButtonFlags.Repeat) && g.IO.MouseDownDurationPrev[mouse_button] >= g.IO.KeyRepeatDelay; // Repeat mode trumps <on release>
+                    bool is_repeating_already = (item_flags & ImGuiItemFlags.ButtonRepeat) && g.IO.MouseDownDurationPrev[mouse_button] >= g.IO.KeyRepeatDelay; // Repeat mode trumps <on release>
                     bool is_button_avail_or_owned = TestKeyOwner(MouseButtonToKey(cast(ImGuiMouseButton)mouse_button), test_owner_id);
                     if (!is_double_click_release && !is_repeating_already && is_button_avail_or_owned)
                         pressed = true;
@@ -701,9 +701,6 @@ bool ButtonEx(string label, const ImVec2/*&*/ size_arg = ImVec2(0, 0), ImGuiButt
     ItemSize(size, style.FramePadding.y);
     if (!ItemAdd(bb, id))
         return false;
-
-    if (g.LastItemData.InFlags & ImGuiItemFlags.ButtonRepeat)
-        flags |= ImGuiButtonFlags.Repeat;
 
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
@@ -780,9 +777,6 @@ bool ArrowButtonEx(string str_id, ImGuiDir dir, ImVec2 size, ImGuiButtonFlags fl
     ItemSize(size, (size.y >= default_size) ? g.Style.FramePadding.y : -1.0f);
     if (!ItemAdd(bb, id))
         return false;
-
-    if (g.LastItemData.InFlags & ImGuiItemFlags.ButtonRepeat)
-        flags |= ImGuiButtonFlags.Repeat;
 
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
@@ -1167,10 +1161,8 @@ bool CheckboxFlagsT(T)(string label, T* flags, T flags_value)
     if (!all_on && any_on)
     {
         ImGuiContext* g = GImGui;
-        ImGuiItemFlags backup_item_flags = g.CurrentItemFlags;
-        g.CurrentItemFlags |= ImGuiItemFlags.MixedValue;
+        g.NextItemData.ItemFlags |= ImGuiItemFlags.MixedValue;
         pressed = Checkbox(label, &all_on);
-        g.CurrentItemFlags = backup_item_flags;
     }
     else
     {
@@ -1557,14 +1549,20 @@ bool SplitterBehavior(const ImRect/*&*/ bb, ImGuiID id, ImGuiAxis axis, float* s
     if (!ItemAdd(bb, id, NULL, ImGuiItemFlags.NoNav))
         return false;
 
+    // FIXME: AFAIK the only leftover reason for passing ImGuiButtonFlags_AllowOverlap here is
+    // to allow caller of SplitterBehavior() to call SetItemAllowOverlap() after the item.
+    // Nowadays we would instead want to use SetNextItemAllowOverlap() before the item.
+    ImGuiButtonFlags button_flags = ImGuiButtonFlags.FlattenChildren;
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
+    button_flags |= ImGuiButtonFlags.AllowOverlap;
+}
+
     bool hovered, held;
     ImRect bb_interact = bb;
     bb_interact.Expand(axis == ImGuiAxis.Y ? ImVec2(0.0f, hover_extend) : ImVec2(hover_extend, 0.0f));
-    ButtonBehavior(bb_interact, id, &hovered, &held, ImGuiButtonFlags.FlattenChildren | ImGuiButtonFlags.AllowItemOverlap);
+    ButtonBehavior(bb_interact, id, &hovered, &held, button_flags);
     if (hovered)
         g.LastItemData.StatusFlags |= ImGuiItemStatusFlags.HoveredRect; // for IsItemHovered(), because bb_interact is larger than bb
-    if (g.ActiveId != id)
-        SetItemAllowOverlap();
 
     if (held || (hovered && g.HoveredIdPreviousFrame == id && g.HoveredIdTimer >= hover_visibility_delay))
         SetMouseCursor(axis == ImGuiAxis.Y ? ImGuiMouseCursor.ResizeNS : ImGuiMouseCursor.ResizeEW);
@@ -1831,7 +1829,7 @@ bool BeginComboPreview()
     if (window.SkipItems || !(g.LastItemData.StatusFlags & ImGuiItemStatusFlags.Visible))
         return false;
     IM_ASSERT(g.LastItemData.Rect.Min.x == preview_data.PreviewRect.Min.x && g.LastItemData.Rect.Min.y == preview_data.PreviewRect.Min.y); // Didn't call after BeginCombo/EndCombo block or forgot to pass ImGuiComboFlags_CustomPreview flag?
-    if (!window.ClipRect.Contains(preview_data.PreviewRect)) // Narrower test (optional)
+    if (!window.ClipRect.Overlaps(preview_data.PreviewRect)) // Narrower test (optional)
         return false;
 
     // FIXME: This could be contained in a PushWorkRect() api
@@ -1930,7 +1928,7 @@ bool Combo(string label, int* current_item, bool function(void*, int, string*) n
         string item_text;
         if (!items_getter(data, i, &item_text))
             item_text = "*Unknown item*";
-        if (Selectable(item_text, item_selected))
+        if (Selectable(item_text, item_selected) && *current_item != i)
         {
             value_changed = true;
             *current_item = i;
@@ -2419,7 +2417,7 @@ bool DragScalar(string label, ImGuiDataType data_type, void* p_data, float v_spe
     if (format == NULL)
         format = DataTypeGetInfo(data_type).PrintFmt;
 
-    const bool hovered = ItemHoverable(frame_bb, id);
+    const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.InFlags);
     bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
     if (!temp_input_is_active)
     {
@@ -3015,7 +3013,7 @@ bool SliderScalar(string label, ImGuiDataType data_type, void* p_data, const voi
     if (format == NULL)
         format = DataTypeGetInfo(data_type).PrintFmt;
 
-    const bool hovered = ItemHoverable(frame_bb, id);
+    const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.InFlags);
     bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
     if (!temp_input_is_active)
     {
@@ -3187,7 +3185,7 @@ bool VSliderScalar(string label, const ImVec2/*&*/ size, ImGuiDataType data_type
     if (format == NULL)
         format = DataTypeGetInfo(data_type).PrintFmt;
 
-    const bool hovered = ItemHoverable(frame_bb, id);
+    const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.InFlags);
     const bool clicked = hovered && IsMouseClicked(ImGuiMouseButton.Left, id);
     if (clicked || g.NavActivateId == id)
     {
@@ -3922,6 +3920,10 @@ void DeleteChars(int pos, int bytes_count)
 
 void InsertChars(int pos, string new_text)
 {
+    // Accept null ranges
+    if (new_text.length == 0)
+        return;
+
     const bool is_resizable = (Flags & ImGuiInputTextFlags.CallbackResize) != 0;
     const int new_text_len = cast(int)new_text.length;
     if (new_text_len + BufTextLen >= BufSize)
@@ -4191,7 +4193,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 return false;
         item_status_flags = g.LastItemData.StatusFlags;
     }
-    const bool hovered = ItemHoverable(frame_bb, id);
+    const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.InFlags);
     if (hovered)
         g.MouseCursor = ImGuiMouseCursor.TextInput;
 
@@ -4623,6 +4625,7 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
                 // Clear input
                 apply_new_text = "";
                 apply_new_text_length = 0;
+                value_changed |= (buf[0] != 0);
                 STB_TEXTEDIT_CHARTYPE empty_string;
                 stb_textedit_replace(state, &state.Stb, &empty_string, 0);
             }
@@ -5014,11 +5017,9 @@ bool InputTextEx(string label, string hint, char[] buf, const ImVec2/*&*/ size_a
     {
         // For focus requests to work on our multiline we need to ensure our child ItemAdd() call specifies the ImGuiItemFlags_Inputable (ref issue #4761)...
         Dummy(ImVec2(text_size.x, text_size.y + style.FramePadding.y));
-        ImGuiItemFlags backup_item_flags = g.CurrentItemFlags;
-        g.CurrentItemFlags |= ImGuiItemFlags.Inputable | ImGuiItemFlags.NoTabStop;
+        g.NextItemData.ItemFlags |= ImGuiItemFlags.Inputable | ImGuiItemFlags.NoTabStop;
         EndChild();
         item_data_backup.StatusFlags |= (g.LastItemData.StatusFlags & ImGuiItemStatusFlags.HoveredWindow);
-        g.CurrentItemFlags = backup_item_flags;
 
         // ...and then we need to undo the group overriding last item data, which gets a bit messy as EndGroup() tries to forward scrollbar being active...
         // FIXME: This quite messy/tricky, should attempt to get rid of the child window.
@@ -5867,7 +5868,7 @@ bool ColorButton(string desc_id, const ImVec4/*&*/ col, ImGuiColorEditFlags flag
     }
 
     // Tooltip
-    if (!(flags & ImGuiColorEditFlags.NoTooltip) && hovered)
+    if (!(flags & ImGuiColorEditFlags.NoTooltip) && hovered && IsItemHovered(ImGuiHoveredFlags.ForTooltip))
         ColorTooltip(desc_id, &col.x, flags & (ImGuiColorEditFlags.InputMask_ | ImGuiColorEditFlags.NoAlpha | ImGuiColorEditFlags.AlphaPreview | ImGuiColorEditFlags.AlphaPreviewHalf));
 
     return pressed;
@@ -5897,7 +5898,7 @@ void ColorTooltip(string text, const float* col, ImGuiColorEditFlags flags)
 {
     ImGuiContext* g = GImGui;
 
-    if (!BeginTooltipEx(ImGuiTooltipFlags.OverridePreviousTooltip, ImGuiWindowFlags.None))
+    if (!BeginTooltipEx(ImGuiTooltipFlags.OverridePrevious, ImGuiWindowFlags.None))
         return;
     string text_end = text !is NULL ? FindRenderedTextEnd(text) : text;
     if (text_end.length > 0)
@@ -6227,8 +6228,8 @@ bool TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, string label)
     }
 
     ImGuiButtonFlags button_flags = ImGuiButtonFlags.None;
-    if (flags & ImGuiTreeNodeFlags.AllowItemOverlap)
-        button_flags |= ImGuiButtonFlags.AllowItemOverlap;
+    if ((flags & ImGuiTreeNodeFlags.AllowOverlap) || (g.LastItemData.InFlags & ImGuiItemFlags.AllowOverlap))
+        button_flags |= ImGuiButtonFlags.AllowOverlap;
     if (!is_leaf)
         button_flags |= ImGuiButtonFlags.PressedOnDragDropHold;
 
@@ -6301,8 +6302,6 @@ bool TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, string label)
             g.LastItemData.StatusFlags |= ImGuiItemStatusFlags.ToggledOpen;
         }
     }
-    if (flags & ImGuiTreeNodeFlags.AllowItemOverlap)
-        SetItemAllowOverlap();
 
     // In this branch, TreeNodeBehavior() cannot toggle the selection so this will never trigger.
     if (selected != was_selected) //-V547
@@ -6320,9 +6319,9 @@ bool TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, string label)
         if (flags & ImGuiTreeNodeFlags.Bullet)
             RenderBullet(window.DrawList, ImVec2(text_pos.x - text_offset_x * 0.60f, text_pos.y + g.FontSize * 0.5f), text_col);
         else if (!is_leaf)
-            RenderArrow(window.DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, is_open ? ImGuiDir.Down : ImGuiDir.Right, 1.0f);
+            RenderArrow(window.DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, is_open ? ((flags & ImGuiTreeNodeFlags.UpsideDownArrow) ? ImGuiDir.Up : ImGuiDir.Down) : ImGuiDir.Right, 1.0f);
         else // Leaf without bullet, left-adjusted text
-            text_pos.x -= text_offset_x;
+            text_pos.x -= text_offset_x -padding.x;
         if (flags & ImGuiTreeNodeFlags.ClipLabelForTrailingButton)
             frame_bb.Max.x -= g.FontSize + style.FramePadding.x;
 
@@ -6342,7 +6341,7 @@ bool TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, string label)
         if (flags & ImGuiTreeNodeFlags.Bullet)
             RenderBullet(window.DrawList, ImVec2(text_pos.x - text_offset_x * 0.5f, text_pos.y + g.FontSize * 0.5f), text_col);
         else if (!is_leaf)
-            RenderArrow(window.DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, is_open ? ImGuiDir.Down : ImGuiDir.Right, 0.70f);
+            RenderArrow(window.DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, is_open ? ((flags & ImGuiTreeNodeFlags.UpsideDownArrow) ? ImGuiDir.Up : ImGuiDir.Down) : ImGuiDir.Right, 0.70f);
         if (g.LogEnabled)
             LogSetNextTextDecoration(">", NULL);
         RenderText(text_pos, label_end, false);
@@ -6446,7 +6445,7 @@ bool CollapsingHeader(string label, bool* p_visible, ImGuiTreeNodeFlags flags = 
     ImGuiID id = window.GetID(label);
     flags |= ImGuiTreeNodeFlags.CollapsingHeader;
     if (p_visible)
-        flags |= ImGuiTreeNodeFlags.AllowItemOverlap | ImGuiTreeNodeFlags.ClipLabelForTrailingButton;
+        flags |= ImGuiTreeNodeFlags.AllowOverlap | ImGuiTreeNodeFlags.ClipLabelForTrailingButton;
     bool is_open = TreeNodeBehavior(id, flags, label);
     if (p_visible != NULL)
     {
@@ -6475,7 +6474,7 @@ bool CollapsingHeader(string label, bool* p_visible, ImGuiTreeNodeFlags flags = 
 
 // Tip: pass a non-visible label (e.g. "##hello") then you can use the space to draw other text or image.
 // But you need to make sure the ID is unique, e.g. enclose calls in PushID/PopID or use ##unique_id.
-// With this scheme, ImGuiSelectableFlags_SpanAllColumns and ImGuiSelectableFlags_AllowItemOverlap are also frequently used flags.
+// With this scheme, ImGuiSelectableFlags_SpanAllColumns and ImGuiSelectableFlags_AllowOverlap are also frequently used flags.
 // FIXME: Selectable() with (size.x == 0.0f) and (SelectableTextAlign.x > 0.0f) followed by SameLine() is currently not supported.
 bool Selectable(string label, bool selected = false, ImGuiSelectableFlags flags = ImGuiSelectableFlags.None, const ImVec2/*&*/ size_arg = ImVec2(0, 0))
 {
@@ -6559,7 +6558,7 @@ bool Selectable(string label, bool selected = false, ImGuiSelectableFlags flags 
     if (flags & ImGuiSelectableFlags.SelectOnClick)     { button_flags |= ImGuiButtonFlags.PressedOnClick; }
     if (flags & ImGuiSelectableFlags.SelectOnRelease)   { button_flags |= ImGuiButtonFlags.PressedOnRelease; }
     if (flags & ImGuiSelectableFlags.AllowDoubleClick)  { button_flags |= ImGuiButtonFlags.PressedOnClickRelease | ImGuiButtonFlags.PressedOnDoubleClick; }
-    if (flags & ImGuiSelectableFlags.AllowItemOverlap)  { button_flags |= ImGuiButtonFlags.AllowItemOverlap; }
+    if ((flags & ImGuiSelectableFlags.AllowOverlap) || (g.LastItemData.InFlags & ImGuiItemFlags.AllowOverlap)) { button_flags |= ImGuiButtonFlags.AllowOverlap; }
 
     const bool was_selected = selected;
     bool hovered, held;
@@ -6587,9 +6586,6 @@ bool Selectable(string label, bool selected = false, ImGuiSelectableFlags flags 
     }
     if (pressed)
         MarkItemEdited(id);
-
-    if (flags & ImGuiSelectableFlags.AllowItemOverlap)
-        SetItemAllowOverlap();
 
     // In this branch, Selectable() cannot toggle the selection so this will never trigger.
     if (selected != was_selected) //-V547
@@ -6775,7 +6771,7 @@ int PlotEx(ImGuiPlotType plot_type, string label, float function(void* data, int
     ItemSize(total_bb, style.FramePadding.y);
     if (!ItemAdd(total_bb, 0, &frame_bb))
         return -1;
-    const bool hovered = ItemHoverable(frame_bb, id);
+    const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.InFlags);
 
     // Determine scale from values if not specified
     if (scale_min == FLT_MAX || scale_max == FLT_MAX)
@@ -8498,17 +8494,14 @@ bool    TabItemEx(ImGuiTabBar* tab_bar, string label, bool* p_open, ImGuiTabItem
     }
 
     // Click to Select a tab
-    ImGuiButtonFlags button_flags = ((is_tab_button ? ImGuiButtonFlags.PressedOnClickRelease : ImGuiButtonFlags.PressedOnClick) | ImGuiButtonFlags.AllowItemOverlap);
+    // Allow the close button to overlap
+    ImGuiButtonFlags button_flags = ((is_tab_button ? ImGuiButtonFlags.PressedOnClickRelease : ImGuiButtonFlags.PressedOnClick) | ImGuiButtonFlags.AllowOverlap);
     if (g.DragDropActive)
         button_flags |= ImGuiButtonFlags.PressedOnDragDropHold;
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, button_flags);
     if (pressed && !is_tab_button)
         TabBarQueueFocus(tab_bar, tab);
-
-    // Allow the close button to overlap unless we are dragging (in which case we don't want any overlapping tabs to be hovered)
-    if (g.ActiveId != id)
-        SetItemAllowOverlap();
 
     // Drag and drop: re-order tabs
     if (held && !tab_appearing && IsMouseDragging(ImGuiMouseButton.Left))
@@ -8574,8 +8567,7 @@ static if (false) {
     // FIXME: We may want disabled tab to still display the tooltip?
     if (text_clipped && g.HoveredId == id && !held)
         if (!(tab_bar.Flags & ImGuiTabBarFlags.NoTooltip) && !(tab.Flags & ImGuiTabItemFlags.NoTooltip))
-            if (IsItemHovered(ImGuiHoveredFlags.DelayNormal))
-                SetTooltip("%s", FindRenderedTextEnd(label));
+            SetItemTooltip("%.*s", FindRenderedTextEnd(label));
 
     IM_ASSERT(!is_tab_button || !(tab_bar.SelectedTabId == tab.ID && is_tab_button)); // TabItemButton should not be selected
     if (is_tab_button)

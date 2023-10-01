@@ -1,4 +1,4 @@
-// dear imgui, v1.89.6
+// dear imgui, v1.89.7
 // (tables and columns code)
 module d_imgui.imgui_tables;
 
@@ -994,7 +994,7 @@ void TableUpdateLayout(ImGuiTable* table)
     const ImRect mouse_hit_rect = ImRect(table.OuterRect.Min.x, table.OuterRect.Min.y, table.OuterRect.Max.x, ImMax(table.OuterRect.Max.y, table.OuterRect.Min.y + table_instance.LastOuterHeight));
     const ImGuiID backup_active_id = g.ActiveId;
     g.ActiveId = 0;
-    const bool is_hovering_table = ItemHoverable(mouse_hit_rect, 0);
+    const bool is_hovering_table = ItemHoverable(mouse_hit_rect, 0, ImGuiItemFlags.None);
     g.ActiveId = backup_active_id;
 
     // [Part 6] Setup final position, offset, skip/clip states and clipping rectangles, detect hovered column
@@ -1185,8 +1185,6 @@ void TableUpdateLayout(ImGuiTable* table)
 
 // Process hit-testing on resizing borders. Actual size change will be applied in EndTable()
 // - Set table->HoveredColumnBorder with a short delay/timer to reduce visual feedback noise.
-// - Submit ahead of table contents and header, use ImGuiButtonFlags_AllowItemOverlap to prioritize
-//   widgets overlapping the same area.
 void TableUpdateBorders(ImGuiTable* table)
 {
     ImGuiContext* g = GImGui;
@@ -1226,7 +1224,7 @@ void TableUpdateBorders(ImGuiTable* table)
         //GetForegroundDrawList()->AddRect(hit_rect.Min, hit_rect.Max, IM_COL32(255, 0, 0, 100));
 
         bool hovered = false, held = false;
-        bool pressed = ButtonBehavior(hit_rect, column_id, &hovered, &held, ImGuiButtonFlags.FlattenChildren | ImGuiButtonFlags.AllowItemOverlap | ImGuiButtonFlags.PressedOnClick | ImGuiButtonFlags.PressedOnDoubleClick | ImGuiButtonFlags.NoNavFocus);
+        bool pressed = ButtonBehavior(hit_rect, column_id, &hovered, &held, ImGuiButtonFlags.FlattenChildren | ImGuiButtonFlags.PressedOnClick | ImGuiButtonFlags.PressedOnDoubleClick | ImGuiButtonFlags.NoNavFocus);
         if (pressed && IsMouseDoubleClicked(ImGuiMouseButton.Left))
         {
             TableSetColumnWidthAutoSingle(table, column_n);
@@ -2980,11 +2978,9 @@ void TableHeader(string label)
     //GetForegroundDrawList()->AddRect(cell_r.Min, cell_r.Max, IM_COL32(255, 0, 0, 255)); // [DEBUG]
     //GetForegroundDrawList()->AddRect(bb.Min, bb.Max, IM_COL32(255, 0, 0, 255)); // [DEBUG]
 
-    // Using AllowItemOverlap mode because we cover the whole cell, and we want user to be able to submit subsequent items.
+    // Using AllowOverlap mode because we cover the whole cell, and we want user to be able to submit subsequent items.
     bool hovered, held;
-    bool pressed = ButtonBehavior(bb, id, &hovered, &held, ImGuiButtonFlags.AllowItemOverlap);
-    if (g.ActiveId != id)
-        SetItemAllowOverlap();
+    bool pressed = ButtonBehavior(bb, id, &hovered, &held, ImGuiButtonFlags.AllowOverlap);
     if (held || hovered || selected)
     {
         const ImU32 col = GetColorU32(held ? ImGuiCol.HeaderActive : hovered ? ImGuiCol.HeaderHovered : ImGuiCol.Header);
@@ -3055,8 +3051,8 @@ void TableHeader(string label)
     RenderTextEllipsis(window.DrawList, label_pos, ImVec2(ellipsis_max, label_pos.y + label_height + g.Style.FramePadding.y), ellipsis_max, ellipsis_max, label_end, &label_size);
 
     const bool text_clipped = label_size.x > (ellipsis_max - label_pos.x);
-    if (text_clipped && hovered && g.ActiveId == 0 && IsItemHovered(ImGuiHoveredFlags.DelayNormal))
-        SetTooltip("%.*s", cast(int)(label_end.length), label);
+    if (text_clipped && hovered && g.ActiveId == 0)
+        SetItemTooltip("%.*s", cast(int)(label_end.length), label);
 
     // We don't use BeginPopupContextItem() because we want the popup to stay up even after the column is hidden
     if (IsMouseReleased(ImGuiMouseButton.Right) && IsItemHovered())

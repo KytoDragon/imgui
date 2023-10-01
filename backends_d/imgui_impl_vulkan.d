@@ -30,6 +30,7 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2023-07-04: Vulkan: Added optional support for VK_KHR_dynamic_rendering. User needs to set init_info->UseDynamicRendering = true and init_info->ColorAttachmentFormat.
 //  2023-01-02: Vulkan: Fixed sampler passed to ImGui_ImplVulkan_AddTexture() not being honored + removed a bunch of duplicate code.
 //  2022-10-11: Using 'nullptr' instead of 'NULL' as per our switch to C++11.
 //  2022-10-04: Vulkan: Added experimental ImGui_ImplVulkan_RemoveTexture() for api symetry. (#914, #5738).
@@ -103,9 +104,15 @@ struct ImGui_ImplVulkan_InitInfo
     uint32_t                        MinImageCount;          // >= 2
     uint32_t                        ImageCount;             // >= MinImageCount
     VkSampleCountFlagBits           MSAASamples;            // >= VK_SAMPLE_COUNT_1_BIT
+
+    // Dynamic Rendering (Optional)
+    bool                            UseDynamicRendering;    // Need to explicitly enable VK_KHR_dynamic_rendering extension to use this, even for Vulkan 1.3.
+    VkFormat                        ColorAttachmentFormat;  // Required for dynamic rendering
+
+    // Allocation, Debugging
     const (VkAllocationCallbacks)*  Allocator;
     void function(VkResult err)     CheckVkResultFn;
-};
+}
 
 
 //-------------------------------------------------------------------------
@@ -156,6 +163,7 @@ struct ImGui_ImplVulkanH_Window
     VkPresentModeKHR    PresentMode = VK_PRESENT_MODE_MAX_ENUM_KHR;
     VkRenderPass        RenderPass;
     VkPipeline          Pipeline;               // The window pipeline may uses a different VkRenderPass than the one passed in ImGui_ImplVulkan_InitInfo
+    bool                UseDynamicRendering;
     bool                ClearEnable = true;
     VkClearValue        ClearValue;
     uint32_t            FrameIndex;             // Current frame being rendered to (0 <= FrameIndex < FrameInFlightCount)
@@ -325,6 +333,14 @@ IMGUI_VULKAN_FUNC_MAP(IMGUI_VULKAN_FUNC_DEF)
 } // VK_NO_PROTOTYPES
 +/
 __gshared bool g_FunctionsLoaded = true;
+
+/+
+#if defined(VK_VERSION_1_3) || defined(VK_KHR_dynamic_rendering)
+version = IMGUI_IMPL_VULKAN_HAS_DYNAMIC_RENDERING;
+__gshared PFN_vkCmdBeginRenderingKHR   ImGuiImplVulkanFuncs_vkCmdBeginRenderingKHR;
+__gshared PFN_vkCmdEndRenderingKHR     ImGuiImplVulkanFuncs_vkCmdEndRenderingKHR;
+}
++/
 
 //-----------------------------------------------------------------------------
 // SHADERS
@@ -955,6 +971,19 @@ static void ImGui_ImplVulkan_CreatePipeline(VkDevice device, const (VkAllocation
     info.layout = bd.PipelineLayout;
     info.renderPass = renderPass;
     info.subpass = subpass;
+    
+version (IMGUI_IMPL_VULKAN_HAS_DYNAMIC_RENDERING) {
+    VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {};
+    pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+    pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    pipelineRenderingCreateInfo.pColorAttachmentFormats = &bd.VulkanInitInfo.ColorAttachmentFormat;
+    if (bd.VulkanInitInfo.UseDynamicRendering)
+    {
+        info.pNext = &pipelineRenderingCreateInfo;
+        info.renderPass = VK_NULL_HANDLE; // Just make sure it's actually nullptr.
+    }
+}
+
     VkResult err = vkCreateGraphicsPipelines(device, pipelineCache, 1, &info, allocator, pipeline);
     check_vk_result(err);
 }
@@ -1072,7 +1101,14 @@ bool    ImGui_ImplVulkan_LoadFunctions(PFN_vkVoidFunction function(string functi
     IM_UNUSED(loader_func);
     IM_UNUSED(user_data);
 }
+
+#ifdef IMGUI_IMPL_VULKAN_HAS_DYNAMIC_RENDERING
+    // Manually load those two (see #5446)
+    ImGuiImplVulkanFuncs_vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(loader_func("vkCmdBeginRenderingKHR", user_data));
+    ImGuiImplVulkanFuncs_vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(loader_func("vkCmdEndRenderingKHR", user_data));
+}
 +/
+
     g_FunctionsLoaded = true;
     return true;
 }
@@ -1080,6 +1116,22 @@ bool    ImGui_ImplVulkan_LoadFunctions(PFN_vkVoidFunction function(string functi
 bool    ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info, VkRenderPass render_pass)
 {
     IM_ASSERT(g_FunctionsLoaded, "Need to call ImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!");
+
+    if (info.UseDynamicRendering)
+    {
+version (IMGUI_IMPL_VULKAN_HAS_DYNAMIC_RENDERING) {
+/+
+#ifndef VK_NO_PROTOTYPES
+        ImGuiImplVulkanFuncs_vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetInstanceProcAddr(info->Instance, "vkCmdBeginRenderingKHR"));
+        ImGuiImplVulkanFuncs_vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetInstanceProcAddr(info->Instance, "vkCmdEndRenderingKHR"));
+}
++/
+        IM_ASSERT(ImGuiImplVulkanFuncs_vkCmdBeginRenderingKHR != null);
+        IM_ASSERT(ImGuiImplVulkanFuncs_vkCmdEndRenderingKHR != null);
+} else {
+        IM_ASSERT(0, "Can't use dynamic rendering when neither VK_VERSION_1_3 or VK_KHR_dynamic_rendering is defined.");
+}
+    }
 
     ImGuiIO* io = &ImGui.GetIO();
     IM_ASSERT(io.BackendRendererUserData == null, "Already initialized a renderer backend!");
@@ -1097,7 +1149,8 @@ bool    ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info, VkRenderPass rend
     IM_ASSERT(info.DescriptorPool != VK_NULL_HANDLE);
     IM_ASSERT(info.MinImageCount >= 2);
     IM_ASSERT(info.ImageCount >= info.MinImageCount);
-    IM_ASSERT(render_pass != VK_NULL_HANDLE);
+    if (info.UseDynamicRendering == false)
+        IM_ASSERT(render_pass != VK_NULL_HANDLE);
 
     bd.VulkanInitInfo = *info;
     bd.RenderPass = render_pass;
@@ -1414,6 +1467,7 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
         vkDestroySwapchainKHR(device, old_swapchain, allocator);
 
     // Create the Render Pass
+    if (wd.UseDynamicRendering == false)
     {
         VkAttachmentDescription attachment;
         attachment.format = wd.SurfaceFormat.format;
@@ -1476,6 +1530,7 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
     }
 
     // Create Framebuffer
+    if (wd.UseDynamicRendering == false)
     {
         VkImageView[1] attachment;
         VkFramebufferCreateInfo info;

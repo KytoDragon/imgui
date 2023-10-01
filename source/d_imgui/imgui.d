@@ -1,4 +1,4 @@
-// dear imgui, v1.89.6
+// dear imgui, v1.89.7
 // (main code and documentation)
 module d_imgui.imgui;
 
@@ -10,15 +10,17 @@ module d_imgui.imgui;
 
 // Resources:
 // - FAQ                   http://dearimgui.com/faq
-// - Homepage & latest     https://github.com/ocornut/imgui
+// - Homepage              https://github.com/ocornut/imgui
 // - Releases & changelog  https://github.com/ocornut/imgui/releases
 // - Gallery               https://github.com/ocornut/imgui/issues/6478 (please post your screenshots/video there!)
 // - Wiki                  https://github.com/ocornut/imgui/wiki (lots of good stuff there)
+// - Getting Started       https://github.com/ocornut/imgui/wiki/Getting-Started
 // - Glossary              https://github.com/ocornut/imgui/wiki/Glossary
 // - Issues & support      https://github.com/ocornut/imgui/issues
 
 // Getting Started?
-// - For first-time users having issues compiling/linking/running or issues loading fonts:
+// - Read https://github.com/ocornut/imgui/wiki/Getting-Started
+// - For first-time users having issues compiling/linking/running/loading fonts:
 //   please post in https://github.com/ocornut/imgui/discussions if you cannot find a solution in resources above.
 
 // Developed by Omar Cornut and every direct or indirect contributors to the GitHub.
@@ -398,6 +400,10 @@ CODE
  When you are not sure about an old symbol or function name, try using the Search/Find function of your IDE to look for comments or references in all imgui files.
  You can read releases logs https://github.com/ocornut/imgui/releases for more details.
 
+ - 2023/06/28 (1.89.7) - overlapping items: obsoleted 'SetItemAllowOverlap()' (called after item) in favor of calling 'SetNextItemAllowOverlap()' (called before item). 'SetItemAllowOverlap()' didn't and couldn't work reliably since 1.89 (2022-11-15).
+ - 2023/06/28 (1.89.7) - overlapping items: renamed 'ImGuiTreeNodeFlags_AllowItemOverlap' to 'ImGuiTreeNodeFlags_AllowOverlap', 'ImGuiSelectableFlags_AllowItemOverlap' to 'ImGuiSelectableFlags_AllowOverlap'. Kept redirecting enums (will obsolete).
+ - 2023/06/28 (1.89.7) - overlapping items: IsItemHovered() now by default return false when querying an item using AllowOverlap mode which is being overlapped. Use ImGuiHoveredFlags_AllowWhenOverlappedByItem to revert to old behavior.
+ - 2023/06/20 (1.89.7) - moved io.HoverDelayShort/io.HoverDelayNormal to style.HoverDelayShort/style.HoverDelayNormal. As the fields were added in 1.89 and expected to be left unchanged by most users, or only tweaked once during app initialization, we are exceptionally accepting the breakage.
  - 2023/05/30 (1.89.6) - backends: renamed "imgui_impl_sdlrenderer.cpp" to "imgui_impl_sdlrenderer2.cpp" and "imgui_impl_sdlrenderer.h" to "imgui_impl_sdlrenderer2.h". This is in prevision for the future release of SDL3.
  - 2023/05/22 (1.89.6) - listbox: commented out obsolete/redirecting functions that were marked obsolete more than two years ago:
                            - ListBoxHeader()  -> use BeginListBox() (note how two variants of ListBoxHeader() existed. Check commented versions in imgui.h for reference)
@@ -1002,7 +1008,6 @@ nothrow:
 // Debug options
 enum IMGUI_DEBUG_NAV_SCORING     = 0;   // Display navigation scoring preview when hovering items. Display last moving direction matches when holding CTRL
 enum IMGUI_DEBUG_NAV_RECTS       = 0;   // Display the reference navigation rectangle for each window
-enum IMGUI_DEBUG_INI_SETTINGS    = 0;   // Save additional comments in .ini file (particularly helps for Docking, but makes saving slower)
 
 // When using CTRL+TAB (or Gamepad Square+L/R) we delay the visual a little in order to reduce visual noise doing a fast switch.
 __gshared const float NAV_WINDOWING_HIGHLIGHT_DELAY            = 0.20f;    // Time before the highlight and screen dimming starts fading in
@@ -1012,6 +1017,9 @@ __gshared const float NAV_WINDOWING_LIST_APPEAR_DELAY          = 0.15f;    // Ti
 __gshared const float WINDOWS_HOVER_PADDING                    = 4.0f;     // Extend outside window for hovering/resizing (maxxed with TouchPadding) and inside windows for borders. Affect FindHoveredWindow().
 __gshared const float WINDOWS_RESIZE_FROM_EDGES_FEEDBACK_TIMER = 0.04f;    // Reduce visual noise by only highlighting the border after a certain time.
 __gshared const float WINDOWS_MOUSE_WHEEL_SCROLL_LOCK_TIMER    = 0.70f;    // Lock scrolled window (so it doesn't pick child windows that are scrolling through) for a certain time, unless mouse moved.
+
+// Tooltip offset
+__gshared const ImVec2 TOOLTIP_DEFAULT_OFFSET = ImVec2(16, 10);            // Multiplied by g.Style.MouseCursorScale
 
 //-------------------------------------------------------------------------
 // [SECTION] FORWARD DECLARATIONS
@@ -1191,6 +1199,13 @@ this(bool dummy)
     CurveTessellationTol    = 1.25f;            // Tessellation tolerance when using PathBezierCurveTo() without a specific number of segments. Decrease for highly tessellated curves (higher quality, more polygons), increase to reduce quality.
     CircleTessellationMaxError = 0.30f;         // Maximum error (in pixels) allowed when using AddCircle()/AddCircleFilled() or drawing rounded corner rectangles with no explicit segment count specified. Decrease for higher quality but more geometry.
 
+    // Behaviors
+    HoverStationaryDelay    = 0.15f;            // Delay for IsItemHovered(ImGuiHoveredFlags_Stationary). Time required to consider mouse stationary.
+    HoverDelayShort         = 0.15f;            // Delay for IsItemHovered(ImGuiHoveredFlags_DelayShort). Usually used along with HoverStationaryDelay.
+    HoverDelayNormal        = 0.40f;            // Delay for IsItemHovered(ImGuiHoveredFlags_DelayNormal). "
+    HoverFlagsForTooltipMouse = ImGuiHoveredFlags.Stationary | ImGuiHoveredFlags.DelayShort;    // Default flags when using IsItemHovered(ImGuiHoveredFlags_ForTooltip) or BeginItemTooltip()/SetItemTooltip() while using mouse.
+    HoverFlagsForTooltipNav = ImGuiHoveredFlags.NoSharedDelay | ImGuiHoveredFlags.DelayNormal;  // Default flags when using IsItemHovered(ImGuiHoveredFlags_ForTooltip) or BeginItemTooltip()/SetItemTooltip() while using keyboard/gamepad.
+
     // Default theme
     StyleColorsDark(&_data);
 }
@@ -1250,16 +1265,10 @@ this(bool dummy)
     IniSavingRate = 5.0f;
     IniFilename = "imgui.ini"; // Important: "imgui.ini" is relative to current working dir, most apps will want to lock this to an absolute path (e.g. same path as executables).
     LogFilename = "imgui_log.txt";
-    MouseDoubleClickTime = 0.30f;
-    MouseDoubleClickMaxDist = 6.0f;
 static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     for (int i = 0; i < ImGuiKey.COUNT; i++)
         KeyMap[i] = -1;
 }
-    KeyRepeatDelay = 0.275f;
-    KeyRepeatRate = 0.050f;
-    HoverDelayNormal = 0.30f;
-    HoverDelayShort = 0.10f;
     UserData = NULL;
 
     Fonts = NULL;
@@ -1267,6 +1276,12 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     FontDefault = NULL;
     FontAllowUserScaling = false;
     DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+
+    MouseDoubleClickTime = 0.30f;
+    MouseDoubleClickMaxDist = 6.0f;
+    MouseDragThreshold = 6.0f;
+    KeyRepeatDelay = 0.275f;
+    KeyRepeatRate = 0.050f;
 
     // Miscellaneous options
     MouseDrawCursor = false;
@@ -1294,7 +1309,6 @@ static if (D_IMGUI_Apple) {
     MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
     MousePosPrev = ImVec2(-FLT_MAX, -FLT_MAX);
     MouseSource = ImGuiMouseSource.Mouse;
-    MouseDragThreshold = 6.0f;
     for (int i = 0; i < IM_ARRAYSIZE(MouseDownDuration); i++) MouseDownDuration[i] = MouseDownDurationPrev[i] = -1.0f;
     for (int i = 0; i < IM_ARRAYSIZE(KeysData); i++) { KeysData[i].DownDuration = KeysData[i].DownDurationPrev = -1.0f; }
     AppAcceptingEvents = true;
@@ -2932,9 +2946,6 @@ struct ImGuiListClipper_Wrapper {
 this(bool dummy)
 {
     memset(&this, 0, sizeof(this));
-    Ctx = GetCurrentContext();
-    IM_ASSERT(Ctx != NULL);
-    ItemsCount = -1;
 }
 
 void destroy()
@@ -2944,6 +2955,9 @@ void destroy()
 
 void Begin(int items_count, float items_height)
 {
+    if (Ctx == NULL)
+        Ctx = GetCurrentContext();
+
     ImGuiContext* g = Ctx;
     ImGuiWindow* window = g.CurrentWindow;
     IMGUI_DEBUG_LOG_CLIPPER("Clipper: Begin(%d,%.2f) in '%s'\n", items_count, items_height, window.Name);
@@ -2969,10 +2983,10 @@ void Begin(int items_count, float items_height)
 
 void End()
 {
-    ImGuiContext* g = Ctx;
     if (ImGuiListClipperData* data = cast(ImGuiListClipperData*)TempData)
     {
         // In theory here we should assert that we are already at the right position, but it seems saner to just seek at the end and not assert/crash the user.
+        ImGuiContext* g = Ctx;
         IMGUI_DEBUG_LOG_CLIPPER("Clipper: End() in '%s'\n", g.CurrentWindow.Name);
         if (ItemsCount >= 0 && ItemsCount < INT_MAX && DisplayStart >= 0)
             ImGuiListClipper_SeekCursorForItem(&this._data, ItemsCount);
@@ -3680,9 +3694,12 @@ void DestroyContext(ImGuiContext* ctx = NULL)
     IM_DELETE(ctx);
 }
 
+import std.conv : to;
+
 // IMPORTANT: ###xxx suffixes must be same in ALL languages
-__gshared const ImGuiLocEntry[7] GLocalizationEntriesEnUS =
+__gshared const ImGuiLocEntry[8] GLocalizationEntriesEnUS =
 [
+    { ImGuiLocKey.VersionStr,           "Dear ImGui " ~ IMGUI_VERSION ~ " (" ~ to!string(IMGUI_VERSION_NUM) ~ ")" },
     { ImGuiLocKey.TableSizeOne,         "Size column to fit###SizeOne"          },
     { ImGuiLocKey.TableSizeAllFit,      "Size all columns to fit###SizeAll"     },
     { ImGuiLocKey.TableSizeAllDefault,  "Size all columns to default###SizeAll" },
@@ -4114,6 +4131,16 @@ bool IsWindowContentHoverable(ImGuiWindow* window, ImGuiHoveredFlags flags = ImG
     return true;
 }
 
+static pragma(inline, true) float CalcDelayFromHoveredFlags(ImGuiHoveredFlags flags)
+{
+    ImGuiContext* g = GImGui;
+    if (flags & ImGuiHoveredFlags.DelayShort)
+        return g.Style.HoverDelayShort;
+    if (flags & ImGuiHoveredFlags.DelayNormal)
+        return g.Style.HoverDelayNormal;
+    return 0.0f;
+}
+
 // This is roughly matching the behavior of internal-facing ItemHoverable()
 // - we allow hovering to be true when ActiveId==window->MoveID, so that clicking on non-interactive items such as a Text() item still returns true with IsItemHovered()
 // - this should work even for non-interactive items that have no ID, so we cannot use LastItemId
@@ -4121,12 +4148,17 @@ bool IsItemHovered(ImGuiHoveredFlags flags = ImGuiHoveredFlags.None)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
+    IM_ASSERT((flags & ~ImGuiHoveredFlags.AllowedMaskForIsItemHovered) == 0, "Invalid flags for IsItemHovered()!");
+
     if (g.NavDisableMouseHover && !g.NavDisableHighlight && !(flags & ImGuiHoveredFlags.NoNavOverride))
     {
         if ((g.LastItemData.InFlags & ImGuiItemFlags.Disabled) && !(flags & ImGuiHoveredFlags.AllowWhenDisabled))
             return false;
         if (!IsItemFocused())
             return false;
+
+        if (flags & ImGuiHoveredFlags.ForTooltip)
+            flags |= g.Style.HoverFlagsForTooltipNav;
     }
     else
     {
@@ -4134,6 +4166,10 @@ bool IsItemHovered(ImGuiHoveredFlags flags = ImGuiHoveredFlags.None)
         ImGuiItemStatusFlags status_flags = g.LastItemData.StatusFlags;
         if (!(status_flags & ImGuiItemStatusFlags.HoveredRect))
             return false;
+
+        if (flags & ImGuiHoveredFlags.ForTooltip)
+            flags |= g.Style.HoverFlagsForTooltipMouse;
+
         IM_ASSERT((flags & (ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.RootWindow | ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.NoPopupHierarchy)) == 0);   // Flags not supported by this function
 
         // Done with rectangle culling so we can perform heavier checks now
@@ -4143,12 +4179,13 @@ bool IsItemHovered(ImGuiHoveredFlags flags = ImGuiHoveredFlags.None)
         // to use IsItemHovered() after EndChild() itself. Until a solution is found I believe reverting to the test from 2017/09/27 is safe since this was
         // the test that has been running for a long while.
         if (g.HoveredWindow != window && (status_flags & ImGuiItemStatusFlags.HoveredWindow) == 0)
-            if ((flags & ImGuiHoveredFlags.AllowWhenOverlapped) == 0)
+            if ((flags & ImGuiHoveredFlags.AllowWhenOverlappedByWindow) == 0)
                 return false;
 
         // Test if another item is active (e.g. being dragged)
+        const ImGuiID id = g.LastItemData.ID;
         if ((flags & ImGuiHoveredFlags.AllowWhenBlockedByActiveItem) == 0)
-            if (g.ActiveId != 0 && g.ActiveId != g.LastItemData.ID && !g.ActiveIdAllowOverlap && g.ActiveId != window.MoveId)
+            if (g.ActiveId != 0 && g.ActiveId != id && !g.ActiveIdAllowOverlap && g.ActiveId != window.MoveId)
                 return false;
 
         // Test if interactions on this window are blocked by an active popup or modal.
@@ -4162,48 +4199,60 @@ bool IsItemHovered(ImGuiHoveredFlags flags = ImGuiHoveredFlags.None)
 
         // Special handling for calling after Begin() which represent the title bar or tab.
         // When the window is skipped/collapsed (SkipItems==true) that last item will never be overwritten so we need to detect the case.
-        if (g.LastItemData.ID == window.MoveId && window.WriteAccessed)
+        if (id == window.MoveId && window.WriteAccessed)
             return false;
+
+        // Test if using AllowOverlap and overlapped
+        if ((g.LastItemData.InFlags & ImGuiItemFlags.AllowOverlap) && id != 0)
+            if ((flags & ImGuiHoveredFlags.AllowWhenOverlappedByItem) == 0)
+                if (g.HoveredIdPreviousFrame != g.LastItemData.ID)
+                    return false;
     }
 
     // Handle hover delay
     // (some ideas: https://www.nngroup.com/articles/timing-exposing-content)
-    float delay;
-    if (flags & ImGuiHoveredFlags.DelayNormal)
-        delay = g.IO.HoverDelayNormal;
-    else if (flags & ImGuiHoveredFlags.DelayShort)
-        delay = g.IO.HoverDelayShort;
-    else
-        delay = 0.0f;
-    if (delay > 0.0f)
+    const float delay = CalcDelayFromHoveredFlags(flags);
+    if (delay > 0.0f || (flags & ImGuiHoveredFlags.Stationary))
     {
         ImGuiID hover_delay_id = (g.LastItemData.ID != 0) ? g.LastItemData.ID : window.GetIDFromRectangle(g.LastItemData.Rect);
-        if ((flags & ImGuiHoveredFlags.NoSharedDelay) && (g.HoverDelayIdPreviousFrame != hover_delay_id))
-            g.HoverDelayTimer = 0.0f;
-        g.HoverDelayId = hover_delay_id;
-        return g.HoverDelayTimer >= delay;
+        if ((flags & ImGuiHoveredFlags.NoSharedDelay) && (g.HoverItemDelayIdPreviousFrame != hover_delay_id))
+            g.HoverItemDelayTimer = 0.0f;
+        g.HoverItemDelayId = hover_delay_id;
+
+        // When changing hovered item we requires a bit of stationary delay before activating hover timer,
+        // but once unlocked on a given item we also moving.
+        //if (g.HoverDelayTimer >= delay && (g.HoverDelayTimer - g.IO.DeltaTime < delay || g.MouseStationaryTimer - g.IO.DeltaTime < g.Style.HoverStationaryDelay)) { IMGUI_DEBUG_LOG("HoverDelayTimer = %f/%f, MouseStationaryTimer = %f\n", g.HoverDelayTimer, delay, g.MouseStationaryTimer); }
+        if ((flags & ImGuiHoveredFlags.Stationary) != 0 && g.HoverItemUnlockedStationaryId != hover_delay_id)
+            return false;
+
+        if (g.HoverItemDelayTimer < delay)
+            return false;
     }
 
     return true;
 }
 
 // Internal facing ItemHoverable() used when submitting widgets. Differs slightly from IsItemHovered().
-bool ItemHoverable(const ImRect/*&*/ bb, ImGuiID id)
+// (this does not rely on LastItemData it can be called from a ButtonBehavior() call not following an ItemAdd() call)
+// FIXME-LEGACY: the 'ImGuiItemFlags item_flags' parameter was added on 2023-06-28.
+// If you used this ii your legacy/custom widgets code:
+// - Commonly: if your ItemHoverable() call comes after an ItemAdd() call: pass 'item_flags = g.LastItemData.InFlags'.
+// - Rare: otherwise you may pass 'item_flags = 0' (ImGuiItemFlags_None) unless you want to benefit from special behavior handled by ItemHoverable.
+bool ItemHoverable(const ImRect/*&*/ bb, ImGuiID id, ImGuiItemFlags item_flags)
 {
     ImGuiContext* g = GImGui;
-    if (g.HoveredId != 0 && g.HoveredId != id && !g.HoveredIdAllowOverlap)
-        return false;
-
     ImGuiWindow* window = g.CurrentWindow;
     if (g.HoveredWindow != window)
-        return false;
-    if (g.ActiveId != 0 && g.ActiveId != id && !g.ActiveIdAllowOverlap)
         return false;
     if (!IsMouseHoveringRect(bb.Min, bb.Max))
         return false;
 
+    if (g.HoveredId != 0 && g.HoveredId != id && !g.HoveredIdAllowOverlap)
+        return false;
+    if (g.ActiveId != 0 && g.ActiveId != id && !g.ActiveIdAllowOverlap)
+        return false;
+
     // Done with rectangle culling so we can perform heavier checks now.
-    ImGuiItemFlags item_flags = (g.LastItemData.ID == id ? g.LastItemData.InFlags : g.CurrentItemFlags);
     if (!(item_flags & ImGuiItemFlags.NoWindowHoverableCheck) && !IsWindowContentHoverable(window, ImGuiHoveredFlags.None))
     {
         g.HoveredIdDisabled = true;
@@ -4213,13 +4262,28 @@ bool ItemHoverable(const ImRect/*&*/ bb, ImGuiID id)
     // We exceptionally allow this function to be called with id==0 to allow using it for easy high-level
     // hover test in widgets code. We could also decide to split this function is two.
     if (id != 0)
+    {
+        // Drag source doesn't report as hovered
+        if (g.DragDropActive && g.DragDropPayload.SourceId == id && !(g.DragDropSourceFlags & ImGuiDragDropFlags.SourceNoDisableHover))
+            return false;
+
         SetHoveredID(id);
+
+        // AllowOverlap mode (rarely used) requires previous frame HoveredId to be null or to match.
+        // This allows using patterns where a later submitted widget overlaps a previous one. Generally perceived as a front-to-back hit-test.
+        if (item_flags & ImGuiItemFlags.AllowOverlap)
+        {
+            g.HoveredIdAllowOverlap = true;
+            if (g.HoveredIdPreviousFrame != id)
+                return false;
+        }
+    }
 
     // When disabled we'll return false but still set HoveredId
     if (item_flags & ImGuiItemFlags.Disabled)
     {
         // Release active id if turning disabled
-        if (g.ActiveId == id)
+        if (g.ActiveId == id && id != 0)
             ClearActiveID();
         g.HoveredIdDisabled = true;
         return false;
@@ -4732,21 +4796,33 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     }
 }
 
+    // Record when we have been stationary as this state is preserved while over same item.
+    // FIXME: The way this is expressed means user cannot alter HoverStationaryDelay during the frame to use varying values.
+    // To allow this we should store HoverItemMaxStationaryTime+ID and perform the >= check in IsItemHovered() function.
+    if (g.HoverItemDelayId != 0 && g.MouseStationaryTimer >= g.Style.HoverStationaryDelay)
+        g.HoverItemUnlockedStationaryId = g.HoverItemDelayId;
+    else if (g.HoverItemDelayId == 0)
+        g.HoverItemUnlockedStationaryId = 0;
+    if (g.HoveredWindow != NULL && g.MouseStationaryTimer >= g.Style.HoverStationaryDelay)
+        g.HoverWindowUnlockedStationaryId = g.HoveredWindow.ID;
+    else if (g.HoveredWindow == NULL)
+        g.HoverWindowUnlockedStationaryId = 0;
+
     // Update hover delay for IsItemHovered() with delays and tooltips
-    g.HoverDelayIdPreviousFrame = g.HoverDelayId;
-    if (g.HoverDelayId != 0)
+    g.HoverItemDelayIdPreviousFrame = g.HoverItemDelayId;
+    if (g.HoverItemDelayId != 0)
     {
-        //if (g.IO.MouseDelta.x == 0.0f && g.IO.MouseDelta.y == 0.0f) // Need design/flags
-        g.HoverDelayTimer += g.IO.DeltaTime;
-        g.HoverDelayClearTimer = 0.0f;
-        g.HoverDelayId = 0;
+        g.HoverItemDelayTimer += g.IO.DeltaTime;
+        g.HoverItemDelayClearTimer = 0.0f;
+        g.HoverItemDelayId = 0;
     }
-    else if (g.HoverDelayTimer > 0.0f)
+    else if (g.HoverItemDelayTimer > 0.0f)
     {
         // This gives a little bit of leeway before clearing the hover timer, allowing mouse to cross gaps
-        g.HoverDelayClearTimer += g.IO.DeltaTime;
-        if (g.HoverDelayClearTimer >= ImMax(0.20f, g.IO.DeltaTime * 2.0f)) // ~6 frames at 30 Hz + allow for low framerate
-            g.HoverDelayTimer = g.HoverDelayClearTimer = 0.0f; // May want a decaying timer, in which case need to clamp at max first, based on max of caller last requested timer.
+        // We could expose 0.25f as style.HoverClearDelay but I am not sure of the logic yet, this is particularly subtle.
+        g.HoverItemDelayClearTimer += g.IO.DeltaTime;
+        if (g.HoverItemDelayClearTimer >= ImMax(0.25f, g.IO.DeltaTime * 2.0f)) // ~7 frames at 30 Hz + allow for low framerate
+            g.HoverItemDelayTimer = g.HoverItemDelayClearTimer = 0.0f; // May want a decaying timer, in which case need to clamp at max first, based on max of caller last requested timer.
     }
 
     // Drag and drop
@@ -5441,16 +5517,27 @@ bool IsItemEdited()
     return (g.LastItemData.StatusFlags & ImGuiItemStatusFlags.Edited) != 0;
 }
 
+// Allow next item to be overlapped by subsequent items.
+// This works by requiring HoveredId to match for two subsequent frames,
+// so if a following items overwrite it our interactions will naturally be disabled.
+void SetNextItemAllowOverlap()
+{
+    ImGuiContext* g = GImGui;
+    g.NextItemData.ItemFlags |= ImGuiItemFlags.AllowOverlap;
+}
+
+static if (!IMGUI_DISABLE_OBSOLETE_FUNCTIONS) {
 // Allow last item to be overlapped by a subsequent item. Both may be activated during the same frame before the later one takes priority.
-// FIXME: Although this is exposed, its interaction and ideal idiom with using ImGuiButtonFlags_AllowItemOverlap flag are extremely confusing, need rework.
+// FIXME-LEGACY: Use SetNextItemAllowOverlap() *before* your item instead.
 void SetItemAllowOverlap()
 {
     ImGuiContext* g = GImGui;
     ImGuiID id = g.LastItemData.ID;
     if (g.HoveredId == id)
         g.HoveredIdAllowOverlap = true;
-    if (g.ActiveId == id)
+    if (g.ActiveId == id) // Before we made this obsolete, most calls to SetItemAllowOverlap() used to avoid this path by testing g.ActiveId != id.
         g.ActiveIdAllowOverlap = true;
+}
 }
 
 // FIXME: It might be undesirable that this will likely disable KeyOwner-aware shortcuts systems. Consider a more fine-tuned version for the two users of this function.
@@ -5529,7 +5616,7 @@ bool BeginChildEx(string name, ImGuiID id, const ImVec2/*&*/ size_arg, bool bord
 
     // Process navigation-in immediately so NavInit can run on first frame
     // Can enter a child if (A) it has navigatable items or (B) it can be scrolled.
-    const ImGuiID temp_id_for_activation = (id + 1);
+    const ImGuiID temp_id_for_activation = ImHashStr("##Child", id);
     if (g.ActiveId == temp_id_for_activation)
         ClearActiveID();
     if (g.NavActivateId == id && !(flags & ImGuiWindowFlags.NavFlattened) && (child_window.DC.NavLayersActiveMask != 0 || child_window.DC.NavWindowHasScrollY))
@@ -6296,12 +6383,13 @@ void UpdateWindowParentAndRootLinks(ImGuiWindow* window, ImGuiWindowFlags flags,
 // When a modal popup is open, newly created windows that want focus (i.e. are not popups and do not specify ImGuiWindowFlags_NoFocusOnAppearing)
 // should be positioned behind that modal window, unless the window was created inside the modal begin-stack.
 // In case of multiple stacked modals newly created window honors begin stack order and does not go below its own modal parent.
-// - Window             // FindBlockingModal() returns Modal1
-//   - Window           //                  .. returns Modal1
+// - WindowA            // FindBlockingModal() returns Modal1
+//   - WindowB          //                  .. returns Modal1
 //   - Modal1           //                  .. returns Modal2
-//      - Window        //                  .. returns Modal2
-//          - Window    //                  .. returns Modal2
+//      - WindowC       //                  .. returns Modal2
+//          - WindowD   //                  .. returns Modal2
 //          - Modal2    //                  .. returns Modal2
+//            - WindowE //                  .. returns NULL
 // Notes:
 // - FindBlockingModal(NULL) == NULL is generally equivalent to GetTopMostPopupModal() == NULL.
 //   Only difference is here we check for ->Active/WasActive but it may be unecessary.
@@ -6312,7 +6400,7 @@ ImGuiWindow* FindBlockingModal(ImGuiWindow* window)
         return NULL;
 
     // Find a modal that has common parent with specified window. Specified window should be positioned behind that modal.
-    for (int i = g.OpenPopupStack.Size - 1; i >= 0; i--)
+    for (int i = 0; i < g.OpenPopupStack.Size; i++)
     {
         ImGuiWindow* popup_window = g.OpenPopupStack.Data[i].Window;
         if (popup_window == NULL || !(popup_window.Flags & ImGuiWindowFlags.Modal))
@@ -6321,11 +6409,9 @@ ImGuiWindow* FindBlockingModal(ImGuiWindow* window)
             continue;
         if (window == NULL)                                         // FindBlockingModal(NULL) test for if FocusWindow(NULL) is naturally possible via a mouse click.
             return popup_window;
-        if (IsWindowWithinBeginStackOf(window, popup_window))       // Window is rendered over last modal, no render order change needed.
-            break;
-        for (ImGuiWindow* parent = popup_window.ParentWindowInBeginStack.RootWindow; parent != NULL; parent = parent.ParentWindowInBeginStack.RootWindow)
-            if (IsWindowWithinBeginStackOf(window, parent))
-                return popup_window;                                // Place window above its begin stack parent.
+        if (IsWindowWithinBeginStackOf(window, popup_window))       // Window may be over modal
+            continue;
+        return popup_window;                                        // Place window right below first block modal
     }
     return NULL;
 }
@@ -7418,7 +7504,8 @@ bool IsWindowAbove(ImGuiWindow* potential_above, ImGuiWindow* potential_below)
 
 bool IsWindowHovered(ImGuiHoveredFlags flags = ImGuiHoveredFlags.None)
 {
-    IM_ASSERT((flags & (ImGuiHoveredFlags.AllowWhenOverlapped | ImGuiHoveredFlags.AllowWhenDisabled)) == 0);   // Flags not supported by this function
+    IM_ASSERT((flags & ~ImGuiHoveredFlags.AllowedMaskForIsWindowHovered) == 0, "Invalid flags for IsWindowHovered()!");
+
     ImGuiContext* g = GImGui;
     ImGuiWindow* ref_window = g.HoveredWindow;
     ImGuiWindow* cur_window = g.CurrentWindow;
@@ -7446,6 +7533,17 @@ bool IsWindowHovered(ImGuiHoveredFlags flags = ImGuiHoveredFlags.None)
     if (!(flags & ImGuiHoveredFlags.AllowWhenBlockedByActiveItem))
         if (g.ActiveId != 0 && !g.ActiveIdAllowOverlap && g.ActiveId != ref_window.MoveId)
             return false;
+
+    // When changing hovered window we requires a bit of stationary delay before activating hover timer.
+    // FIXME: We don't support delay other than stationary one for now, other delay would need a way
+    // to fullfill the possibility that multiple IsWindowHovered() with varying flag could return true
+    // for different windows of the hierarchy. Possibly need a Hash(Current+Flags) ==> (Timer) cache.
+    // We can implement this for _Stationary because the data is linked to HoveredWindow rather than CurrentWindow.
+    if (flags & ImGuiHoveredFlags.ForTooltip)
+        flags |= g.Style.HoverFlagsForTooltipMouse;
+    if ((flags & ImGuiHoveredFlags.Stationary) != 0 && g.HoverWindowUnlockedStationaryId != ref_window.ID)
+        return false;
+
     return true;
 }
 
@@ -7736,13 +7834,6 @@ void SetWindowFontScale(float scale)
     g.FontSize = g.DrawListSharedData.FontSize = window.CalcFontSize();
 }
 
-void ActivateItem(ImGuiID id)
-{
-    ImGuiContext* g = GImGui;
-    g.NavNextActivateId = id;
-    g.NavNextActivateFlags = ImGuiActivateFlags.None;
-}
-
 void PushFocusScope(ImGuiID id)
 {
     ImGuiContext* g = GImGui;
@@ -7758,13 +7849,40 @@ void PopFocusScope()
     g.CurrentFocusScopeId = g.FocusScopeStack.Size ? g.FocusScopeStack.back() : 0;
 }
 
+// Focus = move navigation cursor, set scrolling, set focus window.
+void FocusItem()
+{
+    ImGuiContext* g = GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+    IMGUI_DEBUG_LOG_FOCUS("FocusItem(0x%08x) in window \"%s\"\n", g.LastItemData.ID, window.Name);
+    if (g.DragDropActive || g.MovingWindow != NULL) // FIXME: Opt-in flags for this?
+    {
+        IMGUI_DEBUG_LOG_FOCUS("FocusItem() ignored while DragDropActive!\n");
+        return;
+    }
+
+    ImGuiNavMoveFlags move_flags = ImGuiNavMoveFlags.Tabbing | ImGuiNavMoveFlags.FocusApi | ImGuiNavMoveFlags.NoSelect;
+    ImGuiScrollFlags scroll_flags = window.Appearing ? ImGuiScrollFlags.KeepVisibleEdgeX | ImGuiScrollFlags.AlwaysCenterY : ImGuiScrollFlags.KeepVisibleEdgeX | ImGuiScrollFlags.KeepVisibleEdgeY;
+    SetNavWindow(window);
+    NavMoveRequestSubmit(ImGuiDir.None, ImGuiDir.Up, move_flags, scroll_flags);
+    NavMoveRequestResolveWithLastItem(&g.NavMoveResultLocal);
+}
+
+void ActivateItemByID(ImGuiID id)
+{
+    ImGuiContext* g = GImGui;
+    g.NavNextActivateId = id;
+    g.NavNextActivateFlags = ImGuiActivateFlags.None;
+}
+
 // Note: this will likely be called ActivateItem() once we rework our Focus/Activation system!
+// But ActivateItem() should function without altering scroll/focus?
 void SetKeyboardFocusHere(int offset = 0)
 {
     ImGuiContext* g = GImGui;
     ImGuiWindow* window = g.CurrentWindow;
     IM_ASSERT(offset >= -1);    // -1 is allowed but not below
-    IMGUI_DEBUG_LOG_ACTIVEID("SetKeyboardFocusHere(%d) in window \"%s\"\n", offset, window.Name);
+    IMGUI_DEBUG_LOG_FOCUS("SetKeyboardFocusHere(%d) in window \"%s\"\n", offset, window.Name);
 
     // It makes sense in the vast majority of cases to never interrupt a drag and drop.
     // When we refactor this function into ActivateItem() we may want to make this an option.
@@ -7772,14 +7890,15 @@ void SetKeyboardFocusHere(int offset = 0)
     // is also automatically dropped in the event g.ActiveId is stolen.
     if (g.DragDropActive || g.MovingWindow != NULL)
     {
-        IMGUI_DEBUG_LOG_ACTIVEID("SetKeyboardFocusHere() ignored while DragDropActive!\n");
+        IMGUI_DEBUG_LOG_FOCUS("SetKeyboardFocusHere() ignored while DragDropActive!\n");
         return;
     }
 
     SetNavWindow(window);
 
+    ImGuiNavMoveFlags move_flags = ImGuiNavMoveFlags.Tabbing | ImGuiNavMoveFlags.Activate | ImGuiNavMoveFlags.FocusApi;
     ImGuiScrollFlags scroll_flags = window.Appearing ? ImGuiScrollFlags.KeepVisibleEdgeX | ImGuiScrollFlags.AlwaysCenterY : ImGuiScrollFlags.KeepVisibleEdgeX | ImGuiScrollFlags.KeepVisibleEdgeY;
-    NavMoveRequestSubmit(ImGuiDir.None, offset < 0 ? ImGuiDir.Up : ImGuiDir.Down, ImGuiNavMoveFlags.Tabbing | ImGuiNavMoveFlags.FocusApi, scroll_flags); // FIXME-NAV: Once we refactor tabbing, add LegacyApi flag to not activate non-inputable.
+    NavMoveRequestSubmit(ImGuiDir.None, offset < 0 ? ImGuiDir.Up : ImGuiDir.Down, move_flags, scroll_flags); // FIXME-NAV: Once we refactor tabbing, add LegacyApi flag to not activate non-inputable.
     if (offset == -1)
     {
         NavMoveRequestResolveWithLastItem(&g.NavMoveResultLocal);
@@ -8030,7 +8149,7 @@ string GetKeyName(ImGuiKey key)
 {
     ImGuiContext* g = GImGui;
 static if (IMGUI_DISABLE_OBSOLETE_KEYIO) {
-    IM_ASSERT((IsNamedKey(key) || key == ImGuiKey.None), "Support for user key indices was dropped in favor of ImGuiKey. Please update backend and user code.");
+    IM_ASSERT((IsNamedKeyOrModKey(key) || key == ImGuiKey.None), "Support for user key indices was dropped in favor of ImGuiKey. Please update backend and user code.");
 } else {
     if (IsLegacyKey(key))
     {
@@ -8697,6 +8816,13 @@ static void UpdateMouseInputs()
         io.MouseDelta = io.MousePos - io.MousePosPrev;
     else
         io.MouseDelta = ImVec2(0.0f, 0.0f);
+
+    // Update stationary timer.
+    // FIXME: May need to rework again to have some tolerance for occasional small movement, while being functional on high-framerates.
+    const float mouse_stationary_threshold = (io.MouseSource == ImGuiMouseSource.Mouse) ? 2.0f : 3.0f; // Slightly higher threshold for ImGuiMouseSource_TouchScreen/ImGuiMouseSource_Pen, may need rework.
+    const bool mouse_stationary = (ImLengthSqr(io.MouseDelta) <= mouse_stationary_threshold * mouse_stationary_threshold);
+    g.MouseStationaryTimer = mouse_stationary ? (g.MouseStationaryTimer + io.DeltaTime) : 0.0f;
+    //IMGUI_DEBUG_LOG("%.4f\n", g.MouseStationaryTimer);
 
     // If mouse moved we re-enable mouse hovering in case it was disabled by gamepad/keyboard. In theory should use a >0.0f threshold but would need to reset in everywhere we set this to true.
     if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f)
@@ -9561,7 +9687,7 @@ bool ItemAdd(const ImRect/*&*/ bb, ImGuiID id, const ImRect* nav_bb_arg = NULL, 
     g.LastItemData.ID = id;
     g.LastItemData.Rect = bb;
     g.LastItemData.NavRect = nav_bb_arg ? *nav_bb_arg : bb;
-    g.LastItemData.InFlags = g.CurrentItemFlags | extra_flags;
+    g.LastItemData.InFlags = g.CurrentItemFlags | g.NextItemData.ItemFlags | extra_flags;
     g.LastItemData.StatusFlags = ImGuiItemStatusFlags.None;
 
     // Directional navigation processing
@@ -9593,6 +9719,7 @@ bool ItemAdd(const ImRect/*&*/ bb, ImGuiID id, const ImRect* nav_bb_arg = NULL, 
         IM_ASSERT(id != window.ID, "Cannot have an empty ID at the root of a window. If you need an empty label, use ## and read the FAQ about how the ID Stack works!");
     }
     g.NextItemData.Flags = ImGuiNextItemDataFlags.None;
+    g.NextItemData.ItemFlags = ImGuiItemFlags.None;
 
 version (IMGUI_ENABLE_TEST_ENGINE) {
     if (id != 0)
@@ -10238,26 +10365,35 @@ bool BeginTooltip()
     return BeginTooltipEx(ImGuiTooltipFlags.None, ImGuiWindowFlags.None);
 }
 
+bool BeginItemTooltip()
+{
+    if (!IsItemHovered(ImGuiHoveredFlags.ForTooltip))
+        return false;
+    return BeginTooltipEx(ImGuiTooltipFlags.None, ImGuiWindowFlags.None);
+}
+
 bool BeginTooltipEx(ImGuiTooltipFlags tooltip_flags, ImGuiWindowFlags extra_window_flags)
 {
     ImGuiContext* g = GImGui;
 
     if (g.DragDropWithinSource || g.DragDropWithinTarget)
     {
-        // The default tooltip position is a little offset to give space to see the context menu (it's also clamped within the current viewport/monitor)
-        // In the context of a dragging tooltip we try to reduce that offset and we enforce following the cursor.
-        // Whatever we do we want to call SetNextWindowPos() to enforce a tooltip position and disable clipping the tooltip without our display area, like regular tooltip do.
+        // Drag and Drop tooltips are positioning differently than other tooltips:
+        // - offset visibility to increase visibility around mouse.
+        // - never clamp within outer viewport boundary.
+        // We call SetNextWindowPos() to enforce position and disable clamping.
+        // See FindBestWindowPosForPopup() for positionning logic of other tooltips (not drag and drop ones).
         //ImVec2 tooltip_pos = g.IO.MousePos - g.ActiveIdClickOffset - g.Style.WindowPadding;
-        ImVec2 tooltip_pos = g.IO.MousePos + ImVec2(16 * g.Style.MouseCursorScale, 8 * g.Style.MouseCursorScale);
+        ImVec2 tooltip_pos = g.IO.MousePos + TOOLTIP_DEFAULT_OFFSET * g.Style.MouseCursorScale;
         SetNextWindowPos(tooltip_pos);
         SetNextWindowBgAlpha(g.Style.Colors[ImGuiCol.PopupBg].w * 0.60f);
         //PushStyleVar(ImGuiStyleVar_Alpha, g.Style.Alpha * 0.60f); // This would be nice but e.g ColorButton with checkboard has issue with transparent colors :(
-        tooltip_flags |= ImGuiTooltipFlags.OverridePreviousTooltip;
+        tooltip_flags |= ImGuiTooltipFlags.OverridePrevious;
     }
 
     char[16] window_name;
     int length = ImFormatString(window_name, "##Tooltip_%02d", g.TooltipOverrideCount);
-    if (tooltip_flags & ImGuiTooltipFlags.OverridePreviousTooltip)
+    if (tooltip_flags & ImGuiTooltipFlags.OverridePrevious)
         if (ImGuiWindow* window = FindWindowByName(cast(string)window_name[0..length]))
             if (window.Active)
             {
@@ -10281,20 +10417,37 @@ void EndTooltip()
     End();
 }
 
-void SetTooltipV(string fmt, va_list args)
-{
-    if (!BeginTooltipEx(ImGuiTooltipFlags.OverridePreviousTooltip, ImGuiWindowFlags.None))
-        return;
-    TextV(fmt, args);
-    EndTooltip();
-}
-
 void SetTooltip(A...)(string fmt, A a)
 {
     mixin va_start!a;
     SetTooltipV(fmt, va_args);
     va_end(va_args);
 }
+
+void SetTooltipV(string fmt, va_list args)
+{
+    if (!BeginTooltipEx(ImGuiTooltipFlags.OverridePrevious, ImGuiWindowFlags.None))
+        return;
+    TextV(fmt, args);
+    EndTooltip();
+}
+
+// Shortcut to use 'style.HoverFlagsForTooltipMouse' or 'style.HoverFlagsForTooltipNav'.
+// Defaults to == ImGuiHoveredFlags_Stationary | ImGuiHoveredFlags_DelayShort when using the mouse.
+void SetItemTooltip(A...)(string fmt, A a)
+{
+    mixin va_start!a;
+    if (IsItemHovered(ImGuiHoveredFlags.ForTooltip))
+        SetTooltipV(fmt, va_args);
+    va_end(va_args);
+}
+
+void SetItemTooltipV(string fmt, va_list args)
+{
+    if (IsItemHovered(ImGuiHoveredFlags.ForTooltip))
+        SetTooltipV(fmt, args);
+}
+
 
 //-----------------------------------------------------------------------------
 // [SECTION] POPUPS
@@ -10819,15 +10972,20 @@ ImVec2 FindBestWindowPosForPopup(ImGuiWindow* window)
     }
     if (window.Flags & ImGuiWindowFlags.Tooltip)
     {
-        // Position tooltip (always follows mouse)
-        float sc = g.Style.MouseCursorScale;
-        ImVec2 ref_pos = NavCalcPreferredRefPos();
+        // Position tooltip (always follows mouse + clamp within outer boundaries)
+        // Note that drag and drop tooltips are NOT using this path: BeginTooltipEx() manually sets their position.
+        // In theory we could handle both cases in same location, but requires a bit of shuffling as drag and drop tooltips are calling SetWindowPos() leading to 'window_pos_set_by_api' being set in Begin()
+        IM_ASSERT(g.CurrentWindow == window);
+        const float scale = g.Style.MouseCursorScale;
+        const ImVec2 ref_pos = NavCalcPreferredRefPos();
+        const ImVec2 tooltip_pos = ref_pos + TOOLTIP_DEFAULT_OFFSET * scale;
         ImRect r_avoid;
         if (!g.NavDisableHighlight && g.NavDisableMouseHover && !(g.IO.ConfigFlags & ImGuiConfigFlags.NavEnableSetMousePos))
             r_avoid = ImRect(ref_pos.x - 16, ref_pos.y - 8, ref_pos.x + 16, ref_pos.y + 8);
         else
-            r_avoid = ImRect(ref_pos.x - 16, ref_pos.y - 8, ref_pos.x + 24 * sc, ref_pos.y + 24 * sc); // FIXME: Hard-coded based on mouse cursor shape expectation. Exact dimension not very important.
-        return FindBestWindowPosForPopupEx(ref_pos, window.Size, &window.AutoPosLastDirection, r_outer, r_avoid, ImGuiPopupPositionPolicy.Tooltip);
+            r_avoid = ImRect(ref_pos.x - 16, ref_pos.y - 8, ref_pos.x + 24 * scale, ref_pos.y + 24 * scale); // FIXME: Hard-coded based on mouse cursor shape expectation. Exact dimension not very important.
+        //GetForegroundDrawList()->AddRect(r_avoid.Min, r_avoid.Max, IM_COL32(255, 0, 255, 255));
+        return FindBestWindowPosForPopupEx(tooltip_pos, window.Size, &window.AutoPosLastDirection, r_outer, r_avoid, ImGuiPopupPositionPolicy.Tooltip);
     }
     IM_ASSERT(0);
     return window.Pos;
@@ -11769,9 +11927,10 @@ void NavUpdateCreateTabbingRequest()
         g.NavTabbingDir = g.IO.KeyShift ? -1 : (g.NavDisableHighlight == true && g.ActiveId == 0) ? 0 : +1;
     else
         g.NavTabbingDir = g.IO.KeyShift ? -1 : (g.ActiveId == 0) ? 0 : +1;
+    ImGuiNavMoveFlags move_flags = ImGuiNavMoveFlags.Tabbing | ImGuiNavMoveFlags.Activate;
     ImGuiScrollFlags scroll_flags = window.Appearing ? ImGuiScrollFlags.KeepVisibleEdgeX | ImGuiScrollFlags.AlwaysCenterY : ImGuiScrollFlags.KeepVisibleEdgeX | ImGuiScrollFlags.KeepVisibleEdgeY;
     ImGuiDir clip_dir = (g.NavTabbingDir < 0) ? ImGuiDir.Up : ImGuiDir.Down;
-    NavMoveRequestSubmit(ImGuiDir.None, clip_dir, ImGuiNavMoveFlags.Tabbing, scroll_flags); // FIXME-NAV: Once we refactor tabbing, add LegacyApi flag to not activate non-inputable.
+    NavMoveRequestSubmit(ImGuiDir.None, clip_dir, move_flags, scroll_flags); // FIXME-NAV: Once we refactor tabbing, add LegacyApi flag to not activate non-inputable.
     g.NavTabbingCounter = -1;
 }
 
@@ -11797,8 +11956,8 @@ static if (IMGUI_DEBUG_NAV_SCORING) {
     if (result == NULL)
     {
         if (g.NavMoveFlags & ImGuiNavMoveFlags.Tabbing)
-            g.NavMoveFlags |= ImGuiNavMoveFlags.DontSetNavHighlight;
-        if (g.NavId != 0 && (g.NavMoveFlags & ImGuiNavMoveFlags.DontSetNavHighlight) == 0)
+            g.NavMoveFlags |= ImGuiNavMoveFlags.NoSetNavHighlight;
+        if (g.NavId != 0 && (g.NavMoveFlags & ImGuiNavMoveFlags.NoSetNavHighlight) == 0)
             NavRestoreHighlightAfterMove();
         NavClearPreferredPosForAxis(axis); // On a failed move, clear preferred pos for this axis.
         IMGUI_DEBUG_LOG_NAV("[nav] NavMoveSubmitted but not led to a result!\n");
@@ -11837,7 +11996,7 @@ static if (IMGUI_DEBUG_NAV_SCORING) {
     }
     if (g.ActiveId != result.ID)
         ClearActiveID();
-    if (g.NavId != result.ID)
+    if (g.NavId != result.ID && (g.NavMoveFlags & ImGuiNavMoveFlags.NoSelect) == 0)
     {
         // Don't set NavJustMovedToId if just landed on the same spot (which may happen with ImGuiNavMoveFlags_AllowCurrentNavId)
         g.NavJustMovedToId = result.ID;
@@ -11858,23 +12017,22 @@ static if (IMGUI_DEBUG_NAV_SCORING) {
         g.NavWindow.RootWindowForNav.NavPreferredScoringPosRel[g.NavLayer] = preferred_scoring_pos_rel;
     }
 
-    // Tabbing: Activates Inputable or Focus non-Inputable
-    if ((g.NavMoveFlags & ImGuiNavMoveFlags.Tabbing) && (result.InFlags & ImGuiItemFlags.Inputable))
-    {
-        g.NavNextActivateId = result.ID;
-        g.NavNextActivateFlags = ImGuiActivateFlags.PreferInput | ImGuiActivateFlags.TryToPreserveState;
-        g.NavMoveFlags |= ImGuiNavMoveFlags.DontSetNavHighlight;
-    }
+    // Tabbing: Activates Inputable, otherwise only Focus
+    if ((g.NavMoveFlags & ImGuiNavMoveFlags.Tabbing) && (result.InFlags & ImGuiItemFlags.Inputable) == 0)
+        g.NavMoveFlags &= ~ImGuiNavMoveFlags.Activate;
 
     // Activate
     if (g.NavMoveFlags & ImGuiNavMoveFlags.Activate)
     {
         g.NavNextActivateId = result.ID;
         g.NavNextActivateFlags = ImGuiActivateFlags.None;
+        g.NavMoveFlags |= ImGuiNavMoveFlags.NoSetNavHighlight;
+        if (g.NavMoveFlags & ImGuiNavMoveFlags.Tabbing)
+            g.NavNextActivateFlags |= ImGuiActivateFlags.PreferInput | ImGuiActivateFlags.TryToPreserveState;
     }
 
     // Enable nav highlight
-    if ((g.NavMoveFlags & ImGuiNavMoveFlags.DontSetNavHighlight) == 0)
+    if ((g.NavMoveFlags & ImGuiNavMoveFlags.NoSetNavHighlight) == 0)
         NavRestoreHighlightAfterMove();
 }
 
@@ -12430,7 +12588,7 @@ bool BeginDragDropSource(ImGuiDragDropFlags flags = ImGuiDragDropFlags.None)
             // Rely on keeping other window->LastItemXXX fields intact.
             source_id = g.LastItemData.ID = window.GetIDFromRectangle(g.LastItemData.Rect);
             KeepAliveID(source_id);
-            bool is_hovered = ItemHoverable(g.LastItemData.Rect, source_id);
+            bool is_hovered = ItemHoverable(g.LastItemData.Rect, source_id, g.LastItemData.InFlags);
             if (is_hovered && g.IO.MouseClicked[mouse_button])
             {
                 SetActiveID(source_id, window);
@@ -13138,13 +13296,14 @@ ImGuiWindowSettings* CreateNewWindowSettings(string name)
 {
     ImGuiContext* g = GImGui;
 
-static if (!IMGUI_DEBUG_INI_SETTINGS) {
-    // Skip to the "###" marker if any. We don't skip past to match the behavior of GetID()
-    // Preserve the full string when IMGUI_DEBUG_INI_SETTINGS is set to make .ini inspection easier.
-    ptrdiff_t index = ImIndexOf(name, "###");
-    if (index != -1)
-        name = name[index..$];
-}
+    if (g.IO.ConfigDebugIniSettings == false)
+    {
+        // Skip to the "###" marker if any. We don't skip past to match the behavior of GetID()
+        // Preserve the full string when ConfigDebugVerboseIniSettings is set to make .ini inspection easier.
+        ptrdiff_t index = ImIndexOf(name, "###");
+        if (index != -1)
+            name = name[index..$];
+    }
     const size_t name_len = name.length;
 
     // Allocate chunk
@@ -13685,7 +13844,7 @@ void DebugTextEncoding(string str)
 static void MetricsHelpMarker(string desc)
 {
     TextDisabled("(?)");
-    if (IsItemHovered(ImGuiHoveredFlags.DelayShort) && BeginTooltip())
+    if (BeginItemTooltip())
     {
         PushTextWrapPos(GetFontSize() * 35.0f);
         TextUnformatted(desc);
@@ -13783,7 +13942,7 @@ void ShowMetricsWindow(bool* p_open = NULL)
             else if (rect_type == WRT_InnerRect)            { return window.InnerRect; }
             else if (rect_type == WRT_InnerClipRect)        { return window.InnerClipRect; }
             else if (rect_type == WRT_WorkRect)             { return window.WorkRect; }
-            else if (rect_type == WRT_Content)       { ImVec2 min = window.InnerRect.Min - window.Scroll + window.WindowPadding; return ImRect(min, min + window.ContentSize); }
+            else if (rect_type == WRT_Content)              { ImVec2 min = window.InnerRect.Min - window.Scroll + window.WindowPadding; return ImRect(min, min + window.ContentSize); }
             else if (rect_type == WRT_ContentIdeal)         { ImVec2 min = window.InnerRect.Min - window.Scroll + window.WindowPadding; return ImRect(min, min + window.ContentSizeIdeal); }
             else if (rect_type == WRT_ContentRegionRect)    { return window.ContentRegionRect; }
             IM_ASSERT(0);
@@ -14020,11 +14179,12 @@ version (IMGUI_HAS_DOCK) {
             Text("\"%s\"", g.IO.IniFilename);
         else
             TextUnformatted("<NULL>");
+        Checkbox("io.ConfigDebugIniSettings", &io.ConfigDebugIniSettings);
         Text("SettingsDirtyTimer %.2f", g.SettingsDirtyTimer);
         if (TreeNode("SettingsHandlers", "Settings handlers: (%d)", g.SettingsHandlers.Size))
         {
             for (int n = 0; n < g.SettingsHandlers.Size; n++)
-                BulletText("%s", g.SettingsHandlers[n].TypeName);
+                BulletText("\"%s\"", g.SettingsHandlers[n].TypeName);
             TreePop();
         }
         if (TreeNode("SettingsWindows", "Settings packed data: Windows: %d bytes", g.SettingsWindows.size()))
@@ -14087,6 +14247,7 @@ static if (IMGUI_DISABLE_OBSOLETE_KEYIO) {
             Text("Mouse clicked:");  for (int i = 0; i < count; i++) if (IsMouseClicked(cast(ImGuiMouseButton)i)) { SameLine(); Text("b%d (%d)", i, io.MouseClickedCount[i]); }
             Text("Mouse released:"); for (int i = 0; i < count; i++) if (IsMouseReleased(cast(ImGuiMouseButton)i)) { SameLine(); Text("b%d", i); }
             Text("Mouse wheel: %.1f", io.MouseWheel);
+            Text("MouseStationaryTimer: %.2f", g.MouseStationaryTimer);
             Text("Mouse source: %s", GetMouseSourceName(io.MouseSource));
             Text("Pen Pressure: %.1f", io.PenPressure); // Note: currently unused
             Unindent();
@@ -14162,7 +14323,7 @@ static if (IMGUI_DISABLE_OBSOLETE_KEYIO) {
         Text("ActiveIdWindow: '%s'", g.ActiveIdWindow ? g.ActiveIdWindow.Name : "NULL");
         Text("ActiveIdUsing: AllKeyboardKeys: %d, NavDirMask: %X", g.ActiveIdUsingAllKeyboardKeys, g.ActiveIdUsingNavDirMask);
         Text("HoveredId: 0x%08X (%.2f sec), AllowOverlap: %d", g.HoveredIdPreviousFrame, g.HoveredIdTimer, g.HoveredIdAllowOverlap); // Not displaying g.HoveredId as it is update mid-frame
-        Text("HoverDelayId: 0x%08X, Timer: %.2f, ClearTimer: %.2f", g.HoverDelayId, g.HoverDelayTimer, g.HoverDelayClearTimer);
+        Text("HoverItemDelayId: 0x%08X, Timer: %.2f, ClearTimer: %.2f", g.HoverItemDelayId, g.HoverItemDelayTimer, g.HoverItemDelayClearTimer);
         Text("DragDrop: %d, SourceId = 0x%08X, Payload \"%s\" (%d bytes)", g.DragDropActive, g.DragDropPayload.SourceId, g.DragDropPayload.DataType[], g.DragDropPayload.DataSize);
         DebugLocateItemOnHover(g.DragDropPayload.SourceId);
         Unindent();

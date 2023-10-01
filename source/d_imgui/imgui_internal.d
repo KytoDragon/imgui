@@ -1,4 +1,4 @@
-// dear imgui, v1.89.6
+// dear imgui, v1.89.7
 // (internal structures/api)
 module d_imgui.imgui_internal;
 
@@ -313,6 +313,8 @@ pragma(inline, true) float IM_FLOOR(float _VAL) {
 pragma(inline, true) float IM_ROUND(float _VAL) {
     return (cast(float)cast(int)((_VAL) + 0.5f)) ;                      //
 }
+//#define IM_STRINGIFY_HELPER(_X)         #_X
+//#define IM_STRINGIFY(_X)                IM_STRINGIFY_HELPER(_X)                                 // Preprocessor idiom to stringify e.g. an integer.
 
 /+
 // Enforce cdecl calling convention for functions called by the standard library, in case compilation settings changed the default to e.g. __vectorcall
@@ -939,6 +941,7 @@ enum ImGuiItemFlags : int
     MixedValue               = 1 << 6,  // false     // [BETA] Represent a mixed/indeterminate value, generally multi-selection where values differ. Currently only supported by Checkbox() (later should support all sorts of widgets)
     ReadOnly                 = 1 << 7,  // false     // [ALPHA] Allow hovering interactions but underlying value is not changed.
     NoWindowHoverableCheck   = 1 << 8,  // false     // Disable hoverable check in ItemHoverable()
+    AllowOverlap             = 1 << 9,  // false     // Allow being overlapped by another widget. Not-hovered to Hovered transition deferred by a frame.
 
     // Controlled by widget code
     Inputable                = 1 << 10, // false     // [WIP] Auto-activate input mode when tab focused. Currently only used and supported by a few items before it becomes a generic feature.
@@ -970,7 +973,20 @@ enum ImGuiItemStatusFlags : int
 // }
 }
 
+// Extend ImGuiHoveredFlags_
+// D_IMGUI: Moved into ImGuiHoveredFlags
+/+
+enum ImGuiHoveredFlagsPrivate_
+{
+    DelayMask_                    = ImGuiHoveredFlags.DelayNone | ImGuiHoveredFlags.DelayShort | ImGuiHoveredFlags.DelayNormal | ImGuiHoveredFlags.NoSharedDelay,
+    AllowedMaskForIsWindowHovered = ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.RootWindow | ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.NoPopupHierarchy | ImGuiHoveredFlags.AllowWhenBlockedByPopup | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.ForTooltip | ImGuiHoveredFlags.Stationary,
+    AllowedMaskForIsItemHovered   = ImGuiHoveredFlags.AllowWhenBlockedByPopup | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenOverlapped | ImGuiHoveredFlags.AllowWhenDisabled | ImGuiHoveredFlags.NoNavOverride | ImGuiHoveredFlags.ForTooltip | ImGuiHoveredFlags.Stationary | ImGuiHoveredFlags.DelayMask_,
+}
++/
+
 // Extend ImGuiInputTextFlags_
+// D_IMGUI: Moved into ImGuiInputTextFlags
+/+
 enum ImGuiInputTextFlagsPrivate_
 {
     // [Internal]
@@ -978,6 +994,7 @@ enum ImGuiInputTextFlagsPrivate_
     NoMarkEdited        = 1 << 27,  // For internal use by functions using InputText() before reformatting data
     MergedItem          = 1 << 28,  // For internal use by TempInputText(), will skip calling ItemAdd(). Require bounding-box to strictly match.
 }
++/
 
 // Extend ImGuiButtonFlags_
 // D_IMGUI: Moved into ImGuiButtonFlags
@@ -992,7 +1009,7 @@ enum ImGuiButtonFlagsPrivate_
     PressedOnDragDropHold  = 1 << 9,   // return true when held into while we are drag and dropping another item (used by e.g. tree nodes, collapsing headers)
     Repeat                 = 1 << 10,  // hold to repeat
     FlattenChildren        = 1 << 11,  // allow interactions even if a child window is overlapping
-    AllowItemOverlap       = 1 << 12,  // require previous frame HoveredId to either match id or be null before being usable, use along with SetItemAllowOverlap()
+    AllowOverlap           = 1 << 12,  // require previous frame HoveredId to either match id or be null before being usable.
     DontClosePopups        = 1 << 13,  // disable automatically closing parent popup on press // [UNUSED]
     //ImGuiButtonFlags_Disabled             = 1 << 14,  // disable interactions -> use BeginDisabled() or ImGuiItemFlags_Disabled
     AlignTextBaseLine      = 1 << 15,  // vertically align button to match text baseline - ButtonEx() only // FIXME: Should be removed and handled by SmallButton(), not possible currently because of DC.CursorPosPrevLine
@@ -1049,6 +1066,7 @@ enum ImGuiSelectableFlagsPrivate_
 enum ImGuiTreeNodeFlagsPrivate_
 {
     ClipLabelForTrailingButton = 1 << 20,
+    UpsideDownArrow            = 1 << 21,// (FIXME-WIP) Turn Down arrow into an Up arrow, but reversed trees (#6517)
 }
 +/
 
@@ -1079,7 +1097,7 @@ enum ImGuiTextFlags : int
 enum ImGuiTooltipFlags : int
 {
     None                      = 0,
-    OverridePreviousTooltip   = 1 << 0,   // Override will clear/ignore previously submitted tooltip (defaults to append)
+    OverridePrevious          = 1 << 1,   // Clear/ignore previously submitted tooltip (defaults to append)
 }
 
 // FIXME: this is in development, not exposed/functional as a generic feature yet.
@@ -1356,6 +1374,7 @@ struct ImGuiNextItemData
     @nogc:
 
     ImGuiNextItemDataFlags      Flags;
+    ImGuiItemFlags              ItemFlags;      // Currently only tested/used for ImGuiItemflags_AllowOverlap.
     float                       Width;          // Set by SetNextItemWidth()
     ImGuiID                     FocusScopeId;   // Set by SetNextItemMultiSelectData() (!= 0 signify value has been set, so it's an alternate version of HasSelectionData, we don't use Flags for this because they are cleared too early. This is mostly used for debugging)
     ImGuiCond                   OpenCond;
@@ -1363,7 +1382,7 @@ struct ImGuiNextItemData
 
     @disable this();
     this(bool dummy)         { memset(&this, 0, sizeof(this)); }
-    pragma(inline, true) void ClearFlags()    { Flags = ImGuiNextItemDataFlags.None; } // Also cleared manually by ItemAdd()!
+    pragma(inline, true) void ClearFlags()    { Flags = ImGuiNextItemDataFlags.None; ItemFlags = ImGuiItemFlags.None; } // Also cleared manually by ItemAdd()!
 }
 
 // Status storage for the last submitted item
@@ -1700,10 +1719,11 @@ enum ImGuiNavMoveFlags : int
     ScrollToEdgeY         = 1 << 6,   // Force scrolling to min/max (used by Home/End) // FIXME-NAV: Aim to remove or reword, probably unnecessary
     Forwarded             = 1 << 7,
     DebugNoResult         = 1 << 8,   // Dummy scoring for debug purpose, don't apply result
-    FocusApi              = 1 << 9,
+    FocusApi              = 1 << 9,   // Requests from focus API can land/focus/activate items even if they are marked with _NoTabStop (see NavProcessItemForTabbingRequest() for details)
     Tabbing               = 1 << 10,  // == Focus + Activate if item is Inputable + DontChangeNavHighlight
-    Activate              = 1 << 11,
-    DontSetNavHighlight   = 1 << 12,  // Do not alter the visible state of keyboard vs mouse nav highlight
+    Activate              = 1 << 11,  // Activate/select target item.
+    NoSelect              = 1 << 12,  // Don't trigger selection by not setting g.NavJustMovedTo
+    NoSetNavHighlight     = 1 << 13,  // Do not alter the visible state of keyboard vs mouse nav highlight
 }
 
 enum ImGuiNavLayer : int
@@ -1903,6 +1923,7 @@ struct ImGuiSettingsHandler
 // This is experimental and not officially supported, it'll probably fall short of features, if/when it does we may backtrack.
 enum ImGuiLocKey : int
 {
+    VersionStr,
     TableSizeOne,
     TableSizeAllFit,
     TableSizeAllDefault,
@@ -2175,7 +2196,6 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
 
     // Render
     float                   DimBgRatio;                         // 0.0..1.0 animation when fading in a dimming background (for modal window and CTRL+TAB list)
-    ImGuiMouseCursor        MouseCursor;
 
     // Drag and Drop
     bool                    DragDropActive;
@@ -2215,13 +2235,19 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
     ImVector!ImGuiShrinkWidthItem  ShrinkWidthBuffer;
 
     // Hover Delay system
-    ImGuiID                 HoverDelayId;
-    ImGuiID                 HoverDelayIdPreviousFrame;
-    float                   HoverDelayTimer;                    // Currently used IsItemHovered(), generally inferred from g.HoveredIdTimer but kept uncleared until clear timer elapse.
-    float                   HoverDelayClearTimer;               // Currently used IsItemHovered(): grace time before g.TooltipHoverTimer gets cleared.
+    ImGuiID                 HoverItemDelayId;
+    ImGuiID                 HoverItemDelayIdPreviousFrame;
+    float                   HoverItemDelayTimer;                // Currently used by IsItemHovered()
+    float                   HoverItemDelayClearTimer;           // Currently used by IsItemHovered(): grace time before g.TooltipHoverTimer gets cleared.
+    ImGuiID                 HoverItemUnlockedStationaryId;      // Mouse has once been stationary on this item. Only reset after departing the item.
+    ImGuiID                 HoverWindowUnlockedStationaryId;    // Mouse has once been stationary on this window. Only reset after departing the window.
+
+    // Mouse state
+    ImGuiMouseCursor        MouseCursor;
+    float                   MouseStationaryTimer;               // Time the mouse has been stationary (with some loose heuristic)
+    ImVec2                  MouseLastValidPos;
 
     // Widget state
-    ImVec2                  MouseLastValidPos;
     ImGuiInputTextState     InputTextState;
     ImGuiInputTextDeactivatedState InputTextDeactivatedState;
     ImFont                  InputTextPasswordFont;
@@ -2414,7 +2440,6 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         NavWindowingToggleLayer = false;
 
         DimBgRatio = 0.0f;
-        MouseCursor = ImGuiMouseCursor.Arrow;
 
         DragDropActive = DragDropWithinSource = DragDropWithinTarget = false;
         DragDropSourceFlags = ImGuiDragDropFlags.None;
@@ -2434,8 +2459,11 @@ static if (!IMGUI_DISABLE_OBSOLETE_KEYIO) {
         TablesTempDataStacked = 0;
         CurrentTabBar = NULL;
 
-        HoverDelayId = HoverDelayIdPreviousFrame = 0;
-        HoverDelayTimer = HoverDelayClearTimer = 0.0f;
+        HoverItemDelayId = HoverItemDelayIdPreviousFrame = HoverItemUnlockedStationaryId = HoverWindowUnlockedStationaryId = 0;
+        HoverItemDelayTimer = HoverItemDelayClearTimer = 0.0f;
+
+        MouseCursor = ImGuiMouseCursor.Arrow;
+        MouseStationaryTimer = 0.0f;
 
         TempInputId = 0;
         ColorEditOptions = ImGuiColorEditFlags.DefaultOptions_;
@@ -3242,7 +3270,7 @@ struct ImGuiTableSettings
     pragma(inline, true) void             ItemSize(const ImRect/*&*/ bb, float text_baseline_y = -1.0f) { d_imgui.imgui.ItemSize(bb.GetSize(), text_baseline_y); } // FIXME: This is a misleading API since we expect CursorPos to be bb.Min.
     /+
     bool          ItemAdd(const ImRect/*&*/ bb, ImGuiID id, const ImRect* nav_bb = NULL, ImGuiItemFlags extra_flags = 0);
-    bool          ItemHoverable(const ImRect/*&*/ bb, ImGuiID id);
+    bool          ItemHoverable(const ImRect/*&*/ bb, ImGuiID id, ImGuiItemFlags item_flags);
     bool          IsWindowContentHoverable(ImGuiWindow* window, ImGuiHoveredFlags flags = 0);
     bool          IsClippedEx(const ImRect/*&*/ bb, ImGuiID id);
     void          SetLastItemData(ImGuiID item_id, ImGuiItemFlags in_flags, ImGuiItemStatusFlags status_flags, const ImRect/*&*/ item_rect);
@@ -3302,10 +3330,15 @@ struct ImGuiTableSettings
     void          NavMoveRequestTryWrapping(ImGuiWindow* window, ImGuiNavMoveFlags move_flags);
     void          NavClearPreferredPosForAxis(ImGuiAxis axis);
     void          NavUpdateCurrentWindowIsScrollPushableX();
-    void          ActivateItem(ImGuiID id);   // Remotely activate a button, checkbox, tree node etc. given its unique ID. activation is queued and processed on the next frame when the item is encountered again.
     void          SetNavWindow(ImGuiWindow* window);
     void          SetNavID(ImGuiID id, ImGuiNavLayer nav_layer, ImGuiID focus_scope_id, const ImRect/*&*/ rect_rel);
     +/
+
+    // Focus/Activation
+    // This should be part of a larger set of API: FocusItem(offset = -1), FocusItemByID(id), ActivateItem(offset = -1), ActivateItemByID(id) etc. which are
+    // much harder to design and implement than expected. I have a couple of private branches on this matter but it's not simple. For now implementing the easy ones.
+    void          FocusItem();                    // Focus last item (no selection/activation).
+    void          ActivateItemByID(ImGuiID id);   // Activate an item by ID (button, checkbox, tree node etc.). Activation is queued and processed on the next frame when the item is encountered again.
 
     // Inputs
     // FIXME: Eventually we should aim to move e.g. IsActiveIdUsingKey() into IsKeyXXX functions.
