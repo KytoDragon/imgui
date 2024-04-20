@@ -1894,7 +1894,7 @@ struct ImGuiWindowSettings
     // D_IMGUI: Also store the length since we are not using zero termination
     size_t         name_len;
 
-    this(size_t name_length)       { memset(&this, 0, sizeof(this)); }
+    this(size_t name_length)       { memset(&this, 0, sizeof(this)); name_len = name_length; }
     string GetName()             return { return cast(string)(cast(char*)(&this + 1))[0..name_len]; }
 }
 
