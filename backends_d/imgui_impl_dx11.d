@@ -425,7 +425,7 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
         }
 
         // Create the input layout
-        D3D11_INPUT_ELEMENT_DESC[] local_layout =
+        D3D11_INPUT_ELEMENT_DESC[3] local_layout =
         [
             { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, cast(UINT)(ImDrawVert.pos.offsetof), D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, cast(UINT)(ImDrawVert.uv.offsetof),  D3D11_INPUT_PER_VERTEX_DATA, 0 },

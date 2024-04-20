@@ -1390,7 +1390,7 @@ void AlignTextToFramePadding()
 // Horizontal/vertical separating line
 // FIXME: Surprisingly, this seemingly trivial widget is a victim of many different legacy/tricky layout issues.
 // Note how thickness == 1.0f is handled specifically as not moving CursorPos by 'thickness', but other values are.
-void SeparatorEx(ImGuiSeparatorFlags flags, float thickness)
+void SeparatorEx(ImGuiSeparatorFlags flags, float thickness = 1.0f)
 {
     ImGuiWindow* window = GetCurrentWindow();
     if (window.SkipItems)

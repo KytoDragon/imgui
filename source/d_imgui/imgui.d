@@ -1863,6 +1863,8 @@ string ImStrSkipBlank(string str)
 
 // D_IMGUI: Convert zero-terminated char array to string
 string ImCstring(const char* str) {
+    if (!str)
+        return null;
     int n = 0;
     while (str[n]) n++;
     return cast(string)str[0..n];
@@ -1967,7 +1969,7 @@ void ImFormatStringToTempBuffer(A...)(string* out_buf, string fmt, A a)
 {
     ImGuiContext* g = GImGui;
     mixin va_start!a;
-    if (fmt[0] == '%' && fmt[1] == 's' && fmt[2] == 0)
+    if (fmt == "%s")
     {
         string buf = va_arg!string(va_args); // Skip formatting when using "%s"
         *out_buf = buf;
@@ -1985,7 +1987,7 @@ void ImFormatStringToTempBuffer(A...)(string* out_buf, string fmt, A a)
 void ImFormatStringToTempBufferV(string* out_buf, string fmt, va_list args)
 {
     ImGuiContext* g = GImGui;
-    if (fmt[0] == '%' && fmt[1] == 's' && fmt[2] == 0)
+    if (fmt == "%s")
     {
         string buf = va_arg!string(args); // Skip formatting when using "%s"
         *out_buf = buf;
