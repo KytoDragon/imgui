@@ -13619,13 +13619,13 @@ static string GetClipboardTextFn_DefaultImpl(void* user_data_ctx)
 // Local Dear ImGui-only clipboard implementation, if user hasn't defined better clipboard handlers.
 static string GetClipboardTextFn_DefaultImpl(void* user_data_ctx)
 {
-    ImGuiContext& g = *cast(ImGuiContext*)user_data_ctx;
+    ImGuiContext* g = cast(ImGuiContext*)user_data_ctx;
     return g.ClipboardHandlerData.empty() ? NULL : cast(string)g.ClipboardHandlerData.asArray();
 }
 
 static void SetClipboardTextFn_DefaultImpl(void* user_data_ctx, string text)
 {
-    ImGuiContext& g = *cast(ImGuiContext*)user_data_ctx;
+    ImGuiContext* g = cast(ImGuiContext*)user_data_ctx;
     g.ClipboardHandlerData.clear();
     size_t text_end = text.length;
     g.ClipboardHandlerData.resize(cast(int)(text_end) + 1);
