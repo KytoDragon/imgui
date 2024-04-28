@@ -111,26 +111,26 @@ alias uintptr_t = size_t;
 //-------------------------------------------------------------------------
 
 // Widgets
-__gshared const float          DRAGDROP_HOLD_TO_OPEN_TIMER = 0.70f;    // Time for drag-hold to activate items accepting the ImGuiButtonFlags_PressedOnDragDropHold button behavior.
-__gshared const float          DRAG_MOUSE_THRESHOLD_FACTOR = 0.50f;    // Multiplier for the default value of io.MouseDragThreshold to make DragFloat/DragInt react faster to mouse drags.
+__gshared immutable float          DRAGDROP_HOLD_TO_OPEN_TIMER = 0.70f;    // Time for drag-hold to activate items accepting the ImGuiButtonFlags_PressedOnDragDropHold button behavior.
+__gshared immutable float          DRAG_MOUSE_THRESHOLD_FACTOR = 0.50f;    // Multiplier for the default value of io.MouseDragThreshold to make DragFloat/DragInt react faster to mouse drags.
 
 // Those MIN/MAX values are not define because we need to point to them
-__gshared const byte    IM_S8_MIN  = -128;
-__gshared const byte    IM_S8_MAX  = 127;
-__gshared const ubyte  IM_U8_MIN  = 0;
-__gshared const ubyte  IM_U8_MAX  = 0xFF;
-__gshared const short   IM_S16_MIN = -32768;
-__gshared const short   IM_S16_MAX = 32767;
-__gshared const ushort IM_U16_MIN = 0;
-__gshared const ushort IM_U16_MAX = 0xFFFF;
-__gshared const ImS32          IM_S32_MIN = INT_MIN;    // (-2147483647 - 1), (0x80000000);
-__gshared const ImS32          IM_S32_MAX = INT_MAX;    // (2147483647), (0x7FFFFFFF)
-__gshared const ImU32          IM_U32_MIN = 0;
-__gshared const ImU32          IM_U32_MAX = UINT_MAX;   // (0xFFFFFFFF)
-__gshared const ImS64          IM_S64_MIN = LLONG_MIN;  // (-9223372036854775807ll - 1ll);
-__gshared const ImS64          IM_S64_MAX = LLONG_MAX;  // (9223372036854775807ll);
-__gshared const ImU64          IM_U64_MIN = 0;
-__gshared const ImU64          IM_U64_MAX = ULLONG_MAX; // (0xFFFFFFFFFFFFFFFFull);
+__gshared immutable byte    IM_S8_MIN  = -128;
+__gshared immutable byte    IM_S8_MAX  = 127;
+__gshared immutable ubyte  IM_U8_MIN  = 0;
+__gshared immutable ubyte  IM_U8_MAX  = 0xFF;
+__gshared immutable short   IM_S16_MIN = -32768;
+__gshared immutable short   IM_S16_MAX = 32767;
+__gshared immutable ushort IM_U16_MIN = 0;
+__gshared immutable ushort IM_U16_MAX = 0xFFFF;
+__gshared immutable ImS32          IM_S32_MIN = INT_MIN;    // (-2147483647 - 1), (0x80000000);
+__gshared immutable ImS32          IM_S32_MAX = INT_MAX;    // (2147483647), (0x7FFFFFFF)
+__gshared immutable ImU32          IM_U32_MIN = 0;
+__gshared immutable ImU32          IM_U32_MAX = UINT_MAX;   // (0xFFFFFFFF)
+__gshared immutable ImS64          IM_S64_MIN = LLONG_MIN;  // (-9223372036854775807ll - 1ll);
+__gshared immutable ImS64          IM_S64_MAX = LLONG_MAX;  // (9223372036854775807ll);
+__gshared immutable ImU64          IM_U64_MIN = 0;
+__gshared immutable ImU64          IM_U64_MAX = ULLONG_MAX; // (0xFFFFFFFFFFFFFFFFull);
 
 //-------------------------------------------------------------------------
 // [SECTION] Forward Declarations
@@ -1981,7 +1981,7 @@ bool Combo(string label, int* current_item, string items_separated_by_zeros, int
 // - RoundScalarWithFormat<>()
 //-------------------------------------------------------------------------
 
-__gshared const ImGuiDataTypeInfo[ImGuiDataType.COUNT] GDataTypeInfo =
+__gshared immutable ImGuiDataTypeInfo[ImGuiDataType.COUNT] GDataTypeInfo =
 [
     { sizeof!(byte),             "S8",   "%d",   "%d"    },  // ImGuiDataType_S8
     { sizeof!(ubyte),    "U8",   "%u",   "%u"    },
@@ -2185,7 +2185,7 @@ bool DataTypeClamp(ImGuiDataType data_type, void* p_data, const void* p_min, con
 
 static float GetMinimumStepAtDecimalPrecision(int decimal_precision)
 {
-    __gshared const float[10] min_steps = [ 1.0f, 0.1f, 0.01f, 0.001f, 0.0001f, 0.00001f, 0.000001f, 0.0000001f, 0.00000001f, 0.000000001f ];
+    __gshared immutable float[10] min_steps = [ 1.0f, 0.1f, 0.01f, 0.001f, 0.0001f, 0.00001f, 0.000001f, 0.0000001f, 0.00000001f, 0.000000001f ];
     if (decimal_precision < 0)
         return FLT_MIN;
     return (decimal_precision < IM_ARRAYSIZE(min_steps)) ? min_steps[decimal_precision] : ImPow(10.0f, cast(float)-decimal_precision);
@@ -3720,7 +3720,7 @@ static int     STB_TEXTEDIT_STRINGLEN(const ImGuiInputTextState* obj)           
 static ImWchar STB_TEXTEDIT_GETCHAR(const ImGuiInputTextState* obj, int idx)                      { return obj.TextW[idx]; }
 static float   STB_TEXTEDIT_GETWIDTH(ImGuiInputTextState* obj, int line_start_idx, int char_idx)  { ImWchar c = obj.TextW[line_start_idx + char_idx]; if (c == '\n') return STB_TEXTEDIT_GETWIDTH_NEWLINE; ImGuiContext* g = obj.Ctx; return g.Font.GetCharAdvance(c) * (g.FontSize / g.Font.FontSize); }
 static int     STB_TEXTEDIT_KEYTOTEXT(int key)                                                    { return key >= 0x200000 ? 0 : key; }
-__gshared ImWchar STB_TEXTEDIT_NEWLINE = '\n';
+__gshared immutable ImWchar STB_TEXTEDIT_NEWLINE = '\n';
 static void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* obj, int line_start_idx)
 {
     const (ImWchar)* text = obj.TextW.Data;
@@ -5212,14 +5212,14 @@ bool ColorEdit4(string label, float[/*4*/] col, ImGuiColorEditFlags flags = ImGu
         const float w_item_last = ImMax(1.0f, IM_FLOOR(w_inputs - (w_item_one + style.ItemInnerSpacing.x) * (components - 1)));
 
         const bool hide_prefix = (w_item_one <= CalcTextSize((flags & ImGuiColorEditFlags.Float) ? "M:0.000" : "M:000").x);
-        __gshared string[4] ids = [ "##X", "##Y", "##Z", "##W" ];
-        __gshared string[4][3] fmt_table_int =
+        __gshared immutable string[4] ids = [ "##X", "##Y", "##Z", "##W" ];
+        __gshared immutable string[4][3] fmt_table_int =
         [
             [   "%3d",   "%3d",   "%3d",   "%3d" ], // Short display
             [ "R:%3d", "G:%3d", "B:%3d", "A:%3d" ], // Long display for RGBA
             [ "H:%3d", "S:%3d", "V:%3d", "A:%3d" ]  // Long display for HSVA
         ];
-        __gshared string[4][3] fmt_table_float =
+        __gshared immutable string[4][3] fmt_table_float =
         [
             [   "%0.3f",   "%0.3f",   "%0.3f",   "%0.3f" ], // Short display
             [ "R:%0.3f", "G:%0.3f", "B:%0.3f", "A:%0.3f" ], // Long display for RGBA

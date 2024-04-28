@@ -1996,7 +1996,7 @@ this(bool dummy)
 // (This is used when io.MouseDrawCursor = true)
 const int FONT_ATLAS_DEFAULT_TEX_DATA_W = 122; // Actual texture will be 2 times that + 1 spacing.
 const int FONT_ATLAS_DEFAULT_TEX_DATA_H = 27;
-__gshared immutable(string) FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS =
+__gshared immutable string FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS =
     "..-         -XXXXXXX-    X    -           X           -XXXXXXX          -          XXXXXXX-     XX          - XX       XX "
     ~"..-         -X.....X-   X.X   -          X.X          -X.....X          -          X.....X-    X..X         -X..X     X..X"
     ~"---         -XXX.XXX-  X...X  -         X...X         -X....X           -           X....X-    X..X         -X...X   X...X"
@@ -2027,7 +2027,7 @@ __gshared immutable(string) FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS =
 ;
 static assert(FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS.length == FONT_ATLAS_DEFAULT_TEX_DATA_W * FONT_ATLAS_DEFAULT_TEX_DATA_H);
 
-__gshared const ImVec2[3][ImGuiMouseCursor.COUNT] FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA =
+__gshared immutable ImVec2[3][ImGuiMouseCursor.COUNT] FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA =
 [
     // Pos ........ Size ......... Offset ......
     [ ImVec2( 0,3), ImVec2(12,19), ImVec2( 0, 0) ], // ImGuiMouseCursor_Arrow
@@ -2929,7 +2929,7 @@ struct ImFontAtlas_Wrapper2 {
 // Retrieve list of range (2 int per range, values are inclusive)
 const (ImWchar)*   GetGlyphRangesDefault()
 {
-    __gshared const ImWchar[] ranges =
+    __gshared immutable ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
         0,
@@ -2939,7 +2939,7 @@ const (ImWchar)*   GetGlyphRangesDefault()
 
 const (ImWchar)*   GetGlyphRangesGreek()
 {
-    __gshared const ImWchar[] ranges =
+    __gshared immutable ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
         0x0370, 0x03FF, // Greek and Coptic
@@ -2950,7 +2950,7 @@ const (ImWchar)*   GetGlyphRangesGreek()
 
 const (ImWchar)*  GetGlyphRangesKorean()
 {
-    __gshared const ImWchar[] ranges =
+    __gshared immutable ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
         0x3131, 0x3163, // Korean alphabets
@@ -2963,7 +2963,7 @@ const (ImWchar)*  GetGlyphRangesKorean()
 
 const (ImWchar)*  GetGlyphRangesChineseFull()
 {
-    __gshared const ImWchar[] ranges =
+    __gshared immutable ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
         0x2000, 0x206F, // General Punctuation
@@ -2998,7 +2998,7 @@ const (ImWchar)*  GetGlyphRangesChineseSimplifiedCommon()
     // This table covers 97.97% of all characters used during the month in July, 1987.
     // You can use ImFontGlyphRangesBuilder to create your own ranges derived from this, by merging existing ranges or adding new characters.
     // (Stored as accumulative offsets from the initial unicode codepoint 0x4E00. This encoding is designed to helps us compact the source code size.)
-    __gshared const short[2500] accumulative_offsets_from_0x4E00 =
+    __gshared immutable short[2500] accumulative_offsets_from_0x4E00 =
     [
         0,1,2,4,1,1,1,1,2,1,3,2,1,2,2,1,1,1,1,1,5,2,1,2,3,3,3,2,2,4,1,1,1,2,1,5,2,3,1,2,1,2,1,1,2,1,1,2,2,1,4,1,1,1,1,5,10,1,2,19,2,1,2,1,2,1,2,1,2,
         1,5,1,6,3,2,1,2,2,1,1,1,4,8,5,1,1,4,1,1,3,1,2,1,5,1,2,1,1,1,10,1,1,5,2,4,6,1,4,2,2,2,12,2,1,1,6,1,1,1,4,1,1,4,6,5,1,4,2,2,4,10,7,1,1,4,2,4,
@@ -3041,7 +3041,7 @@ const (ImWchar)*  GetGlyphRangesChineseSimplifiedCommon()
         2,2,7,34,21,13,70,2,128,1,1,2,1,1,2,1,1,3,2,2,2,15,1,4,1,3,4,42,10,6,1,49,85,8,1,2,1,1,4,4,2,3,6,1,5,7,4,3,211,4,1,2,1,2,5,1,2,4,2,2,6,5,6,
         10,3,4,48,100,6,2,16,296,5,27,387,2,2,3,7,16,8,5,38,15,39,21,9,10,3,7,59,13,27,21,47,5,21,6
     ];
-    __gshared const ImWchar[12] base_ranges = // not zero-terminated
+    __gshared immutable ImWchar[12] base_ranges = // not zero-terminated
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
         0x2000, 0x206F, // General Punctuation
@@ -3081,7 +3081,7 @@ const (ImWchar)*  GetGlyphRangesJapanese()
     // - Missing 1 Joyo Kanji: U+20B9F (Kun'yomi: Shikaru, On'yomi: Shitsu,shichi), see https://github.com/ocornut/imgui/pull/3627 for details.
     // You can use ImFontGlyphRangesBuilder to create your own ranges derived from this, by merging existing ranges or adding new characters.
     // (Stored as accumulative offsets from the initial unicode codepoint 0x4E00. This encoding is designed to helps us compact the source code size.)
-    __gshared const short[2999] accumulative_offsets_from_0x4E00 =
+    __gshared immutable short[2999] accumulative_offsets_from_0x4E00 =
     [
         0,1,2,4,1,1,1,1,2,1,3,3,2,2,1,5,3,5,7,5,6,1,2,1,7,2,6,3,1,8,1,1,4,1,1,18,2,11,2,6,2,1,2,1,5,1,2,1,3,1,2,1,2,3,3,1,1,2,3,1,1,1,12,7,9,1,4,5,1,
         1,2,1,10,1,1,9,2,2,4,5,6,9,3,1,1,1,1,9,3,18,5,2,2,2,2,1,6,3,7,1,1,1,1,2,2,4,2,1,23,2,10,4,3,5,2,4,10,2,4,13,1,6,1,9,3,1,1,6,6,7,6,3,1,2,11,3,
@@ -3132,7 +3132,7 @@ const (ImWchar)*  GetGlyphRangesJapanese()
         4,1,10,3,1,6,1,2,51,5,40,15,24,43,22928,11,1,13,154,70,3,1,1,7,4,10,1,2,1,1,2,1,2,1,2,2,1,1,2,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,
         3,2,1,1,1,1,2,1,1,
     ];
-    __gshared const ImWchar[10] base_ranges = // not zero-terminated
+    __gshared immutable ImWchar[10] base_ranges = // not zero-terminated
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
         0x3000, 0x30FF, // CJK Symbols and Punctuations, Hiragana, Katakana
@@ -3151,7 +3151,7 @@ const (ImWchar)*  GetGlyphRangesJapanese()
 
 const (ImWchar)*  GetGlyphRangesCyrillic()
 {
-    __gshared const ImWchar[] ranges =
+    __gshared immutable ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
         0x0400, 0x052F, // Cyrillic + Cyrillic Supplement
@@ -3164,7 +3164,7 @@ const (ImWchar)*  GetGlyphRangesCyrillic()
 
 const (ImWchar)*  GetGlyphRangesThai()
 {
-    __gshared const ImWchar[] ranges =
+    __gshared immutable ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin
         0x2010, 0x205E, // Punctuations
@@ -3176,7 +3176,7 @@ const (ImWchar)*  GetGlyphRangesThai()
 
 const (ImWchar)*  GetGlyphRangesVietnamese()
 {
-    __gshared const ImWchar[] ranges =
+    __gshared immutable ImWchar[] ranges =
     [
         0x0020, 0x00FF, // Basic Latin
         0x0102, 0x0103,
@@ -4227,7 +4227,7 @@ static uint stb_decompress(ubyte *output, const (ubyte) *i, uint /*length*/)
 // Exported using misc/fonts/binary_to_compressed_c.cpp (with compression + base85 string encoding).
 // The purpose of encoding as base85 instead of "0x00,0x01,..." style is only save on _source code_ size.
 //-----------------------------------------------------------------------------
-__gshared immutable(string) proggy_clean_ttf_compressed_data_base85 =
+__gshared immutable string proggy_clean_ttf_compressed_data_base85 =
     "7])#######hV0qs'/###[),##/l:$#Q6>##5[n42>c-TH`->>#/e>11NNV=Bv(*:.F?uu#(gRU.o0XGH`$vhLG1hxt9?W`#,5LsCp#-i>.r$<$6pD>Lb';9Crc6tgXmKVeU2cD4Eo3R/"
     ~"2*>]b(MC;$jPfY.;h^`IWM9<Lh2TlS+f-s$o6Q<BWH`YiU.xfLq$N;$0iR/GX:U(jcW2p/W*q?-qmnUCI;jHSAiFWM.R*kU@C=GH?a9wp8f$e.-4^Qg1)Q-GL(lf(r/7GrRgwV%MS=C#"
     ~"`8ND>Qo#t'X#(v#Y9w0#1D$CIf;W'#pWUPXOuxXuU(H9M(1<q-UE31#^-V'8IRUo7Qf./L>=Ke$$'5F%)]0^#0X@U.a<r:QLtFsLcL6##lOj)#.Y5<-R&KgLwqJfLgN&;Q?gI^#DY2uL"

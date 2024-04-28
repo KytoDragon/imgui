@@ -2562,7 +2562,7 @@ struct ImGuiTextBuffer
     @nogc:
 
     ImVector!char      Buf;
-    __gshared char[1] EmptyString = 0;
+    __gshared immutable char[1] EmptyString = 0;
 
     // ImGuiTextBuffer()   { }
     void destroy() { Buf.destroy(); }

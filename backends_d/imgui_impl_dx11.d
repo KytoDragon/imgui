@@ -387,7 +387,7 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
 
     // Create the vertex shader
     {
-        __gshared string vertexShader =
+        __gshared immutable string vertexShader =
             "cbuffer vertexBuffer : register(b0) 
             {
               float4x4 ProjectionMatrix; 
@@ -452,7 +452,7 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
 
     // Create the pixel shader
     {
-        __gshared string pixelShader =
+        __gshared immutable string pixelShader =
             "struct PS_INPUT
             {
             float4 pos : SV_POSITION;

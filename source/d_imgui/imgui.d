@@ -1010,16 +1010,16 @@ enum IMGUI_DEBUG_NAV_SCORING     = 0;   // Display navigation scoring preview wh
 enum IMGUI_DEBUG_NAV_RECTS       = 0;   // Display the reference navigation rectangle for each window
 
 // When using CTRL+TAB (or Gamepad Square+L/R) we delay the visual a little in order to reduce visual noise doing a fast switch.
-__gshared const float NAV_WINDOWING_HIGHLIGHT_DELAY            = 0.20f;    // Time before the highlight and screen dimming starts fading in
-__gshared const float NAV_WINDOWING_LIST_APPEAR_DELAY          = 0.15f;    // Time before the window list starts to appear
+__gshared immutable float NAV_WINDOWING_HIGHLIGHT_DELAY            = 0.20f;    // Time before the highlight and screen dimming starts fading in
+__gshared immutable float NAV_WINDOWING_LIST_APPEAR_DELAY          = 0.15f;    // Time before the window list starts to appear
 
 // Window resizing from edges (when io.ConfigWindowsResizeFromEdges = true and ImGuiBackendFlags_HasMouseCursors is set in io.BackendFlags by backend)
-__gshared const float WINDOWS_HOVER_PADDING                    = 4.0f;     // Extend outside window for hovering/resizing (maxxed with TouchPadding) and inside windows for borders. Affect FindHoveredWindow().
-__gshared const float WINDOWS_RESIZE_FROM_EDGES_FEEDBACK_TIMER = 0.04f;    // Reduce visual noise by only highlighting the border after a certain time.
-__gshared const float WINDOWS_MOUSE_WHEEL_SCROLL_LOCK_TIMER    = 0.70f;    // Lock scrolled window (so it doesn't pick child windows that are scrolling through) for a certain time, unless mouse moved.
+__gshared immutable float WINDOWS_HOVER_PADDING                    = 4.0f;     // Extend outside window for hovering/resizing (maxxed with TouchPadding) and inside windows for borders. Affect FindHoveredWindow().
+__gshared immutable float WINDOWS_RESIZE_FROM_EDGES_FEEDBACK_TIMER = 0.04f;    // Reduce visual noise by only highlighting the border after a certain time.
+__gshared immutable float WINDOWS_MOUSE_WHEEL_SCROLL_LOCK_TIMER    = 0.70f;    // Lock scrolled window (so it doesn't pick child windows that are scrolling through) for a certain time, unless mouse moved.
 
 // Tooltip offset
-__gshared const ImVec2 TOOLTIP_DEFAULT_OFFSET = ImVec2(16, 10);            // Multiplied by g.Style.MouseCursorScale
+__gshared immutable ImVec2 TOOLTIP_DEFAULT_OFFSET = ImVec2(16, 10);            // Multiplied by g.Style.MouseCursorScale
 
 //-------------------------------------------------------------------------
 // [SECTION] FORWARD DECLARATIONS
@@ -2004,7 +2004,7 @@ void ImFormatStringToTempBufferV(string* out_buf, string fmt, va_list args)
 // CRC32 needs a 1KB lookup table (not cache friendly)
 // Although the code to generate the table is simple and shorter than the table itself, using a const table allows us to easily:
 // - avoid an unnecessary branch/memory tap, - keep the ImHashXXX functions usable by static constructors, - make it thread-safe.
-__gshared const ImU32[256] GCrc32LookupTable =
+__gshared immutable ImU32[256] GCrc32LookupTable =
 [
     0x00000000,0x77073096,0xEE0E612C,0x990951BA,0x076DC419,0x706AF48F,0xE963A535,0x9E6495A3,0x0EDB8832,0x79DCB8A4,0xE0D5E91E,0x97D2D988,0x09B64C2B,0x7EB17CBD,0xE7B82D07,0x90BF1D91,
     0x1DB71064,0x6AB020F2,0xF3B97148,0x84BE41DE,0x1ADAD47D,0x6DDDE4EB,0xF4D4B551,0x83D385C7,0x136C9856,0x646BA8C0,0xFD62F97A,0x8A65C9EC,0x14015C4F,0x63066CD9,0xFA0F3D63,0x8D080DF5,
@@ -3243,7 +3243,7 @@ void PopStyleColor(int count = 1)
     }
 }
 
-__gshared const ImGuiDataVarInfo[ImGuiStyleVar.COUNT] GStyleVarInfo =
+__gshared immutable ImGuiDataVarInfo[ImGuiStyleVar.COUNT] GStyleVarInfo =
 [
     { ImGuiDataType.Float, 1, cast(ImU32)(ImGuiStyle.Alpha.offsetof) },               // ImGuiStyleVar_Alpha
     { ImGuiDataType.Float, 1, cast(ImU32)(ImGuiStyle.DisabledAlpha.offsetof) },       // ImGuiStyleVar_DisabledAlpha
@@ -3699,7 +3699,7 @@ void DestroyContext(ImGuiContext* ctx = NULL)
 import std.conv : to;
 
 // IMPORTANT: ###xxx suffixes must be same in ALL languages
-__gshared const ImGuiLocEntry[8] GLocalizationEntriesEnUS =
+__gshared immutable ImGuiLocEntry[8] GLocalizationEntriesEnUS =
 [
     { ImGuiLocKey.VersionStr,           "Dear ImGui " ~ IMGUI_VERSION ~ " (" ~ to!string(IMGUI_VERSION_NUM) ~ ")" },
     { ImGuiLocKey.TableSizeOne,         "Size column to fit###SizeOne"          },
@@ -5950,7 +5950,7 @@ struct ImGuiResizeGripDef
     ImVec2  InnerDir;
     int     AngleMin12, AngleMax12;
 }
-__gshared const ImGuiResizeGripDef[4] resize_grip_def =
+__gshared immutable ImGuiResizeGripDef[4] resize_grip_def =
 [
     { ImVec2(1, 1), ImVec2(-1, -1), 0, 3 },  // Lower-right
     { ImVec2(0, 1), ImVec2(+1, -1), 3, 6 },  // Lower-left
@@ -5965,7 +5965,7 @@ struct ImGuiResizeBorderDef
     ImVec2 SegmentN1, SegmentN2;
     float  OuterAngle;
 }
-__gshared const ImGuiResizeBorderDef[4] resize_border_def =
+__gshared immutable ImGuiResizeBorderDef[4] resize_border_def =
 [
     { ImVec2(+1, 0), ImVec2(0, 1), ImVec2(0, 0), IM_PI * 1.00f }, // Left
     { ImVec2(-1, 0), ImVec2(1, 0), ImVec2(1, 1), IM_PI * 0.00f }, // Right
@@ -8123,7 +8123,7 @@ ImGuiKey GetKeyIndex(ImGuiKey key)
 }
 
 // Those names a provided for debugging purpose and are not meant to be saved persistently not compared.
-__gshared const string[ImGuiKey.NamedKey_COUNT] GKeyNames =
+__gshared immutable string[ImGuiKey.NamedKey_COUNT] GKeyNames =
 [
     "Tab", "LeftArrow", "RightArrow", "UpArrow", "DownArrow", "PageUp", "PageDown",
     "Home", "End", "Insert", "Delete", "Backspace", "Space", "Enter", "Escape",
@@ -13545,7 +13545,7 @@ static void SetClipboardTextFn_DefaultImpl(void*, string text)
     if (!OpenClipboard(NULL))
         return;
     const int wbuf_length = MultiByteToWideChar(CP_UTF8, 0, text.ptr, cast(int)text.length, NULL, 0);
-    HGLOBAL wbuf_handle = GlobalAlloc(GMEM_MOVEABLE, cast(size_t)wbuf_length * sizeof!(WCHAR) + 1);
+    HGLOBAL wbuf_handle = GlobalAlloc(GMEM_MOVEABLE, cast(size_t)(wbuf_length + 1) * sizeof!(WCHAR));
     if (wbuf_handle == NULL)
     {
         CloseClipboard();

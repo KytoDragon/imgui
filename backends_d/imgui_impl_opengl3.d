@@ -237,7 +237,7 @@ enum IMGUI_IMPL_OPENGL_MAY_HAVE_PRIMITIVE_RESTART = glSupport >= 31;
 enum IMGUI_IMPL_OPENGL_MAY_HAVE_EXTENSIONS = !IMGUI_IMPL_OPENGL_ES2 && !IMGUI_IMPL_OPENGL_ES3;
 
 // [Debugging]
-version = IMGUI_IMPL_OPENGL_DEBUG;
+//version = IMGUI_IMPL_OPENGL_DEBUG;
 version (IMGUI_IMPL_OPENGL_DEBUG) {
     import core.stdc.stdio : printf;
     void GL_CALL(alias f, T...)(T t, string file = __FILE__, size_t line = __LINE__)      {
