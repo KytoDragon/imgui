@@ -3715,7 +3715,7 @@ void RenderText(ImDrawList* draw_list, float size, const ImVec2/*&*/ pos, ImU32 
     if (y + line_height < clip_rect.y)
         while (y + line_height < clip_rect.y && s < text.length)
         {
-            ptrdiff_t line_end = ImIndexOf(text[s..$], '\n');
+            ptrdiff_t line_end = ImIndexOf(text, s, '\n');
             if (word_wrap_enabled)
             {
                 // FIXME-OPT: This is not optimal as do first do a search for \n before calling CalcWordWrapPositionA().
